@@ -1,6 +1,6 @@
-# Astro for React Developers
+# PWA — From Zero to Hero
 
-A bilingual, interactive course that teaches **Astro** to developers who already know **React/Next**, using a comparison-first approach. Every concept is introduced from the React perspective first (component → `.astro` file, function body → server-side `---` frontmatter, returned JSX → HTML-first template, props → `Astro.props`, `children` → `<slot>`, full-app hydration → **islands** with `client:` directives, `getServerSideProps`/`useEffect` → top-level `await` in frontmatter), then mapped to the Astro equivalent — with the key differences called out. A recurring theme: **you can keep using your React components** inside Astro as islands.
+A bilingual (EN/TH), standalone, beginner→advanced course on **Progressive Web Apps** — from first principles (web app manifest, service workers, caching, offline) through push and advanced capabilities, plus dedicated framework sessions for **React, Astro, and Svelte**. Examples run in **StackBlitz** (real service workers + manifests, installable), diagrams are **Mermaid**, and there's a **read-mode** toggle.
 
 ## Tech Stack
 
@@ -8,14 +8,13 @@ A bilingual, interactive course that teaches **Astro** to developers who already
 | ----- | ---------- |
 | Site framework | [Astro 6](https://astro.build) + [Starlight 0.40](https://starlight.astro.build) |
 | UI islands | [Preact](https://preactjs.com) (via `@astrojs/preact`) |
-| Runnable Astro | **"Open in StackBlitz"** — each example shows the `.astro` code with a button that opens a real, runnable Astro project in [StackBlitz](https://stackblitz.com) (WebContainer, in-browser) via the StackBlitz SDK; `astro.new` fallback |
+| Hands-on | **`<PwaPlayground>`** opens a runnable multi-file PWA in [StackBlitz](https://stackblitz.com) (WebContainers run a real service worker + manifest); lessons also show copy-able snippets. |
+| Diagrams | Client-side, theme-aware **Mermaid** (`<Mermaid>` + `public/enhance.js`) |
+| Reading | **Read-mode** toggle (hides sidebar/TOC, widens content) via `public/enhance.js` |
 | Unit tests | [Vitest](https://vitest.dev) + `@testing-library/preact` |
-| Styling | Starlight default + custom CSS (`src/styles/custom.css`) |
 | i18n | Starlight built-in, `defaultLocale: 'en'`, locales: `en` + `th` |
 
 ## Commands
-
-Run all commands from the project root.
 
 ```bash
 npm install        # Install dependencies
@@ -25,78 +24,56 @@ npm run preview    # Preview the production build locally
 npm test           # Run Vitest unit tests
 ```
 
-> There is **no runner build step** — example Astro code runs on the external StackBlitz service via the "Open in StackBlitz" button (no backend, no embedded compiler).
-
 ## Content Structure
 
 ```
 src/content/docs/
-  en/              # English content — served at /en/...
-    intro/
-    components/
-    islands/
-    routing/
-    content/
-    styling/
-    tooling/
-    index.mdx      # EN landing page (splash template)
-  th/              # Thai content — served at /th/...
+  en/                          # English — served at /en/...
+    intro-what-is-pwa/
+    web-app-manifest/
+    service-workers/
+    caching-strategies/
+    offline-app-shell/
+    push-advanced/
+    pwa-with-react/
+    pwa-with-astro/
+    pwa-with-svelte/
+    index.mdx                  # EN landing (splash)
+  th/                          # Thai — served at /th/...
     (same module directories)
-    index.mdx      # TH landing page (splash template)
+    index.mdx
 ```
 
-### The 7 Modules
+### The 9 Modules
 
-| Directory | Module | Topics |
-| --------- | ------ | ------ |
-| `intro` | Introduction & Setup | Why Astro, islands architecture, MPA vs SPA, ship-less-JS, first page |
-| `components` | .astro Components | Frontmatter (server), `Astro.props`, slots, expressions, zero-JS by default vs JSX |
-| `islands` | Islands & Using React | `client:` directives, partial vs full-app hydration, **using React in Astro** |
-| `routing` | Routing & Layouts | File-based routing, dynamic routes + `getStaticPaths`, layouts vs react-router/Next |
-| `content` | Content & Data | Frontmatter `await`, content collections vs `getServerSideProps`/`useEffect` |
-| `styling` | Styling | Scoped `<style>`, global styles, `define:vars`/`class:list`, Tailwind |
-| `tooling` | Tooling, Testing & Deployment | `astro` CLI, integrations, `astro check`, static vs SSR, deploy |
+| Directory | Module |
+| --------- | ------ |
+| `intro-what-is-pwa` | Intro: What is a PWA? |
+| `web-app-manifest` | Web App Manifest |
+| `service-workers` | Service Workers |
+| `caching-strategies` | Caching Strategies |
+| `offline-app-shell` | Offline & App Shell |
+| `push-advanced` | Push & Advanced |
+| `pwa-with-react` | PWA with React (`vite-plugin-pwa`) |
+| `pwa-with-astro` | PWA with Astro (`@vite-pwa/astro`) |
+| `pwa-with-svelte` | PWA with Svelte (`@vite-pwa/sveltekit`) |
 
-### Lesson File IDs
+### Components & Lesson Template
 
-Content IDs follow the `<module>/<slug>` convention, e.g. `components/props`. The Starlight sidebar uses `autogenerate: { directory }` per locale root.
+- **`PwaPlayground.tsx`** `{ files, openFile? }` — opens a multi-file PWA project in StackBlitz; `pwa-project.ts` `buildPwaProject(files)` merges the lesson's `files` onto a static `serve` base. Author runnable demos as a hoisted `export const proj = { 'index.html': …, 'sw.js': …, 'manifest.webmanifest': … }` then `<PwaPlayground files={proj} />`.
+- **`Mermaid.astro`** `{ code, title }` — diagrams (hoisted `export const ...Diagram`).
+- **`Callout.astro`** `{ title }`, **`Quiz.tsx`** `{ id, questions }` (0-based `answer`, field `q`), **`ProgressTracker.tsx`** `{ id }`.
 
-### Lesson Template
+Lesson order: frontmatter → imports → concept intro → prose (fenced code + `<Mermaid>`) → `export const proj` + `<PwaPlayground>` (where runnable) → `<Callout>` → `<Quiz>` → `<ProgressTracker>` (last). IDs follow `<module>/<slug>`.
 
-1. **Intro** — React-analogy framing
-2. **Concept** — prose explanation
-3. **ReactAstro** — `<ReactAstro react={...} astro={...} />` side-by-side React ↔ Astro code
-4. **AstroPlayground** — `<AstroPlayground code={...} />` a complete runnable `.astro` page + "Open in StackBlitz" button (omitted in CLI/multi-file lessons, which use code blocks)
-5. **Diff** — `<Diff>` callout for key React → Astro differences
-6. **Quiz** — `<Quiz questions={...} />`
-7. **ProgressTracker** — `<ProgressTracker id="module/slug" />` (always last)
-
-Code is hoisted into `export const` template literals and passed by reference.
-
-> **⚠️ Authoring gotchas (MDX is sensitive to braces; Astro templates use `{ }`):**
-> - **Never put a bare `{...}` in prose or headings** — Astro `{expr}`/`{items.map(...)}` in a heading or paragraph is parsed as a JS expression and breaks the build. Keep them inside backtick code spans or `export const` strings. (Quiz strings, `<Diff title="…">` attributes, and frontmatter are safe — MDX doesn't parse those.)
-> - **In `export const` code literals, escape `${`→`\${`** — JS/Astro template-literal interpolation (e.g. `` `btn--${x}` ``) inside an `export const` backtick string must be `\${`; double-escape `\\n`/`\\t` too.
-> - **Frontmatter `title`/`description`**: single-quote values with a colon/backtick (double-quote if they contain an apostrophe); never use a `\` escape inside a YAML scalar.
-> - **Internal links must include the base path**, e.g. `/astro-for-react-developers/en/components/props/`.
-
-## How the Runner Works
-
-Astro renders at build/SSR time, so a single `.astro` component can't be compiled and rendered client-side. Instead, `<AstroPlayground>` (`src/components/AstroPlayground.tsx`) shows the `.astro` source and an **"Open in StackBlitz ▸"** button that lazy-loads the [StackBlitz SDK](https://developer.stackblitz.com/platform/api/javascript-sdk) from esm.sh and calls `sdk.openProject(...)` with a minimal runnable Astro project (`src/components/astro-project.ts` builds `package.json` + `astro.config.mjs` + your snippet as `src/pages/index.astro`). StackBlitz boots a WebContainer dev server in the browser. If the SDK fails, it copies the code and opens `astro.new`.
+> **⚠️ Authoring notes:**
+> - **In `export const` snippets escape `${`→`\${`** (SW code/template literals) and double-escape `\\n`. Fenced blocks are literal.
+> - **Never a bare `{...}`/`${...}` in prose** — keep manifest JSON, JS objects, and JSX in code spans / fenced blocks / `export const`. **Diagrams are Mermaid, not ASCII.**
+> - **Internal links include the base path**, e.g. `/pwa-from-zero-to-hero/en/service-workers/`.
+> - Use **current PWA APIs + plugins** (`vite-plugin-pwa`, `@vite-pwa/astro`, `@vite-pwa/sveltekit`).
 
 ## Deployment
 
-Fully static (`output: 'static'`). Build output → `dist/`. Deploy to any static host (GitHub Pages, Netlify, Vercel, Cloudflare Pages).
+Fully static → `dist/`. Base path in `astro.config.mjs`: `site: 'https://avetavos.github.io'`, `base: '/pwa-from-zero-to-hero'`.
 
-### GitHub Pages (configured)
-
-Deploys via `.github/workflows/deploy.yml` (build with `withastro/action` on Node 22, publish with `actions/deploy-pages`).
-
-One-time setup:
-
-1. Create a GitHub repo and push (`main`).
-2. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
-3. Confirm the base path in `astro.config.mjs`:
-   - **Project site** (`https://USER.github.io/REPO/`): `site: 'https://USER.github.io'`, `base: '/REPO'` (currently `avetavos` / `astro-for-react-developers`).
-   - **User/org site** or **custom domain**: set `site` and **remove `base`** (served at root).
-
-If you change `base`, update the base-prefixed links in `src/content/docs/**` (landing pages and module index lesson tables).
+Deployed to GitHub Pages via **branch-source** (`gh-pages`): build `dist/`, add `.nojekyll`, push `dist/` to `gh-pages`, set **Settings → Pages → Source: Deploy from a branch → `gh-pages` / `/`**, then **request a Pages build** (`gh api -X POST repos/<owner>/<repo>/pages/builds`) — flipping the source alone does not trigger one. If you change `base`, update the base-prefixed links in `src/content/docs/{en,th}/index.mdx`.
