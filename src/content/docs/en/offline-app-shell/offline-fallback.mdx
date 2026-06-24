@@ -1,0 +1,251 @@
+---
+title: Offline Fallback Page
+description: 'Precache an offline.html page and serve it from the service worker when navigation requests fail, so users never see the browser error screen.'
+sidebar:
+  order: 2
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Serving an offline fallback page
+
+The simplest improvement you can make to a PWA that has no offline strategy is adding a single **offline fallback page**. When a user navigates to your site and the network is unavailable, instead of the browser's error screen, they see a branded, friendly page that tells them they are offline and provides helpful context.
+
+### The two-step pattern
+
+1. **On `install`** — precache `offline.html` so it is available immediately, even before the user has ever visited any other page.
+2. **On `fetch`** — intercept navigation requests (`event.request.mode === 'navigate'`), try the network, and catch failures by serving the cached `offline.html`.
+
+This pattern is deliberately minimal. It does not intercept sub-resources (images, scripts, API calls) — only top-level page navigations. That keeps the logic simple and avoids unintended side effects on API calls.
+
+### Precaching on install
+
+```js
+const OFFLINE_URL = '/offline.html';
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('offline-v1').then((cache) => cache.addAll([OFFLINE_URL]))
+  );
+  self.skipWaiting();
+});
+```
+
+`event.waitUntil()` keeps the install phase alive until the Promise resolves, ensuring the file is cached before the SW activates. `self.skipWaiting()` makes the new SW take control immediately without waiting for the old one to be released.
+
+### Intercepting navigation requests
+
+```js
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode !== 'navigate') return;
+
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match('/offline.html'))
+  );
+});
+```
+
+`event.request.mode === 'navigate'` is true only for top-level navigation requests — clicking a link, entering a URL, or refreshing the page. Sub-resource requests (CSS, JS, XHR) have other modes (`'cors'`, `'no-cors'`, `'same-origin'`), so this guard ensures we only intercept page loads.
+
+### Activating and claiming clients
+
+```js
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+```
+
+`self.clients.claim()` makes the service worker take control of already-open pages without requiring a reload. Without it, the current page is not controlled until the next navigation.
+
+### Navigation request flow
+
+export const fallbackDiagram = `sequenceDiagram
+  participant U as User
+  participant SW as Service Worker
+  participant N as Network
+  participant C as Cache Storage
+
+  U->>SW: navigate to /page (mode: navigate)
+  SW->>N: fetch(request)
+  alt Network available
+    N-->>SW: 200 OK Response
+    SW-->>U: Page renders normally
+  else Network unavailable
+    N--xSW: fetch() rejects
+    SW->>C: caches.match('/offline.html')
+    C-->>SW: cached offline.html
+    SW-->>U: Offline fallback page
+  end`;
+
+<Mermaid code={fallbackDiagram} title="Navigation fetch flow with offline fallback" />
+
+### Try it live
+
+The demo below registers a service worker that precaches `offline.html`. Open the StackBlitz preview, then use the browser's DevTools Network tab to toggle offline mode and reload the page — you should see the offline fallback instead of the dinosaur.
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Offline Fallback Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 600px; margin: 4rem auto; padding: 0 1rem; }
+      h1 { color: #5A0FC8; }
+    </style>
+  </head>
+  <body>
+    <h1>Offline Fallback Demo</h1>
+    <p>This page is served normally from the network.</p>
+    <p>To test the offline fallback:</p>
+    <ol>
+      <li>Open DevTools (F12) → Network tab</li>
+      <li>Check the "Offline" checkbox</li>
+      <li>Reload the page</li>
+    </ol>
+    <p>You should see the offline fallback page instead of the browser error screen.</p>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+          .then((r) => console.log('SW registered, scope:', r.scope))
+          .catch((e) => console.error('SW registration failed:', e));
+      }
+    </script>
+  </body>
+</html>`,
+  'offline.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>You are offline</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 600px;
+        margin: 4rem auto;
+        padding: 0 1rem;
+        text-align: center;
+      }
+      h1 { color: #5A0FC8; font-size: 2rem; }
+      p { color: #555; line-height: 1.6; }
+      .icon { font-size: 4rem; }
+    </style>
+  </head>
+  <body>
+    <div class="icon">📡</div>
+    <h1>You are offline</h1>
+    <p>It looks like you have lost your internet connection.</p>
+    <p>Please check your network and try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </body>
+</html>`,
+  'sw.js': `const CACHE_NAME = 'offline-v1';
+const OFFLINE_URL = '/offline.html';
+
+self.addEventListener('install', (event) => {
+  console.log('[SW] Installing — precaching offline page');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll([OFFLINE_URL]))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating');
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  // Only handle top-level navigation requests
+  if (event.request.mode !== 'navigate') return;
+
+  console.log('[SW] Navigation request for:', event.request.url);
+
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      console.log('[SW] Network failed — serving offline fallback');
+      return caches.match(OFFLINE_URL);
+    })
+  );
+});`,
+  'manifest.webmanifest': `{
+  "name": "Offline Fallback Demo",
+  "short_name": "Offline Demo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}`,
+};
+
+<PwaPlayground files={proj} openFile="sw.js" />
+
+### What to put in your offline page
+
+A good offline fallback page should:
+
+- **Match your brand** — same fonts, colors, and logo as the rest of the app.
+- **Explain the situation clearly** — "You are offline" is better than a generic error.
+- **Offer a retry button** — `location.reload()` is sufficient.
+- **Be completely self-contained** — no external stylesheets or scripts, because those will also fail offline.
+- **Stay small** — under 5 KB compressed so it precaches instantly.
+
+<Callout title="Key point">
+Handle navigation requests specially — serve a cached page or an offline fallback so users never see the dino.
+</Callout>
+
+export const quizFallback = [
+  {
+    q: 'Which event.request.mode value identifies a top-level page navigation?',
+    options: ['"same-origin"', '"cors"', '"navigate"', '"no-cors"'],
+    answer: 2,
+  },
+  {
+    q: 'Why is self.skipWaiting() called in the install event?',
+    options: [
+      'To delete old caches immediately',
+      'To make the newly installed SW take control without waiting for old clients to close',
+      'To prevent the fetch event from firing during install',
+      'To register the offline page with the browser',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does event.waitUntil() do in the install handler?',
+    options: [
+      'It delays the page load until caching is complete',
+      'It keeps the install phase alive until the supplied Promise resolves',
+      'It waits for the user to grant cache storage permission',
+      'It prevents activate from firing',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why should an offline.html fallback page be completely self-contained (no external CSS or JS)?',
+    options: [
+      'The Cache Storage API cannot store sub-resources',
+      'External resources will also fail to load when the user is offline',
+      'Browsers block external resources in service worker responses',
+      'Self-contained pages load faster on HTTPS',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/offline-fallback" questions={quizFallback} />
+
+<ProgressTracker client:visible id="offline-app-shell/offline-fallback" />

@@ -1,0 +1,152 @@
+---
+title: Display และ Theme
+description: 'display, display_override, theme_color, background_color, orientation, categories และ screenshots ควบคุมหน้าต่างแอปที่ติดตั้งและการผสานกับ OS อย่างไร'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การควบคุมหน้าตาแอปหลังการติดตั้ง
+
+เมื่อผู้ใช้ติดตั้ง PWA ของคุณแล้ว ฟิลด์ใน manifest ที่กล่าวถึงในบทเรียนนี้จะกำหนดว่าแอปดูเหมือนแอปพลิเคชันแท้จริงหรือยังคงแสดง UI ของเบราว์เซอร์ และวิธีที่แอปผสานกับ OS ในระดับภาพ
+
+### `display`
+
+ฟิลด์ `display` ตั้งค่า display mode ที่ต้องการสำหรับหน้าต่างแอป:
+
+| ค่า | UI เบราว์เซอร์ | กรณีใช้งาน |
+|---|---|---|
+| `standalone` | ไม่มีแถบที่อยู่, มี OS chrome น้อยที่สุด | แอปส่วนใหญ่ — รู้สึกเหมือนแอปแท้จริง |
+| `fullscreen` | ไม่มี UI เบราว์เซอร์เลย | เกม, ประสบการณ์แบบดื่มด่ำ |
+| `minimal-ui` | มีเพียงปุ่มย้อนกลับ/ไปข้างหน้า/โหลดซ้ำ | ตัวดูเนื้อหา, media player |
+| `browser` | UI เบราว์เซอร์แบบเต็ม | Fallback — เหมือนแท็บปกติ |
+
+```json
+{ "display": "standalone" }
+```
+
+### `display_override`
+
+`display_override` คือรายการลำดับความชอบ เบราว์เซอร์เลือกค่าแรกที่รองรับแล้ว fallback ไปยัง `display` ใช้เพื่อขอ mode ใหม่กว่าอย่าง `window-controls-overlay` บนเบราว์เซอร์ที่รองรับ:
+
+```json
+{
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"]
+}
+```
+
+### `theme_color` และ `background_color`
+
+**`theme_color`** ทาสีแถบเครื่องมือของเบราว์เซอร์และไทล์ task switcher บน Android ตั้งค่าเป็นสีหลักของแบรนด์ คุณสามารถตั้งค่าต่อหน้าด้วย `<meta name="theme-color">` ได้ — meta tag จะ override manifest สำหรับหน้านั้น
+
+**`background_color`** คือสีที่แสดงระหว่าง splash screen (ช่วงสั้น ๆ ระหว่างการแตะ icon กับการแสดงผลครั้งแรกของแอป) ตั้งค่าให้ตรงกับ background ของแอปเพื่อให้การเปลี่ยนผ่านราบรื่น
+
+```json
+{
+  "theme_color": "#5A0FC8",
+  "background_color": "#ffffff"
+}
+```
+
+### ขั้นตอนการตัดสินใจ display mode
+
+export const displayDiagram = `flowchart TD
+  A["Browser reads display_override list"] --> B{"Supports first value?"}
+  B -->|"Yes"| C["Use that display mode"]
+  B -->|"No"| D{"More items in override list?"}
+  D -->|"Yes"| A
+  D -->|"No"| E["Fall back to display field"]
+  E --> F{"display value supported?"}
+  F -->|"Yes"| G["Use display value"]
+  F -->|"No"| H["Use browser (default)"]`;
+
+<Mermaid code={displayDiagram} title="วิธีที่เบราว์เซอร์เลือก display mode" />
+
+### `orientation`
+
+`orientation` ล็อกการหมุนหน้าจอเมื่อ PWA กำลังทำงาน ค่าทั่วไป: `"portrait"`, `"landscape"`, `"any"`, `"natural"` ละเว้นเพื่อให้ผู้ใช้หมุนได้อย่างอิสระ
+
+```json
+{ "orientation": "portrait" }
+```
+
+### `categories`
+
+`categories` คืออาร์เรย์ของสตริงที่แนะนำ app directory และ OS store เกี่ยวกับประเภทของแอป ค่าทั่วไปสอดคล้องกับหมวดหมู่ Play Store: `"productivity"`, `"utilities"`, `"games"`, `"finance"` เป็นต้น
+
+```json
+{ "categories": ["productivity", "utilities"] }
+```
+
+### `screenshots`
+
+`screenshots` ให้รูปภาพที่แสดงใน install dialog บนเบราว์เซอร์และ OS store ที่รองรับ แต่ละรายการมี `src`, `sizes`, `type` และ `form_factor` ที่ไม่บังคับ (`"narrow"` สำหรับมือถือ, `"wide"` สำหรับเดสก์ท็อป)
+
+```json
+{
+  "screenshots": [
+    {
+      "src": "/screenshots/home-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home screen on mobile"
+    },
+    {
+      "src": "/screenshots/home-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Home screen on desktop"
+    }
+  ]
+}
+```
+
+Chrome บนเดสก์ท็อปต้องการ screenshot อย่างน้อยหนึ่งรูปก่อนจะแสดง install dialog แบบ rich พร้อม preview panel
+
+<Callout title="ประเด็นสำคัญ">
+`display: standalone` ลบแถบที่อยู่ของเบราว์เซอร์ออกเพื่อให้ PWA รู้สึกเหมือนแอปแท้จริง ใช้ `display_override` เพื่อขอ display mode ใหม่กว่าแบบ progressive — เบราว์เซอร์ที่ไม่รู้จัก override จะ fallback ไปยัง `display`
+</Callout>
+
+export const quizDisplayTheme = [
+  {
+    q: 'ค่า display ใดที่ลบ UI เบราว์เซอร์ทั้งหมดเพื่อสร้างประสบการณ์แบบดื่มด่ำเต็มที่?',
+    options: ['standalone', 'minimal-ui', 'fullscreen', 'browser'],
+    answer: 2,
+  },
+  {
+    q: 'background_color ใน manifest มีจุดประสงค์อะไร?',
+    options: [
+      'ตั้งค่า CSS background-color ให้กับแอป',
+      'ทาสี splash screen ที่แสดงขณะแอปกำลังโหลด',
+      'Override theme_color บน Android',
+      'กำหนด background ของ icon แอป',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'display_override ทำงานอย่างไรเมื่อเบราว์เซอร์ไม่รองรับค่าแรก?',
+    options: [
+      'แอปล้มเหลวในการติดตั้ง',
+      'เบราว์เซอร์ใช้ฟิลด์ display เป็น fallback',
+      'เบราว์เซอร์ละเว้นทั้ง display และ display_override',
+      'แอปเปิดใน fullscreen mode โดยค่าเริ่มต้น',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ฟิลด์ manifest ใดที่แนะนำ app store เกี่ยวกับหมวดหมู่ของแอป?',
+    options: ['description', 'keywords', 'categories', 'scope'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/display-and-theme" questions={quizDisplayTheme} />
+
+<ProgressTracker client:visible id="web-app-manifest/display-and-theme" />

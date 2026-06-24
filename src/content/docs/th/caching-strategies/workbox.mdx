@@ -1,0 +1,179 @@
+---
+title: 'Workbox'
+description: 'Workbox คืออะไร, การใช้ registerRoute กับ strategy แบบ CacheFirst, NetworkFirst, และ StaleWhileRevalidate, การ precache ด้วย manifest, และ ExpirationPlugin หมายเหตุ: vite-plugin-pwa ใช้ Workbox อยู่เบื้องหลัง'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Workbox
+
+Workbox คือชุด library จากทีม Chrome ที่ทำให้รูปแบบ Cache Storage และ fetch-event ระดับล่างที่คุณเขียนด้วยมือมาตลอดกลายเป็นนามธรรม แทนที่จะเขียน logic แบบ cache-first ขึ้นมาเองตั้งแต่ต้น คุณก็แค่เรียก `new CacheFirst()` แทนที่จะจัดการเวอร์ชันของ cache ด้วยมือ precaching manifest ของ Workbox ก็จัดการให้ ผลลัพธ์คือ boilerplate น้อยลง บั๊กในเคสมุมน้อยลง และโมเดลการ caching ที่สอดคล้องกันทั้งแอปพลิเคชัน
+
+## การติดตั้ง Workbox
+
+Workbox ถูกแบ่งเป็นแพ็กเกจที่โฟกัสเฉพาะเรื่อง คุณจึง ship เฉพาะส่วนที่ใช้ ติดตั้งแพ็กเกจที่เกี่ยวข้องกับบทเรียนนี้:
+
+```bash
+npm install workbox-routing workbox-strategies workbox-precaching workbox-expiration
+```
+
+แต่ละแพ็กเกจมีหน้าที่ชัดเจน:
+
+- `workbox-routing` — ให้ `registerRoute` สำหรับ map รูปแบบ request ไปยัง strategy handler
+- `workbox-strategies` — ให้ strategy class ต่าง ๆ: `CacheFirst`, `NetworkFirst`, `StaleWhileRevalidate`, และอื่น ๆ
+- `workbox-precaching` — ให้ `precacheAndRoute` สำหรับติดตั้ง asset manifest ตอน build
+- `workbox-expiration` — ให้ `ExpirationPlugin` สำหรับจำกัดขนาด cache และอายุของรายการ
+
+## registerRoute และ strategy
+
+`registerRoute` รับ route matcher (เป็น string, RegExp, หรือ callback ที่รับ route context) และ strategy handler instance หนึ่งตัว เมื่อ fetch event เกิดขึ้น Workbox จะวนดู route ที่ลงทะเบียนไว้ หาตัวที่ตรงตัวแรก แล้วมอบหมายการตอบกลับให้ strategy ที่เชื่อมโยงไว้
+
+```js
+import { registerRoute } from 'workbox-routing';
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+
+// Static assets — cache-first
+registerRoute(
+  ({ request }) => request.destination === 'image',
+  new CacheFirst({ cacheName: 'images-v1' })
+);
+
+// API data — network-first
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkFirst({ cacheName: 'api-v1' })
+);
+
+// Avatars and feeds — stale-while-revalidate
+registerRoute(
+  ({ request }) => request.destination === 'document',
+  new StaleWhileRevalidate({ cacheName: 'pages-v1' })
+);
+```
+
+ใช้ **CacheFirst** สำหรับ asset ที่แทบไม่เปลี่ยน (รูปภาพ, ฟอนต์, JS bundle ที่มีเวอร์ชัน) ใช้ **NetworkFirst** สำหรับข้อมูลไดนามิกที่ความสดใหม่เป็นเรื่องสำคัญ (การตอบกลับจาก API) ใช้ **StaleWhileRevalidate** เมื่อคุณต้องการเวลาโหลดทันทีและยินดีที่จะแสดงข้อมูลที่เก่าไปหนึ่ง request (เอกสาร HTML, รูป avatar, ฟีด RSS)
+
+## การ precache ด้วย manifest
+
+Workbox สามารถ precache รายการไฟล์ที่ถูกสร้างตอน build ได้ manifest เป็น array ของรายการ `{ url, revision }` ตอน runtime การ precaching ของ Workbox จะติดตั้งไฟล์ทั้งหมดที่ระบุไว้ระหว่าง `install` event ของ service worker และจัดการ cache-busting อัตโนมัติผ่าน revision hash — เมื่อไฟล์เปลี่ยน revision hash ของมันก็เปลี่ยน และ Workbox จะแทนที่เฉพาะรายการนั้น
+
+```js
+import { precacheAndRoute } from 'workbox-precaching';
+
+// __WB_MANIFEST is injected by the Workbox build tool / vite-plugin-pwa
+precacheAndRoute(self.__WB_MANIFEST);
+```
+
+`self.__WB_MANIFEST` คือ placeholder string ที่ Workbox build tool (หรือ `vite-plugin-pwa`) แทนที่ตอน build ด้วย array ของ manifest จริง ตัวอย่างเช่น:
+
+```js
+[
+  { url: '/index.html', revision: 'abc123' },
+  { url: '/assets/main.js', revision: 'def456' },
+  { url: '/assets/style.css', revision: 'ghi789' },
+]
+```
+
+คุณไม่เคยต้องเขียน array นี้ด้วยมือ — มันถูกสร้างขึ้นอัตโนมัติจากผลลัพธ์ build ของคุณ
+
+## ExpirationPlugin
+
+หากไม่มีการจำกัด expiration cache สามารถโตได้ไม่จำกัดและกินพื้นที่จัดเก็บของอุปกรณ์อย่างมาก `ExpirationPlugin` บังคับใช้สองข้อจำกัด: `maxEntries` จำกัดจำนวน response ที่แคชไว้ และ `maxAgeSeconds` ลบ response ที่เก่ากว่าระยะเวลาที่กำหนด
+
+```js
+import { CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+
+registerRoute(
+  ({ request }) => request.destination === 'image',
+  new CacheFirst({
+    cacheName: 'images-v1',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 60,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+      }),
+    ],
+  })
+);
+```
+
+เมื่อ cache แตะ 60 รายการ รายการที่ถูกใช้ล่าสุดน้อยที่สุด (least-recently-used) จะถูก evict ออก รายการใดก็ตามที่เก่ากว่า 30 วันจะถูกลบในรอบการเคลียร์ครั้งถัดไป ทั้งสองข้อจำกัดสามารถใช้ร่วมกันใน plugin instance เดียวกันได้
+
+## vite-plugin-pwa
+
+หากคุณใช้ Vite (กับ React, Vue, Svelte, หรือ JS ล้วน ๆ) `vite-plugin-pwa` จะผนวก Workbox เข้ากับ build pipeline ของคุณโดยอัตโนมัติ มันสร้างไฟล์ SW พร้อม precaching manifest จัดการ cache versioning ในทุก build และลงทะเบียน SW ในแอปของคุณ — โดยไม่ต้องดูแล `self.__WB_MANIFEST` ด้วยมือเลย ตั้งค่ามันใน `vite.config.ts`:
+
+```ts
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.example\.com\//,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'api-cache' },
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+`globPatterns` ควบคุมว่าไฟล์ผลลัพธ์ build ใดบ้างที่จะเข้า precache manifest `runtimeCaching` เพิ่มการเรียก `registerRoute` สำหรับ URL ที่ไม่ได้เป็นส่วนหนึ่งของผลลัพธ์ build — เช่น API ภายนอก ส่วน string ของ `handler` map ไปยังชื่อ strategy class ของ Workbox
+
+<Callout title="จุดสำคัญ">
+Workbox ห่อหุ้ม strategy แบบ cache-first, network-first, และ stale-while-revalidate ไว้ คุณจึงเขียนโค้ด service worker ที่มีโอกาสผิดพลาดน้อยลง `vite-plugin-pwa` ไปไกลกว่านั้น — มันสร้างไฟล์ SW ทั้งไฟล์พร้อม precaching ตอน build
+</Callout>
+
+export const quizWorkbox = [
+  {
+    q: 'registerRoute() รับอะไรเป็น argument ตัวที่สอง?',
+    options: [
+      'string ชื่อ cache',
+      'strategy instance (เช่น new CacheFirst())',
+      'ฟังก์ชัน handler ของ fetch event',
+      'URL pattern เพียงอย่างเดียว',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'self.__WB_MANIFEST ใน Workbox service worker คืออะไร?',
+    options: [
+      'global browser API ตัวหนึ่ง',
+      'placeholder ที่ถูกแทนที่โดย build tool ด้วย array ของ precache manifest',
+      'ออบเจ็กต์ config ของ Workbox',
+      'URL ของไฟล์ manifest.webmanifest',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'plugin ใดของ Workbox ที่จำกัดจำนวนรายการและอายุของ response ที่แคชไว้?',
+    options: [
+      'workbox-routing',
+      'CacheFirst',
+      'ExpirationPlugin',
+      'precacheAndRoute',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'vite-plugin-pwa ใช้ library ใดในการสร้าง service worker?',
+    options: ['Webpack', 'Rollup', 'Workbox', 'Parcel'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/workbox" questions={quizWorkbox} />
+
+<ProgressTracker client:visible id="caching-strategies/workbox" />

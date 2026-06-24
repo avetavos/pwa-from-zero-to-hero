@@ -1,0 +1,211 @@
+---
+title: The Notifications API
+description: 'How to request notification permission, show notifications from the page and from the service worker, add actions, and handle notificationclick.'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The Notifications API
+
+The Notifications API lets your PWA display system-level notifications. Unlike an alert box, a notification appears in the device's notification tray and is visible even if the user has switched tabs.
+
+### Requesting permission
+
+Before showing any notification you must request permission. The call returns a Promise that resolves to `"granted"`, `"denied"`, or `"default"`:
+
+```js
+async function askPermission() {
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    console.log('Notifications allowed');
+  } else {
+    console.warn('Notifications blocked or dismissed');
+  }
+}
+```
+
+Call this function in response to a user gesture — a button click, a form submit, a swipe. Never call it on page load.
+
+### Showing a notification from the page
+
+Once permission is granted you can create a notification directly from page JavaScript:
+
+```js
+new Notification('Your order shipped!', {
+  body: 'It will arrive by Thursday.',
+  icon: '/icons/icon-192.png',
+  badge: '/icons/badge-72.png',
+});
+```
+
+This works, but the notification will not appear if no tab is open. The better approach is to show notifications from the service worker.
+
+### Showing a notification from the service worker
+
+Use `registration.showNotification()` on the `ServiceWorkerRegistration` object. The SW keeps running even when all tabs are closed, so this notification fires reliably:
+
+```js
+// main.js — page code
+async function notify(title, options) {
+  const registration = await navigator.serviceWorker.ready;
+  registration.showNotification(title, options);
+}
+
+notify('Your order shipped!', {
+  body: 'It will arrive by Thursday.',
+  icon: '/icons/icon-192.png',
+  badge: '/icons/badge-72.png',
+  actions: [
+    { action: 'view', title: 'View order' },
+    { action: 'dismiss', title: 'Dismiss' },
+  ],
+  data: { orderId: 'ORD-42' },
+});
+```
+
+### Notification options
+
+| Option | Type | Purpose |
+|---|---|---|
+| `body` | string | Secondary text below the title |
+| `icon` | string (URL) | Large image beside the notification |
+| `badge` | string (URL) | Small monochrome icon for the status bar |
+| `image` | string (URL) | Large inline image |
+| `actions` | array | Buttons the user can tap without opening the app |
+| `data` | any | Arbitrary payload passed to the `notificationclick` handler |
+| `tag` | string | Replaces any existing notification with the same tag |
+| `renotify` | boolean | Re-alerts the user even when replacing a tagged notification |
+| `requireInteraction` | boolean | Keeps the notification visible until the user interacts |
+| `silent` | boolean | Suppresses sound and vibration |
+
+### Handling notificationclick
+
+The `notificationclick` event fires in the service worker when the user taps the notification or one of its action buttons:
+
+```js
+// sw.js — service worker
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'view') {
+    // Open or focus the app
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        if (clientList.length > 0) {
+          return clientList[0].focus();
+        }
+        return clients.openWindow('/orders/' + event.notification.data.orderId);
+      })
+    );
+  }
+});
+```
+
+Always call `event.notification.close()` — on Android, notifications stay open until explicitly closed.
+
+### Try it live
+
+The demo below shows a local notification from the service worker. Grant permission when prompted, then click "Notify me".
+
+export const projNotifications = {
+  'index.html': `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><link rel="manifest" href="/manifest.webmanifest" /><title>Notifications demo</title></head>
+  <body>
+    <h1>Notifications demo</h1>
+    <button id="ask">Grant permission</button>
+    <button id="notify" disabled>Notify me</button>
+    <pre id="log"></pre>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const log = (m) => (document.getElementById('log').textContent += m + '\\n');
+const notifyBtn = document.getElementById('notify');
+
+document.getElementById('ask').onclick = async () => {
+  const perm = await Notification.requestPermission();
+  log('Permission: ' + perm);
+  if (perm === 'granted') notifyBtn.disabled = false;
+};
+
+notifyBtn.onclick = async () => {
+  const reg = await navigator.serviceWorker.ready;
+  reg.showNotification('Hello from the SW!', {
+    body: 'This notification came from your service worker.',
+    icon: '/pwa-from-zero-to-hero/placeholder-icon.png',
+    data: { ts: Date.now() },
+  });
+  log('Notification sent via SW');
+};
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(() => log('SW registered'));
+}`,
+  'sw.js': `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow('/'));
+});`,
+  'manifest.webmanifest': `{
+  "name": "Notifications Demo",
+  "short_name": "Notify",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8"
+}`,
+};
+
+<PwaPlayground files={projNotifications} openFile="main.js" />
+
+<Callout title="Key point">
+Always show notifications from the service worker via `registration.showNotification()` rather than `new Notification()`. Notifications from the SW are delivered reliably even when no tab is open, and they support action buttons and `notificationclick` handling in the SW.
+</Callout>
+
+export const quizNotifications = [
+  {
+    q: 'What does Notification.requestPermission() return?',
+    options: [
+      'A boolean',
+      'A Promise that resolves to "granted", "denied", or "default"',
+      'A ServiceWorkerRegistration',
+      'void',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why is registration.showNotification() preferred over new Notification()?',
+    options: [
+      'It is faster',
+      'It works even when no tab is open, because it runs in the service worker',
+      'It does not require permission',
+      'It supports more CSS styling options',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where does the notificationclick event fire?',
+    options: [
+      'In the page JavaScript',
+      'In the service worker',
+      'In a shared worker',
+      'In the browser UI thread',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which notification option replaces an existing notification with the same identifier?',
+    options: ['data', 'renotify', 'tag', 'badge'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="push-advanced/notifications" questions={quizNotifications} />
+
+<ProgressTracker client:visible id="push-advanced/notifications" />

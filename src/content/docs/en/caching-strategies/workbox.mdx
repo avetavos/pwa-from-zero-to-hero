@@ -1,0 +1,179 @@
+---
+title: 'Workbox'
+description: 'What Workbox is, using registerRoute with CacheFirst, NetworkFirst, and StaleWhileRevalidate strategies, precaching with the manifest, and the ExpirationPlugin. Note that vite-plugin-pwa uses Workbox under the hood.'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Workbox
+
+Workbox is a set of libraries from the Chrome team that abstracts the low-level Cache Storage and fetch-event patterns you have been writing by hand. Instead of writing cache-first logic from scratch, you call `new CacheFirst()`. Instead of managing cache versions manually, Workbox's precaching manifest handles it. The result is less boilerplate, fewer edge-case bugs, and a consistent caching model across your whole application.
+
+## Installing Workbox
+
+Workbox is split into focused packages so you only ship what you use. Install the packages relevant to this lesson:
+
+```bash
+npm install workbox-routing workbox-strategies workbox-precaching workbox-expiration
+```
+
+Each package has a clear responsibility:
+
+- `workbox-routing` — provides `registerRoute` for mapping request patterns to strategy handlers.
+- `workbox-strategies` — provides the strategy classes: `CacheFirst`, `NetworkFirst`, `StaleWhileRevalidate`, and others.
+- `workbox-precaching` — provides `precacheAndRoute` for installing a build-time asset manifest.
+- `workbox-expiration` — provides `ExpirationPlugin` for capping cache size and entry age.
+
+## registerRoute and strategies
+
+`registerRoute` accepts a route matcher (a string, RegExp, or callback that receives the route context) and a strategy handler instance. When a fetch event fires, Workbox iterates registered routes, finds the first match, and delegates the response to the associated strategy.
+
+```js
+import { registerRoute } from 'workbox-routing';
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+
+// Static assets — cache-first
+registerRoute(
+  ({ request }) => request.destination === 'image',
+  new CacheFirst({ cacheName: 'images-v1' })
+);
+
+// API data — network-first
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkFirst({ cacheName: 'api-v1' })
+);
+
+// Avatars and feeds — stale-while-revalidate
+registerRoute(
+  ({ request }) => request.destination === 'document',
+  new StaleWhileRevalidate({ cacheName: 'pages-v1' })
+);
+```
+
+Use **CacheFirst** for assets that rarely change (images, fonts, versioned JS bundles). Use **NetworkFirst** for dynamic data where freshness is critical (API responses). Use **StaleWhileRevalidate** when you want instant load times and are happy to show data that is one request stale (HTML documents, avatar images, RSS feeds).
+
+## Precaching with the manifest
+
+Workbox can precache a list of files generated at build time. The manifest is an array of `{ url, revision }` entries. At runtime, Workbox's precaching installs all listed files during the service worker's `install` event and handles cache-busting automatically via revision hashes — when a file changes, its revision hash changes, and Workbox replaces only that entry.
+
+```js
+import { precacheAndRoute } from 'workbox-precaching';
+
+// __WB_MANIFEST is injected by the Workbox build tool / vite-plugin-pwa
+precacheAndRoute(self.__WB_MANIFEST);
+```
+
+`self.__WB_MANIFEST` is a placeholder string that the Workbox build tool (or `vite-plugin-pwa`) replaces at build time with the actual manifest array, for example:
+
+```js
+[
+  { url: '/index.html', revision: 'abc123' },
+  { url: '/assets/main.js', revision: 'def456' },
+  { url: '/assets/style.css', revision: 'ghi789' },
+]
+```
+
+You never write this array by hand — it is generated automatically from your build output.
+
+## ExpirationPlugin
+
+Without expiration limits, caches can grow unbounded and consume significant device storage. `ExpirationPlugin` enforces two limits: `maxEntries` caps the number of cached responses, and `maxAgeSeconds` removes responses older than a given duration.
+
+```js
+import { CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+
+registerRoute(
+  ({ request }) => request.destination === 'image',
+  new CacheFirst({
+    cacheName: 'images-v1',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 60,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+      }),
+    ],
+  })
+);
+```
+
+When the cache reaches 60 entries, the least-recently-used entry is evicted. Any entry older than 30 days is removed on the next cleanup pass. Both limits can be combined in the same plugin instance.
+
+## vite-plugin-pwa
+
+If you use Vite (with React, Vue, Svelte, or plain JS), `vite-plugin-pwa` integrates Workbox into your build pipeline automatically. It generates the SW file with the precaching manifest, handles cache versioning on every build, and registers the SW in your app — all without manually maintaining `self.__WB_MANIFEST`. Configure it in `vite.config.ts`:
+
+```ts
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.example\.com\//,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'api-cache' },
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+`globPatterns` controls which build output files enter the precache manifest. `runtimeCaching` adds `registerRoute` calls for URLs that are not part of the build output — such as external APIs. The `handler` string maps to the Workbox strategy class name.
+
+<Callout title="Key point">
+Workbox encapsulates cache-first, network-first, and stale-while-revalidate strategies so you write less error-prone service worker code. `vite-plugin-pwa` goes further — it generates the entire SW file with precaching at build time.
+</Callout>
+
+export const quizWorkbox = [
+  {
+    q: 'What does registerRoute() accept as its second argument?',
+    options: [
+      'A cache name string',
+      'A strategy instance (e.g. new CacheFirst())',
+      'A fetch event handler function',
+      'A URL pattern only',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is self.__WB_MANIFEST in a Workbox service worker?',
+    options: [
+      'A global browser API',
+      'A placeholder replaced by the build tool with the precache manifest array',
+      'A Workbox config object',
+      'The URL of the manifest.webmanifest file',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which Workbox plugin limits the number of entries and age of cached responses?',
+    options: [
+      'workbox-routing',
+      'CacheFirst',
+      'ExpirationPlugin',
+      'precacheAndRoute',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'vite-plugin-pwa uses which library to generate the service worker?',
+    options: ['Webpack', 'Rollup', 'Workbox', 'Parcel'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/workbox" questions={quizWorkbox} />
+
+<ProgressTracker client:visible id="caching-strategies/workbox" />

@@ -1,0 +1,141 @@
+---
+title: Lifecycle ของ Service Worker
+description: 'service worker เคลื่อนผ่านสถานะ install, waiting, activating, activated และ redundant อย่างไร — และจะควบคุมการไหลนั้นได้อย่างไร'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## lifecycle ของ service worker
+
+service worker ทุกตัวจะเคลื่อนผ่านสเตตแมชชีนที่นิยามไว้อย่างเคร่งครัดและจัดการโดยเบราว์เซอร์ การเข้าใจ lifecycle นี้เป็นเรื่องจำเป็น — ข้ามมันไปแล้วการอัปเดตของคุณจะ activate ไม่สำเร็จแบบเงียบ ๆ หรือคุณทำให้หน้าเว็บที่ยังรัน worker ตัวเก่าอยู่พังได้
+
+### สเตตแมชชีน
+
+export const lifecycleDiagram = `stateDiagram-v2
+  [*] --> Parsed : browser parses sw.js
+  Parsed --> Installing : install event fires
+  Installing --> Installed : installEvent.waitUntil() resolves
+  Installing --> Redundant : waitUntil() rejects
+  Installed --> Activating : no old SW active, or skipWaiting()
+  Installed --> Waiting : old SW still controlling pages
+  Waiting --> Activating : all old-SW tabs closed, or skipWaiting()
+  Activating --> Activated : activateEvent.waitUntil() resolves
+  Activating --> Redundant : waitUntil() rejects
+  Activated --> Redundant : replaced by a newer SW
+  Waiting --> Redundant : replaced by a newer SW`;
+
+<Mermaid code={lifecycleDiagram} title="สเตตแมชชีน lifecycle ของ service worker" />
+
+### install event
+
+`install` event จะ fire ทันทีที่เบราว์เซอร์ parse และดาวน์โหลดไฟล์ service worker ของคุณเสร็จ นี่เป็นจังหวะที่เหมาะที่สุดในการ **pre-cache** ทรัพยากรที่แอปของคุณต้องใช้สำหรับการใช้งานออฟไลน์
+
+```js
+const CACHE_NAME = 'v1';
+const PRECACHE_URLS = ['/', '/styles.css', '/app.js'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+  );
+});
+```
+
+`event.waitUntil()` รับ Promise เข้ามา ถ้า Promise **resolve** SW จะย้ายไปสถานะ `Installed` ถ้ามัน **reject** (เช่น เกิด network error ระหว่าง pre-cache) SW จะย้ายไป `Redundant` และถูกทิ้ง — ไม่มีอะไรพังสำหรับผู้ใช้ SW ตัวเก่ายังคงทำงานต่อไป
+
+### สถานะ waiting
+
+หลังจากติดตั้งแล้ว SW ตัวใหม่จะนั่งรออยู่ในสถานะ **Waiting** ถ้ายังมีแท็บใด ๆ ที่ถูกควบคุมโดยเวอร์ชันก่อนหน้าอยู่ เบราว์เซอร์จะไม่ activate SW ตัวใหม่จนกว่าทุกแท็บที่รันตัวเก่าจะถูกปิด (หรือ navigate ออกไป)
+
+หากต้องการข้ามช่วงรอด้วยโค้ด ให้เรียก `self.skipWaiting()` ภายใน handler ของ `install`:
+
+```js
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('v1').then((cache) => cache.addAll(['/'])).then(() => self.skipWaiting())
+  );
+});
+```
+
+### activate event
+
+เมื่อ SW ตัวเก่าหายไปแล้ว (หรือมีการเรียก `skipWaiting()`) SW ตัวใหม่จะ fire `activate` event ของมัน นี่เป็นจังหวะที่เหมาะในการ **ล้าง cache เก่า** เพื่อไม่ให้ asset ที่ล้าสมัยกินพื้นที่จัดเก็บไปเรื่อย ๆ ไม่รู้จบ
+
+```js
+const CURRENT_CACHES = ['v2'];
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(
+        names
+          .filter((name) => !CURRENT_CACHES.includes(name))
+          .map((name) => caches.delete(name))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+```
+
+`self.clients.claim()` ทำให้ SW ที่เพิ่ง activate เข้าควบคุมทุกหน้าที่เปิดอยู่ได้ทันที โดยไม่ต้องรอ navigation ครั้งถัดไป
+
+### สรุป lifecycle
+
+| สถานะ | เกิดอะไรขึ้น | สิ่งที่คุณทำ |
+|---|---|---|
+| **Installing** | SW กำลังถูกตั้งค่า | pre-cache asset ใน `install` |
+| **Waiting** | SW ตัวใหม่พร้อมแล้วแต่ถูกถ่วงไว้ | เรียก `skipWaiting()` ได้ตามต้องการ |
+| **Activating** | SW ตัวใหม่กำลังเข้ารับช่วงต่อ | ลบ cache เก่าใน `activate` |
+| **Activated** | SW ควบคุมเต็มที่แล้ว | เสิร์ฟ request ผ่าน `fetch` event |
+| **Redundant** | SW ถูกแทนที่หรือล้มเหลว | ไม่ต้องทำอะไร — เบราว์เซอร์จะกำจัดมันเอง |
+
+<Callout title="ประเด็นสำคัญ">
+service worker ที่เพิ่งติดตั้งจะรอจนกว่าทุกแท็บที่ใช้ตัวเก่าจะปิดลง — เว้นแต่มันจะเรียก `self.skipWaiting()` ใช้ `skipWaiting()` อย่างระมัดระวัง: ถ้า SW ตัวเก่ากับตัวใหม่ใช้ cache schema ต่างกัน หน้าที่โหลดไปแล้วอาจ request asset ที่ cache ตัวใหม่ยังไม่มี
+</Callout>
+
+export const quizLifecycle = [
+  {
+    q: 'จะเกิดอะไรขึ้นถ้า Promise ที่ส่งให้ event.waitUntil() ใน install handler reject?',
+    options: [
+      'SW ย้ายไปสถานะ Activated อยู่ดี',
+      'SW ย้ายไป Redundant และถูกทิ้ง',
+      'เบราว์เซอร์ลองติดตั้งใหม่โดยอัตโนมัติ',
+      'SW เข้าสู่สถานะ Waiting',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไม service worker ตัวใหม่จึงนั่งรออยู่ในสถานะ Waiting?',
+    options: [
+      'มันกำลังรอให้ network พร้อมใช้งาน',
+      'มันรอให้เบราว์เซอร์ดาวน์โหลด asset',
+      'มันรอจนกว่าจะไม่มีแท็บใดถูกควบคุมโดย service worker ตัวเก่าอีก',
+      'มันรอให้ activate event ถูก dispatch',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'self.clients.claim() ใน activate handler มีจุดประสงค์อะไร?',
+    options: [
+      'มันลบ cache เก่าทั้งหมด',
+      'มันข้ามสถานะ waiting',
+      'มันทำให้ SW ที่ activate แล้วเข้าควบคุมหน้าที่เปิดอยู่ได้ทันที',
+      'มัน register SW สำหรับ push notifications',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'สถานะใดใน lifecycle เป็นจังหวะที่เหมาะสมในการลบ cache ที่ล้าสมัยจาก SW เวอร์ชันก่อน ๆ?',
+    options: ['install', 'fetch', 'activate', 'waiting'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="service-workers/lifecycle" questions={quizLifecycle} />
+
+<ProgressTracker client:visible id="service-workers/lifecycle" />

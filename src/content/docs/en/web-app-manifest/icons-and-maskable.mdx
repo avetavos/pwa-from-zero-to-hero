@@ -1,0 +1,142 @@
+---
+title: Icons and Maskable Icons
+description: 'How to define the icons array, choose the right sizes and MIME types, and create maskable icons with the correct safe zone for Android adaptive icons.'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The `icons` array
+
+The manifest `icons` field is an array of image objects. The browser picks the most appropriate size for each context: install dialog, home screen, splash screen, and app switcher.
+
+```json
+{
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+Each entry has three properties:
+
+| Property | Description |
+|---|---|
+| `src` | Path to the image file (absolute or relative to the manifest) |
+| `sizes` | Space-separated list of `WxH` dimensions the file covers |
+| `type` | MIME type — `"image/png"`, `"image/svg+xml"`, etc. |
+| `purpose` | Optional: `"any"`, `"maskable"`, or `"any maskable"` |
+
+### Minimum required sizes
+
+Chrome and other Chromium browsers require at least a **192 x 192** icon to show the install prompt, and a **512 x 512** icon for the splash screen. Always include both.
+
+SVG icons can cover all sizes with a single entry:
+
+```json
+{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+```
+
+### Maskable icons
+
+Android 8 (Oreo) and later use **adaptive icons** — the OS clips the icon into a shape (circle, squircle, teardrop, etc.) that matches the device's theme. A standard icon placed inside that mask may have its edges cut off.
+
+A **maskable icon** is designed with all important artwork inside a central **safe zone** that is guaranteed to remain visible regardless of the mask shape. The safe zone is a circle whose diameter is **80 % of the shortest edge** of the image.
+
+export const safeZoneDiagram = `flowchart TB
+  subgraph icon ["512 x 512 icon canvas"]
+    subgraph safe ["Safe zone (80% circle — always visible)"]
+      Logo["Logo / artwork here"]
+    end
+    BleedArea["Bleed area — may be clipped by OS mask"]
+  end`;
+
+<Mermaid code={safeZoneDiagram} title="Maskable icon safe zone — keep your logo inside the 80% circle" />
+
+Declare a maskable icon by setting `"purpose": "maskable"`:
+
+```json
+{
+  "src": "/icons/icon-512-maskable.png",
+  "sizes": "512x512",
+  "type": "image/png",
+  "purpose": "maskable"
+}
+```
+
+You can also serve one file for both purposes:
+
+```json
+{
+  "src": "/icons/icon-512.png",
+  "sizes": "512x512",
+  "type": "image/png",
+  "purpose": "any maskable"
+}
+```
+
+However, that only works if your artwork genuinely respects the safe zone. In most cases, provide **two separate files**: one regular icon (`purpose: "any"`) and one designed specifically for masking (`purpose: "maskable"`).
+
+### Generating icons
+
+Use [Maskable.app](https://maskable.app) to preview how your icon looks inside common mask shapes. [PWA Asset Generator](https://github.com/elegantapp/pwa-asset-generator) can batch-generate all required sizes from a single SVG source.
+
+A recommended icon set:
+
+```json
+[
+  { "src": "/icons/icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+  { "src": "/icons/icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+  { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+  { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+]
+```
+
+<Callout title="Key point">
+Always include a `"purpose": "maskable"` icon so Android can shape it without clipping your logo. Design the maskable variant with all artwork inside the central 80 % safe-zone circle.
+</Callout>
+
+export const quizIconsMaskable = [
+  {
+    q: 'What is the minimum icon size required for Chrome to show the install prompt?',
+    options: ['48x48', '128x128', '192x192', '512x512'],
+    answer: 2,
+  },
+  {
+    q: 'What percentage of the shortest edge defines the maskable icon safe zone?',
+    options: ['50%', '66%', '80%', '100%'],
+    answer: 2,
+  },
+  {
+    q: 'Which purpose value should you use for an icon designed to be clipped by Android adaptive masks?',
+    options: ['"any"', '"maskable"', '"adaptive"', '"android"'],
+    answer: 1,
+  },
+  {
+    q: 'What does the sizes value "any" mean for an SVG icon entry?',
+    options: [
+      'The icon will be ignored',
+      'The browser will stretch it to any size it needs',
+      'The icon covers all sizes because SVG is resolution-independent',
+      'The icon is used only for the splash screen',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/icons-and-maskable" questions={quizIconsMaskable} />
+
+<ProgressTracker client:visible id="web-app-manifest/icons-and-maskable" />

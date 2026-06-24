@@ -1,0 +1,81 @@
+---
+title: 'PWA กับ React'
+description: 'vite-plugin-pwa ผสานกับแอป React อย่างไร: เส้นทาง Vite สมัยใหม่, สิ่งที่โมดูลนี้ครอบคลุม และ diagram ของ flow build → SW → update'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## เส้นทาง React PWA สมัยใหม่
+
+กับ Vite และ React วิธีที่แนะนำในการเพิ่ม PWA support คือ `vite-plugin-pwa` มันครอบ Workbox ไว้ภายใต้ฝาปิด, สร้าง service worker ของคุณตอน build time, ฉีด web app manifest เข้าไปใน HTML ของคุณ และเปิดเผย registration API ขนาดเล็กที่คุณสามารถเรียกใช้จาก code ในแอป Create React App ซึ่งเป็นทางเลือกเก่า ปัจจุบันถูก deprecated แล้วและไม่ควรนำมาใช้กับโปรเจกต์ใหม่
+
+โมดูลนี้ครอบคลุม 5 บทเรียนที่พาคุณจากโปรเจกต์ Vite + React เปล่า ไปสู่ PWA ที่ทำงานได้อย่างสมบูรณ์พร้อม update prompt และ integration patterns เฉพาะของ React
+
+## บทเรียนในโมดูลนี้
+
+| บทเรียน | หัวข้อ |
+|---|---|
+| 1 | PWA กับ React — ภาพรวม (หน้านี้) |
+| 2 | การติดตั้ง vite-plugin-pwa |
+| 3 | Manifest และไอคอน |
+| 4 | Update Prompt UI |
+| 5 | React Patterns สำหรับ PWA |
+
+## Build, service worker, และ update flow
+
+export const buildSwFlow = `flowchart LR
+  A["Vite Build"] --> B["dist/"]
+  B --> C["SW registered"]
+  C --> D["SW activated"]
+  D --> E["Update check"]
+  E --> F["New SW waiting"]
+  F --> G["User prompted"]
+  G --> H["Reload"]`;
+
+<Mermaid code={buildSwFlow} title="Vite build, service worker, and update flow" />
+
+<Callout title="ประเด็นสำคัญ">
+กับ Vite + React, `vite-plugin-pwa` สร้าง SW, ฉีด manifest และมอบ register API ขนาดเล็กให้คุณ
+</Callout>
+
+export const quizPwaWithReactIndex = [
+  {
+    q: 'เครื่องมือใดที่สร้าง service worker เมื่อใช้ Vite + React?',
+    options: [
+      'Create React App',
+      'vite-plugin-pwa',
+      'Webpack PWA Plugin',
+      'next-pwa',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'build tool ที่อยู่เบื้องหลัง vite-plugin-pwa คืออะไร?',
+    options: [
+      'Rollup only',
+      'Webpack',
+      'Workbox',
+      'Parcel',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ประเภทโปรเจกต์ใดที่ถูกระบุว่า deprecated สำหรับ React PWA ใหม่?',
+    options: [
+      'Vite',
+      'Next.js',
+      'Create React App',
+      'SvelteKit',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/index" questions={quizPwaWithReactIndex} />
+
+<ProgressTracker client:visible id="pwa-with-react/index" />

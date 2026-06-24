@@ -1,0 +1,209 @@
+---
+title: The Install Prompt
+description: 'How to intercept beforeinstallprompt, show a custom install button, call prompt(), handle appinstalled, and work around the iOS gap.'
+sidebar:
+  order: 5
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The install flow
+
+When a browser decides your PWA is installable (valid manifest + registered service worker + HTTPS), it fires the `beforeinstallprompt` event on `window`. By default the browser would show its own install badge or prompt immediately — but you can intercept that event, hide the default UI, and show your own install button at the right moment.
+
+### Step 1 — stash the event
+
+```js
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  // Prevent the browser from showing its mini-infobar
+  event.preventDefault();
+  // Save the event so we can trigger it later
+  deferredPrompt = event;
+  // Show your own install button
+  document.getElementById('install-btn').hidden = false;
+});
+```
+
+### Step 2 — trigger the prompt from a user gesture
+
+You must call `deferredPrompt.prompt()` from inside a user-initiated handler (a click). Calling it outside a user gesture will throw.
+
+```js
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  // Show the browser's install dialog
+  deferredPrompt.prompt();
+  // Wait for the user's choice
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log('User choice:', outcome); // 'accepted' or 'dismissed'
+  deferredPrompt = null;
+  document.getElementById('install-btn').hidden = true;
+});
+```
+
+### Step 3 — react to a completed install
+
+The `appinstalled` event fires after the user confirms the install:
+
+```js
+window.addEventListener('appinstalled', () => {
+  console.log('PWA installed successfully');
+  deferredPrompt = null;
+});
+```
+
+### iOS differences
+
+Safari on iOS does **not** fire `beforeinstallprompt`. There is no programmatic way to trigger the install dialog. Your only option is to show an instructional banner that guides the user manually:
+
+1. Tap the **Share** button in Safari.
+2. Scroll down and tap **Add to Home Screen**.
+
+Detect iOS to show the right guidance:
+
+```js
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+
+if (isIos && !isInStandaloneMode) {
+  document.getElementById('ios-hint').hidden = false;
+}
+```
+
+### Try it live
+
+The playground below wires up a complete install-button flow. Because StackBlitz runs inside an iframe, the `beforeinstallprompt` event will not fire — but you can inspect the full code and run it on a real domain to test.
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Install Prompt Demo</title>
+    <style>
+      body { font-family: sans-serif; padding: 2rem; }
+      button { padding: .6rem 1.4rem; font-size: 1rem; cursor: pointer; }
+      #ios-hint { background: #fffbe6; border: 1px solid #f0ad4e; padding: 1rem; border-radius: 6px; margin-top: 1rem; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <h1>Install Prompt Demo</h1>
+    <p id="status">Waiting for beforeinstallprompt&hellip;</p>
+    <button id="install-btn" hidden>Install App</button>
+    <div id="ios-hint" hidden>
+      <strong>iOS:</strong> Tap the Share button, then &ldquo;Add to Home Screen&rdquo;.
+    </div>
+    <pre id="log"></pre>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const log = (m) => { document.getElementById('log').textContent += m + '\\n'; };
+const statusEl = document.getElementById('status');
+const installBtn = document.getElementById('install-btn');
+const iosHint = document.getElementById('ios-hint');
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.hidden = false;
+  statusEl.textContent = 'App is installable — click the button below.';
+  log('beforeinstallprompt fired');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const result = await deferredPrompt.userChoice;
+  log('User choice: ' + result.outcome);
+  deferredPrompt = null;
+  installBtn.hidden = true;
+});
+
+window.addEventListener('appinstalled', () => {
+  log('appinstalled fired');
+  statusEl.textContent = 'App installed!';
+});
+
+// iOS detection
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+if (isIos && !isStandalone) {
+  iosHint.hidden = false;
+  statusEl.textContent = 'iOS detected — use Share → Add to Home Screen.';
+}`,
+  'manifest.webmanifest': `{
+  "name": "Install Prompt Demo",
+  "short_name": "InstallDemo",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}`,
+  'sw.js': `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));`,
+};
+
+<PwaPlayground files={proj} openFile="main.js" />
+
+<Callout title="Key point">
+You must call `event.preventDefault()` on `beforeinstallprompt` to suppress the browser's default install UI, and then call `deferredPrompt.prompt()` only from inside a user gesture (a click handler). Calling `prompt()` outside a user gesture throws an error.
+</Callout>
+
+export const quizInstallPrompt = [
+  {
+    q: 'What must you call on the beforeinstallprompt event to suppress the browser default install UI?',
+    options: [
+      'event.stopPropagation()',
+      'event.preventDefault()',
+      'event.stopImmediatePropagation()',
+      'event.cancel()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'From where must you call deferredPrompt.prompt()?',
+    options: [
+      'From any async function',
+      'From a setTimeout callback',
+      'Directly from a user gesture handler such as a click',
+      'From the DOMContentLoaded event',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which event fires after the user successfully installs the PWA?',
+    options: ['beforeinstallprompt', 'install', 'appinstalled', 'activate'],
+    answer: 2,
+  },
+  {
+    q: 'How must iOS users install a PWA when beforeinstallprompt is not available?',
+    options: [
+      'They cannot install PWAs on iOS',
+      'They use the browser menu Install App option',
+      'They tap Share then Add to Home Screen in Safari',
+      'They download the app from the App Store',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/install-prompt" questions={quizInstallPrompt} />
+
+<ProgressTracker client:visible id="web-app-manifest/install-prompt" />

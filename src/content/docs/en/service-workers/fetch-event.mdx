@@ -1,0 +1,169 @@
+---
+title: The Fetch Event
+description: 'How the service worker fetch event intercepts requests, and how to respond from the network, cache, or both.'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The fetch event
+
+Once a service worker is activated and controls a page, **every network request** the page makes — HTML, CSS, JS, images, API calls — passes through the SW's `fetch` event. This is the heart of offline-first PWAs.
+
+### event.respondWith()
+
+Inside the `fetch` listener, call `event.respondWith()` with a Promise that resolves to a `Response`. If you do not call `event.respondWith()`, the request falls through to the network normally (passthrough behaviour).
+
+```js
+self.addEventListener('fetch', (event) => {
+  // Simplest possible passthrough — behaves as if no SW is installed
+  event.respondWith(fetch(event.request));
+});
+```
+
+### Network-first strategy
+
+Try the network; if it fails (offline or server error), fall back to the cache.
+
+```js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Clone the response: a Response body can only be consumed once
+        const clone = response.clone();
+        caches.open('v1').then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+```
+
+### Cache-first strategy
+
+Serve from cache immediately; if not cached, go to the network and cache the result.
+
+```js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        const clone = response.clone();
+        caches.open('v1').then((cache) => cache.put(event.request, clone));
+        return response;
+      });
+    })
+  );
+});
+```
+
+### Stale-while-revalidate strategy
+
+Return the cached version instantly, then update the cache in the background.
+
+```js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.open('v1').then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const networkFetch = fetch(event.request).then((response) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+        return cached || networkFetch;
+      })
+    )
+  );
+});
+```
+
+### Request flow diagram
+
+export const fetchDiagram = `sequenceDiagram
+  participant P as Page
+  participant SW as Service Worker
+  participant C as Cache Storage
+  participant N as Network
+
+  P->>SW: fetch(request)
+  SW->>C: caches.match(request)
+  alt cache hit
+    C-->>SW: cached Response
+    SW-->>P: Response (instant)
+  else cache miss
+    SW->>N: fetch(request)
+    N-->>SW: fresh Response
+    SW->>C: cache.put(request, response.clone())
+    SW-->>P: Response
+  end`;
+
+<Mermaid code={fetchDiagram} title="Cache-first fetch flow through the service worker" />
+
+### Pitfalls
+
+**Always clone before caching.** A `Response` body is a readable stream that can only be consumed once. If you pass the same `Response` to both the caller and `cache.put()`, one of them will receive an empty body. Use `response.clone()` before storing.
+
+**Do not intercept cross-origin opaque responses carelessly.** Requests to third-party origins without CORS return an opaque response (`type === 'opaque'`) with `status === 0`. Caching opaque responses inflates cache storage unpredictably. Apply fetch-event logic only to same-origin requests unless you know what you are doing.
+
+```js
+self.addEventListener('fetch', (event) => {
+  // Only handle same-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
+  );
+});
+```
+
+<Callout title="Key point">
+Once a service worker controls a page, every request goes through its `fetch` handler. If you call `event.respondWith()` but your Promise rejects or returns nothing, the page receives a network error — handle all code paths explicitly.
+</Callout>
+
+export const quizFetchEvent = [
+  {
+    q: 'What happens if the fetch handler calls event.respondWith() with a Promise that rejects?',
+    options: [
+      'The browser retries the request automatically',
+      'The page receives a network error',
+      'The request bypasses the service worker',
+      'The cache is cleared',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why must you clone a Response before passing it to cache.put()?',
+    options: [
+      'Cloning is required by the Cache Storage API',
+      'A Response body is a readable stream that can only be consumed once',
+      'cache.put() only accepts cloned responses',
+      'To prevent the SW from being terminated',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which fetch strategy returns a cached response immediately and updates the cache in the background?',
+    options: ['Cache-first', 'Network-first', 'Stale-while-revalidate', 'Network-only'],
+    answer: 2,
+  },
+  {
+    q: 'What is an opaque response?',
+    options: [
+      'A response with no body',
+      'A cross-origin response fetched without CORS, with status 0 and hidden headers',
+      'A cached response that has expired',
+      'A response created entirely inside the service worker',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="service-workers/fetch-event" questions={quizFetchEvent} />
+
+<ProgressTracker client:visible id="service-workers/fetch-event" />

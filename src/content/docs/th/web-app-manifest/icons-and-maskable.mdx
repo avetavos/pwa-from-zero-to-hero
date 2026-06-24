@@ -1,0 +1,142 @@
+---
+title: Icons และ Maskable Icons
+description: 'วิธีกำหนด icons array, เลือกขนาดและ MIME type ที่ถูกต้อง และสร้าง maskable icon พร้อม safe zone สำหรับ Android adaptive icons'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## อาร์เรย์ `icons`
+
+ฟิลด์ `icons` ใน manifest คืออาร์เรย์ของอ็อบเจ็กต์รูปภาพ เบราว์เซอร์จะเลือกขนาดที่เหมาะสมที่สุดสำหรับแต่ละบริบท: กล่องโต้ตอบการติดตั้ง, หน้าจอหลัก, splash screen และ app switcher
+
+```json
+{
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+แต่ละรายการมีสามคุณสมบัติ:
+
+| คุณสมบัติ | คำอธิบาย |
+|---|---|
+| `src` | เส้นทางไปยังไฟล์รูปภาพ (absolute หรือ relative จาก manifest) |
+| `sizes` | รายการขนาด `WxH` คั่นด้วยช่องว่างที่ไฟล์นี้รองรับ |
+| `type` | MIME type เช่น `"image/png"`, `"image/svg+xml"` |
+| `purpose` | ไม่บังคับ: `"any"`, `"maskable"` หรือ `"any maskable"` |
+
+### ขนาดขั้นต่ำที่จำเป็น
+
+Chrome และเบราว์เซอร์ Chromium อื่น ๆ ต้องการ icon ขนาด **192 x 192** เพื่อแสดง install prompt และ icon ขนาด **512 x 512** สำหรับ splash screen ควรใส่ทั้งคู่เสมอ
+
+icon SVG สามารถครอบคลุมทุกขนาดด้วยรายการเดียว:
+
+```json
+{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+```
+
+### Maskable icons
+
+Android 8 (Oreo) และรุ่นใหม่กว่าใช้ **adaptive icons** — ระบบปฏิบัติการจะตัด icon เป็นรูปทรง (วงกลม, สี่เหลี่ยมมน, หยดน้ำ ฯลฯ) ที่ตรงกับธีมของอุปกรณ์ icon มาตรฐานที่วางในมาสก์นั้นอาจถูกตัดขอบออก
+
+**maskable icon** ได้รับการออกแบบโดยให้ artwork ทั้งหมดอยู่ใน **safe zone** ตรงกลางที่รับประกันว่าจะมองเห็นได้ไม่ว่าจะเป็นรูปทรงมาสก์ใด safe zone คือวงกลมที่มีเส้นผ่านศูนย์กลาง **80% ของขอบที่สั้นที่สุด** ของรูปภาพ
+
+export const safeZoneDiagram = `flowchart TB
+  subgraph icon ["512 x 512 icon canvas"]
+    subgraph safe ["Safe zone (80% circle — always visible)"]
+      Logo["Logo / artwork here"]
+    end
+    BleedArea["Bleed area — may be clipped by OS mask"]
+  end`;
+
+<Mermaid code={safeZoneDiagram} title="Safe zone ของ maskable icon — วาง logo ไว้ในวงกลม 80%" />
+
+ประกาศ maskable icon โดยตั้งค่า `"purpose": "maskable"`:
+
+```json
+{
+  "src": "/icons/icon-512-maskable.png",
+  "sizes": "512x512",
+  "type": "image/png",
+  "purpose": "maskable"
+}
+```
+
+คุณยังสามารถให้ไฟล์เดียวรองรับทั้งสองวัตถุประสงค์:
+
+```json
+{
+  "src": "/icons/icon-512.png",
+  "sizes": "512x512",
+  "type": "image/png",
+  "purpose": "any maskable"
+}
+```
+
+อย่างไรก็ตามวิธีนี้ใช้ได้ก็ต่อเมื่อ artwork ของคุณอยู่ใน safe zone จริง ๆ ในกรณีส่วนใหญ่ควรเตรียม **สองไฟล์แยกกัน**: icon มาตรฐาน (`purpose: "any"`) และ icon ที่ออกแบบมาเฉพาะสำหรับ masking (`purpose: "maskable"`)
+
+### การสร้าง icons
+
+ใช้ [Maskable.app](https://maskable.app) เพื่อดูตัวอย่างว่า icon ของคุณจะดูเป็นอย่างไรในรูปทรง mask ต่าง ๆ [PWA Asset Generator](https://github.com/elegantapp/pwa-asset-generator) สามารถสร้างทุกขนาดที่ต้องการจากไฟล์ SVG เดียว
+
+ชุด icon ที่แนะนำ:
+
+```json
+[
+  { "src": "/icons/icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+  { "src": "/icons/icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+  { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+  { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+]
+```
+
+<Callout title="ประเด็นสำคัญ">
+ใส่ icon ที่มี `"purpose": "maskable"` เสมอเพื่อให้ Android สามารถปรับรูปทรงได้โดยไม่ตัด logo ออก ออกแบบ maskable variant โดยวาง artwork ทั้งหมดไว้ใน safe zone วงกลม 80% ตรงกลาง
+</Callout>
+
+export const quizIconsMaskable = [
+  {
+    q: 'ขนาด icon ขั้นต่ำที่ Chrome ต้องการเพื่อแสดง install prompt คืออะไร?',
+    options: ['48x48', '128x128', '192x192', '512x512'],
+    answer: 2,
+  },
+  {
+    q: 'เปอร์เซ็นต์ใดกำหนด safe zone ของ maskable icon?',
+    options: ['50%', '66%', '80%', '100%'],
+    answer: 2,
+  },
+  {
+    q: 'ค่า purpose ใดที่ควรใช้สำหรับ icon ที่ออกแบบมาให้ถูก clip โดย Android adaptive mask?',
+    options: ['"any"', '"maskable"', '"adaptive"', '"android"'],
+    answer: 1,
+  },
+  {
+    q: 'ค่า sizes เป็น "any" สำหรับรายการ icon SVG หมายความว่าอะไร?',
+    options: [
+      'icon จะถูกละเว้น',
+      'เบราว์เซอร์จะยืดให้เป็นขนาดใด ๆ ที่ต้องการ',
+      'icon ครอบคลุมทุกขนาดเพราะ SVG ไม่ขึ้นอยู่กับความละเอียด',
+      'icon ใช้เฉพาะสำหรับ splash screen',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/icons-and-maskable" questions={quizIconsMaskable} />
+
+<ProgressTracker client:visible id="web-app-manifest/icons-and-maskable" />

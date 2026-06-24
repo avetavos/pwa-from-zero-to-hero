@@ -1,0 +1,133 @@
+---
+title: Offline และ App Shell
+description: 'ความหมายของ "ทำงานแบบ offline" คืออะไร, ภาพรวมของ app-shell model, และวิธีที่ shell caching ทำให้ PWA โหลดได้ทันที'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## "ทำงานแบบ offline" หมายความว่าอะไร?
+
+เมื่อผู้ใช้เปิดแอปโดยไม่มีอินเทอร์เน็ต เบราว์เซอร์จะยังต้องมีบางอย่างแสดงผล หากไม่มีกลยุทธ์ offline เลย Chrome จะแสดง offline dinosaur ที่โด่งดัง Firefox แสดง "Server not found" และ Safari จะหน้าจอว่างเปล่า PWA สามารถทำได้ดีกว่านั้น
+
+"ทำงานแบบ offline" ไม่ได้แปลว่าทุกฟีเจอร์จะใช้งานได้โดยไม่มีเครือข่าย แต่หมายความว่าผู้ใช้จะเห็น **UI ที่มีความหมายและใช้งานได้** แทนที่จะเป็นหน้า error ของเบราว์เซอร์ ขึ้นอยู่กับแอปของคุณ อาจหมายความว่า:
+
+- แอปอ่านข่าวที่แสดงบทความที่ดึงมาล่าสุด
+- รายการสิ่งที่ต้องทำที่ให้ผู้ใช้สร้างรายการและซิงค์เมื่อมีการเชื่อมต่อกลับ
+- แอปแผนที่ที่แสดงชุดไทล์ที่แคชสำหรับเมืองที่ผู้ใช้เคยเข้าชมก่อนหน้า
+- อย่างน้อยก็ shell page ที่อธิบายว่าผู้ใช้ offline อยู่และยังคง branding ไว้
+
+สิ่งที่เหมือนกันคือเบราว์เซอร์ไม่ต้องรับผิดชอบต่อการเชื่อมต่อแต่เพียงผู้เดียว — service worker ต่างหากที่รับผิดชอบ
+
+### ทำไมเครือข่ายถึงไม่เพียงพอ
+
+หน้าเว็บแบบดั้งเดิมพึ่งพาเครือข่ายทุกไบต์: HTML, CSS, JavaScript, รูปภาพ การขาดการเชื่อมต่อเพียงครั้งเดียวหมายความว่าไม่มีอะไรโหลดได้ Service workers ทำลายการพึ่งพานี้โดยทำหน้าที่เป็น programmable proxy ที่สามารถให้บริการ assets จาก cache ในเครื่อง
+
+### App-shell model
+
+**App shell** คือชุดขั้นต่ำของ HTML, CSS, และ JavaScript ที่จำเป็นสำหรับการ render โครงของแอปพลิเคชัน — navigation bar, sidebar, loading skeleton, และ chrome อื่น ๆ ที่เหมือนกันในทุกหน้า มันเปลี่ยนแปลงน้อยมาก (คิดว่า: ครั้งต่อ deployment) และมักมีขนาดเล็ก
+
+Dynamic content — ข้อมูลจริงที่แอปแสดง — โหลดแยกกัน มักมาจาก API หรือ IndexedDB เนื้อหานี้เปลี่ยนแปลงตลอดเวลาและไม่สามารถ precache ได้ทั้งหมด
+
+แนวคิดนั้นเรียบง่าย: **cache shell ครั้งเดียว โหลดได้ทันทีในทุกการเข้าชม แล้วดึงเฉพาะ content เท่านั้น**
+
+### การเข้าชมครั้งแรก vs ครั้งถัดไป
+
+ใน **การเข้าชมครั้งแรก** เบราว์เซอร์ยังไม่มี cache ดังนั้นทุกอย่างมาจากเครือข่าย Service worker ติดตั้งในพื้นหลังและเติมข้อมูล cache ด้วย shell assets
+
+ใน **ทุกการเข้าชมถัดไป** (รวมถึงเมื่อ offline) service worker จะดักจับ navigation request และตอบกลับจาก cache Shell ปรากฏขึ้นทันที — โดยปกติน้อยกว่า 100 ms — ในขณะที่แอป fetch เนื้อหาใหม่แบบ asynchronous
+
+export const shellDiagram = `flowchart TD
+  subgraph CacheStorage["Cache Storage (precached on install)"]
+    A[index.html]
+    B[app.css]
+    C[app.js]
+  end
+
+  subgraph Network["Network / IndexedDB"]
+    D[Article data]
+    E[User profile]
+    F[Product listings]
+  end
+
+  V[Browser visits URL]
+  SW[Service Worker]
+
+  V --> SW
+  SW -->|"cache hit — instant"| CacheStorage
+  CacheStorage -->|"shell rendered"| R[Page visible]
+  R -->|"runtime fetch"| Network
+  Network -->|"fill in data"| R`;
+
+<Mermaid code={shellDiagram} title="App shell ให้บริการจาก cache; dynamic content โหลดจาก network หรือ IndexedDB" />
+
+### ประสิทธิภาพที่ได้รับ
+
+นอกจากการรองรับ offline แล้ว การ cache shell ยังให้ประสิทธิภาพที่วัดได้:
+
+- **Time to First Byte (TTFB)** สำหรับ shell ลดลงเกือบเป็นศูนย์ — response มาจาก local storage ไม่ใช่ server
+- **Cumulative Layout Shift (CLS)** ลดลงเพราะ layout ของ shell อยู่ในตำแหน่งแล้วก่อนที่ dynamic content จะมาถึง
+- **การเข้าชมซ้ำ** รู้สึกทันทีแม้บนการเชื่อมต่อช้า เพราะ navigation ไม่ต้องรอเครือข่ายอีกต่อไป
+
+### เมื่อไม่ควรใช้ app-shell model
+
+รูปแบบ app-shell ทำงานได้ดีที่สุดสำหรับ **Single Page Applications (SPAs)** และไซต์ที่มี layout ทั่วไปครอบทุกหน้า เหมาะน้อยกว่าสำหรับ:
+
+- ไซต์ที่เน้นเนื้อหาที่ทุก URL มีโครงสร้าง HTML เฉพาะ
+- ไซต์ที่ shell มีขนาดใหญ่ (หลาย MB) — ค่าใช้จ่ายของ precache มากกว่าประโยชน์
+- แอปที่ต้องแสดงข้อมูลล่าสุดที่สุดเสมอสำหรับทุก pixel
+
+<Callout title="ประเด็นสำคัญ">
+Cache app shell ไว้เพื่อให้ UI โหลดได้ทันทีและใช้งาน offline ได้ แล้วค่อย fill in data
+</Callout>
+
+export const quizIndex = [
+  {
+    q: 'What is the primary goal of the app-shell architecture?',
+    options: [
+      'Cache all data so the app works fully without any network',
+      'Cache the minimal UI frame so it loads instantly, then load content dynamically',
+      'Replace the service worker with a CDN',
+      'Eliminate the need for a web app manifest',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'When does the service worker first populate the app shell cache?',
+    options: [
+      'Every time the user navigates to a page',
+      'Only when the user manually clears the cache',
+      'During the install event on the first visit',
+      'After the user installs the PWA to the home screen',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which type of content is NOT a good candidate for precaching in the app shell?',
+    options: [
+      'The main navigation HTML skeleton',
+      'A global stylesheet shared across all pages',
+      'A real-time feed of news articles',
+      'A shared JavaScript bundle',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What happens on a repeat visit when the app shell is cached?',
+    options: [
+      'The browser ignores the service worker and fetches from the network',
+      'The service worker responds with the shell from cache immediately, then the app fetches content',
+      'The shell is re-downloaded to ensure it is up to date',
+      'The browser prompts the user to go online',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="offline-app-shell/index" />

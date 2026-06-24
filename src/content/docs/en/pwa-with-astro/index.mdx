@@ -1,0 +1,137 @@
+---
+title: 'PWA with Astro: Overview'
+description: "How @vite-pwa/astro integrates with Astro's static output and islands to make your site installable and offline-capable."
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## How PWA fits Astro
+
+**Astro** is a static-first framework. By default, it builds your site into pure HTML, CSS, and JavaScript — no server required at runtime. That output is exactly what a **Progressive Web App** needs: a set of cacheable static assets that can be served offline.
+
+The bridge between Astro's build output and PWA features is **`@vite-pwa/astro`**. It is a thin Astro integration that wraps `vite-plugin-pwa`, which in turn uses **Workbox** under the hood. When you run `astro build`, the integration automatically:
+
+1. Generates a `sw.js` service worker that precaches your static output.
+2. Creates a `manifest.webmanifest` that tells browsers your site is installable.
+3. Injects the registration script so the SW activates on first load.
+
+### Astro islands and the service worker
+
+Astro's **islands architecture** lets you sprinkle interactive components (React, Preact, Svelte, Vue, Solid…) into an otherwise static page using `client:*` directives:
+
+```astro
+---
+// src/pages/index.astro
+import Counter from '../components/Counter.tsx';
+---
+<h1>Welcome</h1>
+<Counter client:visible />
+```
+
+From the service worker's perspective, islands are just JavaScript files. The SW precaches them alongside your HTML and CSS. When a user goes offline:
+
+- Static HTML pages are served from the cache instantly.
+- Island JS bundles are also cached, so interactive components hydrate normally.
+- Any `client:load`, `client:visible`, or `client:idle` island works offline as long as its data requirements are met.
+
+### generateSW vs injectManifest
+
+`@vite-pwa/astro` exposes both Workbox strategies:
+
+```ts
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import AstroPWA from '@vite-pwa/astro';
+
+export default defineConfig({
+  integrations: [
+    AstroPWA({
+      // 'generateSW' (default): Workbox writes the SW for you
+      // 'injectManifest': you write the SW, Workbox injects the precache list
+      strategies: 'generateSW',
+      registerType: 'autoUpdate',
+    }),
+  ],
+});
+```
+
+Use `generateSW` when you want zero-boilerplate offline support. Switch to `injectManifest` when you need custom fetch logic — for example, a runtime caching strategy for API calls that islands make.
+
+### SSG vs SSR
+
+Astro supports both **SSG** (static site generation, the default) and **SSR** (server-side rendering via an adapter). PWA support is most natural with SSG:
+
+| Mode | SW precaching | Notes |
+|------|--------------|-------|
+| SSG | Full precache of all pages and assets | Best for PWA — everything is known at build time |
+| SSR | Precache only the app shell and static assets | Dynamic routes must use runtime caching strategies |
+
+<Callout title="Key point">
+Astro ships mostly static HTML — `@vite-pwa/astro` adds a service worker + manifest to make it installable and offline-capable.
+</Callout>
+
+## What this module covers
+
+This module takes you from zero to a fully offline-capable Astro PWA in five lessons:
+
+| Lesson | What you learn |
+|--------|---------------|
+| 1. Overview (this page) | How `@vite-pwa/astro` works and how it interacts with Astro's build |
+| 2. Setup | Installing and wiring `@vite-pwa/astro` into a new or existing Astro project |
+| 3. Manifest config | Configuring `manifest.webmanifest` — name, icons, display, theme color |
+| 4. SW strategies | Choosing and tuning Workbox caching strategies for pages, assets, and API calls |
+| 5. Astro-specific considerations | Islands hydration offline, partial SSR, and edge cases |
+
+Each lesson is standalone: skip to any of them at any time.
+
+export const astroBuildDiagram = `flowchart LR
+  A["Source Files\\n(.astro, .tsx, .css)"] -->|"astro build"| B["dist/\\n(static HTML + assets)"]
+  B --> C["@vite-pwa/astro\\n(Workbox)"]
+  C --> D["sw.js"]
+  C --> E["manifest.webmanifest"]
+  D --> F["Browser\\n(installs SW, precaches dist/)"]
+  E --> F`;
+
+<Mermaid code={astroBuildDiagram} title="Astro build → service worker + manifest → browser" />
+
+export const quizPwaWithAstroIndex = [
+  {
+    q: 'Which package does @vite-pwa/astro wrap under the hood?',
+    options: ['workbox-cli', 'vite-plugin-pwa', 'sw-precache', 'next-pwa'],
+    answer: 1,
+  },
+  {
+    q: 'What does the generateSW strategy do in @vite-pwa/astro?',
+    options: [
+      'You write the service worker manually and Workbox injects the precache list',
+      'Workbox generates the complete service worker file for you',
+      'It generates a new Astro island for offline detection',
+      'It creates a manifest.webmanifest only — no service worker',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In an Astro SSG build, what does the service worker precache?',
+    options: [
+      'Only the index.html file',
+      'API responses from the server',
+      'All static HTML pages, CSS, JS bundles, and assets in dist/',
+      'Only the island JavaScript components',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which Astro output mode is most naturally suited to full PWA precaching?',
+    options: ['SSR with an adapter', 'SSG (static site generation)', 'Edge rendering', 'On-demand rendering'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/index" questions={quizPwaWithAstroIndex} />
+
+<ProgressTracker client:visible id="pwa-with-astro/index" />

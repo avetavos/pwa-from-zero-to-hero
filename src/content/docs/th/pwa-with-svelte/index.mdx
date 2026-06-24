@@ -1,0 +1,100 @@
+---
+title: 'PWA กับ Svelte: ภาพรวม'
+description: 'สองแนวทางในการสร้าง SvelteKit PWA — โมดูล service worker ในตัว ($service-worker) หรือ @vite-pwa/sveltekit พร้อม Workbox — และสิ่งที่โมดูลนี้ครอบคลุม'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## สองแนวทางสู่ SvelteKit PWA
+
+SvelteKit มาพร้อมกับการรองรับ **service worker แบบ first-class** ในตัว — ไม่ต้องติดตั้งแพ็กเกจเพิ่มเติม เพียงวางไฟล์ที่ `src/service-worker.js` แล้ว SvelteKit จะ bundle และลงทะเบียนให้อัตโนมัติในขั้นตอน build ภายในไฟล์นั้น virtual module `$service-worker` จะให้รายการ asset ที่ build เสร็จแล้ว, ไฟล์ static, และ version string — ทุกอย่างที่คุณต้องการในการ precache แอปของคุณ
+
+สำหรับทีมที่ต้องการ **Workbox** (ไลบรารี caching strategy ของ Google) พร้อมกับการสร้าง manifest อัตโนมัติและ update API ที่ครบครัน แพ็กเกจ `@vite-pwa/sveltekit` จะห่อ Workbox ไว้ใน Vite plugin ที่ผสานรวมกับ build pipeline ของ SvelteKit ได้อย่างลงตัว
+
+### ควรเลือกแนวทางใด?
+
+| | SW ในตัว (`$service-worker`) | `@vite-pwa/sveltekit` |
+|---|---|---|
+| ติดตั้งเพิ่ม | ไม่ต้อง | `npm i -D @vite-pwa/sveltekit` |
+| Caching strategies | Manual (Cache API) | Workbox (stale-while-revalidate, cache-first, …) |
+| Manifest | เขียนเอง | สร้างจาก config ของ plugin |
+| Update API | Manual `updatefound` / `statechange` | `virtual:pwa-register` พร้อม store |
+| เหมาะสำหรับ | เรียนรู้, แอปขนาดเล็ก | แอป production ที่ต้องการควบคุมละเอียด |
+
+โมดูลนี้ครอบคลุม **ทั้งสองแนวทาง** ใน 5 บทเรียน เพื่อให้คุณเลือกแนวทางที่เหมาะกับโปรเจกต์
+
+### วิธีที่ build เชื่อมทุกอย่างเข้าด้วยกัน
+
+export const buildFlowDiagram = `flowchart LR
+  subgraph Build
+    SK["SvelteKit build"] --> BF["build/ assets (hashed)"]
+    SK --> ST["static/ files"]
+    BF --> VER["version string"]
+  end
+  subgraph ServiceWorker["Service Worker (either path)"]
+    VER --> CACHE["CACHE = cache-version"]
+    BF --> ASSETS["ASSETS = [...build, ...files]"]
+    ASSETS --> PRE["precache on install"]
+  end
+  subgraph Page
+    REG["navigator.serviceWorker.register()"] --> SW["sw.js activated"]
+    SW --> INT["intercepts fetch()"]
+  end
+  Build --> ServiceWorker
+  ServiceWorker --> Page`;
+
+<Mermaid code={buildFlowDiagram} title="SvelteKit build pipeline → service worker → page" />
+
+## สิ่งที่โมดูลนี้ครอบคลุม
+
+1. **ภาพรวม** (หน้านี้) — สองแนวทาง PWA ใน SvelteKit และเมื่อไหร่ควรเลือกแนวทางใด
+2. **SvelteKit PWA setup** — ติดตั้ง `@vite-pwa/sveltekit`, ตั้งค่า `SvelteKitPWA()` ใน `vite.config.ts`, และทำความเข้าใจ `registerType`, `manifest`, และ `strategies`
+3. **โมดูล `$service-worker`** — สร้าง `src/service-worker.js` โดยใช้เฉพาะ SvelteKit built-ins: `build`, `files`, `version`, และ `prerendered`
+4. **Update flow** — ตรวจจับ service worker ใหม่, แจ้งเตือนผู้ใช้ให้ reload, และความแตกต่างระหว่าง `autoUpdate` กับ `prompt` registration type
+5. **Svelte-specific patterns** — online/offline store, install-prompt component, reactive update-available state, และ SSR/adapter notes
+
+<Callout title="Key point">
+SvelteKit รองรับ service worker แบบ first-class ในตัว — เพียงสร้าง `src/service-worker.js` และ import จาก `$service-worker` การเพิ่ม `@vite-pwa/sveltekit` จะเพิ่ม Workbox และการสร้าง manifest ให้สำหรับ caching strategy ระดับ production
+</Callout>
+
+export const quizPwaWithSvelteIndex = [
+  {
+    q: 'โมดูล $service-worker เปิดเผยอะไรบ้าง?',
+    options: [
+      'React hooks สำหรับสถานะ PWA',
+      'รายการ built asset, ไฟล์ static, และ version string',
+      'อินสแตนซ์ Workbox ที่ตั้งค่าไว้ล่วงหน้าสำหรับ SvelteKit',
+      'ส่วนภายใน SvelteKit router',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'แพ็กเกจใดที่เพิ่ม Workbox และการสร้าง manifest อัตโนมัติให้กับ SvelteKit PWA?',
+    options: [
+      'workbox-sveltekit',
+      '@sveltejs/pwa',
+      '@vite-pwa/sveltekit',
+      'vite-plugin-workbox',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'SvelteKit มองหาไฟล์ custom service worker ที่ตำแหน่งใดโดยค่าเริ่มต้น?',
+    options: [
+      'public/sw.js',
+      'static/service-worker.js',
+      'src/service-worker.js',
+      'src/routes/sw.js',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/index" questions={quizPwaWithSvelteIndex} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/index" />

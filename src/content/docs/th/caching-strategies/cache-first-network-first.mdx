@@ -1,0 +1,173 @@
+---
+title: 'Cache-First และ Network-First'
+description: 'การนำ cache-first (offline-first สำหรับ static asset) และ network-first (ข้อมูลสดใหม่พร้อม cache fallback) ไปใช้ใน fetch handler ของ service worker'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Cache-first และ network-first
+
+caching strategy พื้นฐานที่สุดสองตัวคือ **cache-first** และ **network-first** cache-first ให้ความสำคัญกับความเร็ว service worker เสิร์ฟจาก cache ทันทีและแตะ network เฉพาะตอนที่ cache miss เท่านั้น — ทำให้มันเหมาะที่สุดสำหรับ app shell, ฟอนต์, ไอคอน, และ static asset อื่น ๆ ที่เปลี่ยนแปลงไม่บ่อย ส่วน network-first ให้ความสำคัญกับความสดใหม่ มันพยายาม fetch สด ๆ เสมอและจะ fallback ไปที่ cache เฉพาะตอนที่ network ใช้งานไม่ได้ — ทำให้มันเป็นตัวเลือกที่ถูกต้องสำหรับการตอบกลับจาก API, หน้า HTML แบบไดนามิก, และ resource ใด ๆ ที่การเสิร์ฟข้อมูลเก่าจะก่อให้เกิดความเสียหาย
+
+การเลือกระหว่างสองตัวนี้คือการแลกเปลี่ยน: cache-first ให้การโหลดทันทีโดยเสี่ยงกับเนื้อหาที่เก่า; network-first ให้เนื้อหาสดใหม่โดยแลกกับ network round-trip ในทุก request
+
+## Cache-first
+
+เสิร์ฟจาก cache ทันที fetch จาก network เฉพาะตอนที่ cache miss แล้วค่อยแคชผลลัพธ์ไว้สำหรับครั้งถัดไป strategy นี้เหมาะที่สุดสำหรับ static asset ที่เปลี่ยนแปลงไม่บ่อย — JavaScript bundle, CSS stylesheet, web font, และรูปภาพ เพราะ cache ถูกตรวจสอบก่อน network หน้าเพจจึงโหลดเร็วระดับ memory แม้บนการเชื่อมต่อที่ช้า
+
+วินัยสำคัญของ cache-first คือ **การทำ cache versioning**: เพราะ asset ถูกเสิร์ฟจาก cache โดยไม่ปรึกษา network คุณจึงต้องเพิ่มเลขชื่อ cache (เช่นจาก `app-v1` เป็น `app-v2`) ทุกครั้งที่คุณ deploy asset ใหม่ และลบ cache เก่าใน `activate` event เพื่อคืนพื้นที่จัดเก็บ
+
+```js
+const CACHE = 'app-v1';
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        return caches.open(CACHE).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      });
+    })
+  );
+});
+```
+
+export const cacheFirstDiagram = `flowchart LR
+  A[Request] --> B{Check cache}
+  B -- hit --> C[Return cached response]
+  B -- miss --> D[Fetch from network]
+  D --> E[Store in cache]
+  E --> F[Return response]`;
+
+<Mermaid code={cacheFirstDiagram} title="strategy แบบ cache-first" />
+
+## Network-first
+
+ลอง network ก่อนเสมอ เมื่อ network ล้มเหลวจึง fallback ไปที่ cache วิธีนี้เหมาะที่สุดสำหรับข้อมูลไดนามิกที่คุณต้องการความสดใหม่ — การตอบกลับ JSON จาก API, HTML ที่ render จากเซิร์ฟเวอร์ — แต่ก็ยังต้องการความทนทานแบบออฟไลน์เพื่อไม่ให้ผู้ใช้ต้องจ้องหน้าเพจว่างเปล่า
+
+ข้อแลกเปลี่ยนคือทุก request ที่สำเร็จต้องจ่ายค่า network round-trip เต็ม ๆ หน้าเพจจึงโหลดได้ไม่เร็วกว่าที่เซิร์ฟเวอร์ตอบกลับ บนการเชื่อมต่อที่ช้านี่ช้ากว่า cache-first อย่างเห็นได้ชัด network-first จึงเป็นตัวเลือกที่ผิดสำหรับ static asset ขนาดใหญ่ ให้สงวนมันไว้สำหรับ resource ที่ข้อมูลเก่ายอมรับไม่ได้จริง ๆ
+
+```js
+const CACHE = 'app-v1';
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        return caches.open(CACHE).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+```
+
+export const networkFirstDiagram = `flowchart LR
+  A[Request] --> B[Fetch from network]
+  B -- success --> C[Store in cache]
+  C --> D[Return response]
+  B -- failure --> E{Check cache}
+  E -- hit --> F[Return cached response]
+  E -- miss --> G[Return undefined / error]`;
+
+<Mermaid code={networkFirstDiagram} title="strategy แบบ network-first" />
+
+## ลองใช้งานจริง
+
+เดโมด้านล่างลงทะเบียน service worker ที่ใช้ cache-first สำหรับทุก request เปิดโปรเจกต์ StackBlitz โหลดหน้าเพจหนึ่งครั้งเพื่อให้ SW ติดตั้ง แล้ว reload — การโหลดครั้งที่สองจะถูกเสิร์ฟจาก cache ทั้งหมด เปิด DevTools → Application → Cache Storage เพื่อดูรายการที่ถูกแคชไว้
+
+export const proj = {
+  'index.html': `<!doctype html><html><head><meta charset="utf-8"/><link rel="manifest" href="/manifest.webmanifest"/><title>Cache-First Demo</title></head><body><h1>Cache-First Demo</h1><p>Open DevTools → Application → Cache Storage to see cached resources.</p><pre id="log"></pre><script type="module" src="/main.js"></script></body></html>`,
+  'main.js': `const log = (m) => (document.getElementById('log').textContent += m + '\\n');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(() => log('SW registered — reload to serve from cache'));
+} else { log('Service workers not supported'); }`,
+  'sw.js': `var CACHE = 'app-v1';
+self.addEventListener('install', function(e) {
+  e.waitUntil(caches.open(CACHE).then(function(cache) {
+    return cache.addAll(['/index.html']);
+  }));
+  self.skipWaiting();
+});
+self.addEventListener('activate', function(e) {
+  e.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', function(e) {
+  e.respondWith(
+    caches.match(e.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(e.request).then(function(response) {
+        return caches.open(CACHE).then(function(cache) {
+          cache.put(e.request, response.clone());
+          return response;
+        });
+      });
+    })
+  );
+});`,
+  'manifest.webmanifest': `{"name":"Cache Demo","short_name":"Cache","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#5A0FC8"}`,
+};
+
+<PwaPlayground files={proj} />
+
+<Callout title="จุดสำคัญ">
+cache-first นั้นเร็วแต่สามารถเสิร์ฟ asset ที่เก่าได้ — ทำ versioning ให้ชื่อ cache ของคุณ (เช่น `app-v2`) และลบ cache เก่าใน `activate` event ทุกครั้งที่คุณ deploy asset ใหม่
+</Callout>
+
+export const quizCacheFirstNetworkFirst = [
+  {
+    q: 'strategy ใดที่ลอง network ก่อนและจะ fallback ไปที่ cache เฉพาะตอนล้มเหลวเท่านั้น?',
+    options: [
+      'Cache-first',
+      'Network-first',
+      'Cache-only',
+      'Stale-while-revalidate',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Cache-first เหมาะสมที่สุดสำหรับ:',
+    options: [
+      'การตอบกลับจาก API ที่เปลี่ยนแปลงบ่อย',
+      'request การยืนยันตัวตนของผู้ใช้',
+      'static asset อย่างฟอนต์, ไอคอน, และ JS ของ app shell',
+      'endpoint การชำระเงิน',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณจะ invalidate asset แบบ cache-first ที่เก่าหลัง deploy ได้อย่างไร?',
+    options: [
+      'เรียก caches.clear() ในทุก request',
+      'เพิ่มเวอร์ชันของชื่อ cache และลบ cache เก่าใน activate event',
+      'ลบไฟล์ SW',
+      'ตั้ง Cache-Control: no-store บน response',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'fetch handler แบบ network-first คืนค่าอะไรเมื่อทั้ง network และ cache ล้มเหลว?',
+    options: [
+      'Response ว่างเปล่า',
+      'response 404',
+      'undefined (ไม่มี response)',
+      'หน้าเพจจะแสดง error',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/cache-first-network-first" questions={quizCacheFirstNetworkFirst} />
+
+<ProgressTracker client:visible id="caching-strategies/cache-first-network-first" />

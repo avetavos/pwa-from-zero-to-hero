@@ -1,0 +1,169 @@
+---
+title: 'Configuring the Web App Manifest'
+description: 'How to define the web app manifest inside AstroPWA integration options — name, icons, theme colour, display mode — and what the emitted manifest.webmanifest looks like.'
+sidebar:
+  order: 3
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Configuring the Web App Manifest
+
+The **web app manifest** is a JSON file that tells the browser how to present your PWA — its name, icons, launch URL, and display mode. With the `@astrojs/pwa` (vite-plugin-pwa) integration you never write that file by hand. You declare everything inside `astro.config.mjs` and the integration emits the manifest and links it automatically.
+
+### The manifest object inside AstroPWA
+
+Pass a `manifest` key to `AstroPWA()`. Every standard manifest field is supported:
+
+```ts
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import AstroPWA from '@vite-pwa/astro';
+
+export default defineConfig({
+  integrations: [
+    AstroPWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'My Astro PWA',
+        short_name: 'AstroPWA',
+        description: 'A PWA built with Astro',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          { src: 'pwa-64x64.png',            sizes: '64x64',   type: 'image/png' },
+          { src: 'pwa-192x192.png',           sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png',           sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      pwaAssets: {
+        image: 'public/logo.svg',
+      },
+    }),
+  ],
+});
+```
+
+**Key properties explained:**
+
+- `name` — The full application name shown on splash screens and app stores.
+- `short_name` — A shorter label used when space is limited (home-screen icon label).
+- `description` — A sentence describing the app; used by some app stores.
+- `theme_color` — Tints the browser's address bar or the OS title bar to match your brand.
+- `background_color` — The background of the splash screen shown while the app loads.
+- `display` — Controls how much browser UI is visible (see table below).
+- `start_url` — The URL the OS opens when the user launches the installed PWA.
+- `icons` — An array of image descriptors. The browser picks the most appropriate size.
+
+### Why two 512 × 512 icons?
+
+The `purpose` field matters:
+
+- `"any"` — a standard icon used in most contexts (app drawers, home screen on iOS/macOS).
+- `"maskable"` — an icon whose subject is contained inside a "safe zone" so Android can apply its adaptive-icon mask (circle, squircle, etc.) without clipping your artwork.
+
+Providing both ensures your icon looks correct on every platform.
+
+### The emitted manifest.webmanifest
+
+At build time the integration writes a `manifest.webmanifest` file to the output root. Its contents mirror what you declared:
+
+```json
+{
+  "name": "My Astro PWA",
+  "short_name": "AstroPWA",
+  "description": "A PWA built with Astro",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    { "src": "pwa-192x192.png",           "sizes": "192x192", "type": "image/png" },
+    { "src": "pwa-512x512.png",           "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+```
+
+The integration also automatically injects a `<link rel="manifest" href="/manifest.webmanifest">` tag into every page's `<head>` — you do not need to add it yourself.
+
+### Generating icons automatically with pwaAssets
+
+Manually resizing icons to every required dimension is tedious. The `pwaAssets` option (powered by `@vite-pwa/assets-generator`) generates all icon variants from a single source image:
+
+```ts
+pwaAssets: {
+  image: 'public/logo.svg',   // SVG or high-res PNG source
+},
+```
+
+Point it at your `logo.svg` and the generator produces `pwa-64x64.png`, `pwa-192x192.png`, `pwa-512x512.png`, `maskable-icon-512x512.png`, and more — no manual resizing needed.
+
+### Display modes
+
+The `display` field controls how much browser chrome is shown when the PWA is launched as an installed app:
+
+| `display` | Behaviour |
+|---|---|
+| `standalone` | App-like window, no browser UI |
+| `minimal-ui` | Minimal browser UI |
+| `fullscreen` | Full screen, no UI |
+| `browser` | Regular browser tab |
+
+`"standalone"` is the most common choice for PWAs because it gives the experience of a native app without the browser address bar.
+
+<Callout title="Key point">
+Configure the manifest once in `astro.config.mjs`; the integration emits it and links it for you.
+</Callout>
+
+export const quizManifestConfig = [
+  {
+    q: 'Where do you configure the web app manifest when using the AstroPWA integration?',
+    options: [
+      'In a separate manifest.webmanifest file you create manually',
+      'Inside the manifest key of AstroPWA() in astro.config.mjs',
+      'In a manifest.json file at the project root',
+      'In the Astro frontmatter of each page',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does the integration automatically add to every page\'s <head>?',
+    options: [
+      'A <script> tag that registers the service worker',
+      'A <meta name="theme-color"> tag',
+      'A <link rel="manifest" href="/manifest.webmanifest"> tag',
+      'A <link rel="icon"> tag pointing to the maskable icon',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why should you provide both a "any" and a "maskable" 512x512 icon?',
+    options: [
+      'Because the manifest spec requires exactly two icons at every size',
+      'So the browser can pick the smaller file to save bandwidth',
+      'So Android can apply its adaptive-icon mask without clipping, while other platforms use the standard icon',
+      'Because "maskable" icons are only used on splash screens',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which display mode gives an app-like window with no browser UI?',
+    options: [
+      'browser',
+      'minimal-ui',
+      'fullscreen',
+      'standalone',
+    ],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/manifest-config" questions={quizManifestConfig} />
+
+<ProgressTracker client:visible id="pwa-with-astro/manifest-config" />

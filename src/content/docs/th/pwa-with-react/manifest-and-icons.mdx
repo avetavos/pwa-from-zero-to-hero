@@ -1,0 +1,145 @@
+---
+title: 'Manifest และ Icons'
+description: "กำหนด web app manifest ใน option manifest ของ VitePWA() สร้าง icon ด้วย pwa-assets และตั้งค่า includeAssets สำหรับ favicon กับ apple-touch-icon"
+sidebar:
+  order: 3
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## option manifest
+
+แทนที่จะใช้ไฟล์ `manifest.json` แยกต่างหาก `vite-plugin-pwa` ให้คุณกำหนด manifest โดยตรงใน `vite.config.ts` ได้เลย plugin จะ inject manifest เข้าไปทุกหน้า HTML และเพิ่ม tag `<link rel="manifest">` ให้อัตโนมัติ วิธีนี้ทำให้การตั้งค่า PWA อยู่ในที่เดียวกันกับส่วนที่เหลือของ Vite setup
+
+### กำหนด manifest ใน vite.config.ts
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'prompt',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+      manifest: {
+        name: 'My PWA App',
+        short_name: 'MyApp',
+        description: 'A Progressive Web App built with Vite and React',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+## includeAssets
+
+option `includeAssets` บอก Workbox ให้ precache ไฟล์ static ที่ไม่ได้อยู่ใน build output โดยอัตโนมัติ ถ้าไม่ตั้งค่านี้ ไฟล์อย่าง `favicon.ico` และ `apple-touch-icon.png` ที่คุณวางไว้ใน `public/` ด้วยตนเองจะไม่ถูกรวมใน precache manifest ของ service worker
+
+```ts
+includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+```
+
+การเพิ่มไฟล์เหล่านี้ที่นี่จะทำให้ไฟล์ถูก cache ตั้งแต่การติดตั้ง service worker ครั้งแรก ทำให้ browser และ iOS home screen เสิร์ฟไฟล์เหล่านั้นจาก cache ได้แม้ผู้ใช้จะออฟไลน์
+
+## สร้าง icon ด้วย @vite-pwa/assets-generator
+
+แทนที่จะ export ทุกขนาด icon จาก design tool ด้วยตนเอง คุณสามารถสร้างขนาดที่ต้องการทั้งหมดจากไฟล์ SVG ไฟล์เดียวโดยใช้ package `@vite-pwa/assets-generator`
+
+```bash
+npx @vite-pwa/assets-generator --preset minimal logo.svg
+```
+
+คำสั่งนี้จะอ่าน `logo.svg` จาก directory ปัจจุบันและเขียน PNG icon ที่สร้างขึ้นทั้งหมดลงใน `public/` preset `minimal` จะสร้างขนาดที่ครอบคลุม icons array ตามที่แสดงไว้ข้างต้น
+
+## apple-touch-icon และ favicon
+
+ไฟล์ `apple-touch-icon.png` ขนาด 180x180 ต้องวางไว้ใน `public/` เพื่อให้ Vite คัดลอกไปยัง `dist/` ระหว่าง build iOS ใช้ภาพนี้เมื่อผู้ใช้เพิ่มแอปของคุณไปยัง home screen อย่าลืมใส่ไว้ใน `includeAssets` เพื่อให้ Workbox precache ด้วย
+
+ไฟล์ `favicon.ico` ใช้กฎเดียวกัน — วางไว้ใน `public/` และควรระบุไว้ใน `includeAssets`
+
+### ตารางอ้างอิงขนาด icon
+
+| ขนาด icon | วัตถุประสงค์ |
+|---|---|
+| 192x192 | หน้าจอ Home บน Android มาตรฐาน |
+| 512x512 | Splash screen / หน้าต่าง install prompt |
+| 512x512 maskable | Adaptive icon บน Android |
+| 180x180 | Apple Touch Icon (หน้าจอ Home ของ iOS) |
+
+<Callout title="Key point">
+แนะนำให้ปล่อยให้ plugin จัดการ manifest และ precache เพื่อให้ `dist/` ของคุณพร้อมติดตั้งโดยไม่ต้องเขียน SW เอง
+</Callout>
+
+export const quizManifestAndIcons = [
+  {
+    q: 'คุณกำหนด manifest ไว้ที่ไหนเมื่อใช้ vite-plugin-pwa?',
+    options: [
+      'ในไฟล์ manifest.json แยกต่างหาก',
+      'ใน option manifest ภายใน VitePWA()',
+      'ใน index.html ด้วยตนเอง',
+      'ใน package.json',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'includeAssets ทำหน้าที่อะไร?',
+    options: [
+      'บีบอัดไฟล์ image assets',
+      'บอก Workbox ให้ precache ไฟล์ static เช่น favicon.ico',
+      'เพิ่ม tag <link rel="manifest">',
+      'สร้าง icon โดยอัตโนมัติ',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'tool ใดที่สร้างขนาด PWA icon ทั้งหมดจาก SVG ไฟล์เดียว?',
+    options: [
+      'sharp',
+      'imagemin',
+      '@vite-pwa/assets-generator',
+      'pngquant',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ค่า icon purpose ใดที่ช่วยให้ Android ใช้ adaptive mask กับ icon ของคุณได้?',
+    options: [
+      'any',
+      'standalone',
+      'maskable',
+      'adaptive',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/manifest-and-icons" questions={quizManifestAndIcons} />
+
+<ProgressTracker client:visible id="pwa-with-react/manifest-and-icons" />

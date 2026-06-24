@@ -1,0 +1,135 @@
+---
+title: PWA คืออะไร?
+description: 'ภาพรวมของ Progressive Web Apps — คืออะไร, building blocks ที่ใช้, และเนื้อหาที่คอร์สนี้ครอบคลุม'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ยินดีต้อนรับสู่คอร์ส
+
+**Progressive Web App (PWA)** ไม่ใช่เทคโนโลยีแยกต่างหากหรือไฟล์ประเภทใหม่ที่ต้องส่งขึ้น app store แต่เป็นเว็บไซต์ธรรมดาที่ใช้ความสามารถสมัยใหม่ของเว็บเพื่อทำงานเหมือนแอปที่ติดตั้งแล้ว มีความน่าเชื่อถือ และรวดเร็วเหมือน native app — ทั้งหมดนี้ผ่าน URL เดียว
+
+นิยามนั้นมีสามส่วนที่ควรทำความเข้าใจ:
+
+- **Installable** — ผู้ใช้สามารถเพิ่มแอปลงในหน้าจอหลักหรือ taskbar ได้ browser จัดการ install prompt เอง ไม่ต้องผ่านการตรวจสอบของ app store
+- **Offline-capable** — service worker สกัดกั้น network request และสามารถส่งคืน cached response เมื่ออุปกรณ์ออฟไลน์หรือเชื่อมต่อช้า
+- **Fast** — app shell โหลดจาก cache ทันที ขณะที่ข้อมูลแบบ dynamic ถูกดึงมาในเบื้องหลัง ขจัดหน้าจอโหลดว่างเปล่า
+
+## เนื้อหาที่คอร์สนี้ครอบคลุม
+
+คอร์สนี้พาคุณจากโฟลเดอร์ว่างเปล่าไปสู่ PWA ที่ผ่านการตรวจสอบอย่างสมบูรณ์ แต่ละหัวข้อต่อยอดจากหัวข้อก่อนหน้า:
+
+1. **Introduction** (หัวข้อนี้) — PWA คืออะไร, ประวัติความเป็นมา, และข้อกำหนด
+2. **Web App Manifest** — ทำให้ไซต์ของคุณ installable และควบคุมการแสดงผลบนหน้าจอหลัก
+3. **Service Workers** — เธรดพร็อกซีที่ขับเคลื่อน caching, offline, และ background sync
+4. **Caching Strategies** — เลือก cache strategy ที่เหมาะสมสำหรับ resource แต่ละประเภท
+5. **Push Notifications** — ดึงผู้ใช้กลับมาแม้ browser จะปิดอยู่
+6. **Advanced APIs** — Background Sync, Periodic Background Sync, และ File System Access API
+7. **Auditing & Deployment** — รัน Lighthouse, แก้คะแนน, และ deploy ผ่าน HTTPS
+
+## สี่ building blocks
+
+PWA ทุกตัวยืนอยู่บนสี่เสา ถอดเสาใดเสาหนึ่งออกแล้วแอปจะสูญเสียความสามารถหลัก:
+
+export const buildingBlocksDiagram = `flowchart TD
+  HTTPS["HTTPS\\nSecure origin — required\\nfor SW registration"]
+  Manifest["Web App Manifest\\nJSON file — controls install\\nprompt and display mode"]
+  SW["Service Worker\\nBackground script — caching,\\noffline, push, sync"]
+  Shell["App Shell\\nMinimal HTML/CSS/JS\\nloaded from cache instantly"]
+
+  HTTPS --> SW
+  HTTPS --> Manifest
+  Manifest --> Shell
+  SW --> Shell
+  Shell --> PWA["Progressive Web App"]
+  Manifest --> PWA
+  SW --> PWA`;
+
+<Mermaid code={buildingBlocksDiagram} title="PWA building blocks" />
+
+### HTTPS
+
+Service worker สามารถสกัดกั้น network request ทุกรายการที่หน้าเว็บทำ ดังนั้น browser จะปฏิเสธการลงทะเบียน service worker บน origin ที่ไม่ปลอดภัย (ทุกอย่างนอกจาก `https://` หรือ `localhost`) HTTPS ไม่ใช่ตัวเลือก — มันคือรากฐานที่ทุกอย่างยึดอยู่
+
+### Web App Manifest
+
+ไฟล์ JSON ที่ลิงก์จาก HTML ซึ่งบอก browser ชื่อแอป, ไอคอน, สีธีม, และวิธีที่แอปควรแสดงผลเมื่อเปิดจากหน้าจอหลัก หากไม่มี manifest ที่ถูกต้อง browser จะไม่แสดง install prompt
+
+```json
+{
+  "name": "My PWA",
+  "short_name": "MyApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+### Service Worker
+
+ไฟล์ JavaScript ที่รันใน background thread แยกจากหน้าเว็บของคุณ มันทำหน้าที่เป็น network proxy ที่ตั้งโปรแกรมได้ — สกัดกั้น fetch request, ตอบสนองจาก cache, และเปิดใช้งาน push notification และ background sync บทเรียนในส่วน **Service Workers** จะครอบคลุมเรื่องนี้อย่างละเอียด
+
+### App Shell
+
+HTML, CSS, และ JavaScript ขั้นต่ำที่จำเป็นต้องใช้สำหรับ render โครงร่าง UI — headers, navigation, และ layout — ก่อนที่ข้อมูลจะโหลด เมื่อ app shell ถูก cache โดย service worker โครงร่างจะปรากฏทันทีในการเยี่ยมชมซ้ำ แม้แต่ขณะออฟไลน์
+
+<Callout title="ประเด็นสำคัญ">
+A PWA คือเว็บไซต์ที่ผ่านเกณฑ์ installability และ reliability — ไม่จำเป็นต้องผ่าน app store
+</Callout>
+
+export const quizIntroIndex = [
+  {
+    q: 'ข้อใดอธิบาย Progressive Web App ได้ดีที่สุด?',
+    options: [
+      'แอปพลิเคชัน native ที่สร้างด้วยเทคโนโลยีเว็บและแจกจ่ายผ่าน app store',
+      'เว็บไซต์ที่ใช้ความสามารถสมัยใหม่ของเว็บเพื่อทำงานเหมือนแอปที่ติดตั้งแล้วและน่าเชื่อถือ',
+      'Single-page application ที่สร้างด้วย React หรือ Vue',
+      'เว็บไซต์ที่ต้องใช้ PWA runtime เฉพาะในการรัน',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณสมบัติหลักสามประการที่กำหนด PWA คืออะไร?',
+    options: [
+      'Fast, responsive, และ cross-browser compatible',
+      'Installable, offline-capable, และ fast',
+      'Secure, indexed, และ discoverable',
+      'Cached, lazy-loaded, และ tree-shaken',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'app shell มีบทบาทอย่างไรใน PWA?',
+    options: [
+      'จัดเก็บข้อมูลผู้ใช้ใน IndexedDB',
+      'ลงทะเบียน service worker ในการโหลดครั้งแรก',
+      'เป็น UI skeleton ขั้นต่ำที่โหลดจาก cache ทันทีในการเยี่ยมชมซ้ำ',
+      'ตรวจสอบ web app manifest กับ browser spec',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'เหตุใด HTTPS จึงเป็นข้อกำหนดบังคับสำหรับ Progressive Web Apps?',
+    options: [
+      'HTTPS บีบอัด asset ได้เร็วกว่า HTTP',
+      'Browser ปฏิเสธการลงทะเบียน service worker บน origin ที่ไม่ปลอดภัย',
+      'Web app manifest จะ parse ไม่ได้ผ่าน HTTP ธรรมดา',
+      'HTTPS จำเป็นสำหรับ push notification เท่านั้น ไม่ใช่ PWA โดยทั่วไป',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/index" questions={quizIntroIndex} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/index" />

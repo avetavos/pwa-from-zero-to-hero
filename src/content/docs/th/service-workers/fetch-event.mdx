@@ -1,0 +1,169 @@
+---
+title: fetch Event
+description: 'fetch event ของ service worker ดักจับ request อย่างไร และจะตอบสนองจาก network, cache หรือทั้งสองอย่างได้อย่างไร'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## fetch event
+
+เมื่อ service worker ถูก activate และควบคุมหน้าเว็บแล้ว **ทุก network request** ที่หน้าเว็บส่งออกไป — HTML, CSS, JS, รูปภาพ, การเรียก API — จะผ่าน `fetch` event ของ SW นี่คือหัวใจของ PWA แบบ offline-first
+
+### event.respondWith()
+
+ภายใน listener ของ `fetch` ให้เรียก `event.respondWith()` ด้วย Promise ที่ resolve ออกมาเป็น `Response` ถ้าคุณไม่เรียก `event.respondWith()` request จะตกไปยัง network ตามปกติ (พฤติกรรมแบบ passthrough)
+
+```js
+self.addEventListener('fetch', (event) => {
+  // Simplest possible passthrough — behaves as if no SW is installed
+  event.respondWith(fetch(event.request));
+});
+```
+
+### กลยุทธ์ network-first
+
+ลอง network ก่อน ถ้าล้มเหลว (ออฟไลน์หรือ server error) ค่อย fall back ไปที่ cache
+
+```js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        // Clone the response: a Response body can only be consumed once
+        const clone = response.clone();
+        caches.open('v1').then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+```
+
+### กลยุทธ์ cache-first
+
+เสิร์ฟจาก cache ทันที ถ้ายังไม่ได้ cache ไว้ค่อยไปที่ network แล้ว cache ผลลัพธ์ไว้
+
+```js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        const clone = response.clone();
+        caches.open('v1').then((cache) => cache.put(event.request, clone));
+        return response;
+      });
+    })
+  );
+});
+```
+
+### กลยุทธ์ stale-while-revalidate
+
+คืนเวอร์ชันที่ cache ไว้ในทันที แล้วค่อยอัปเดต cache อยู่เบื้องหลัง
+
+```js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.open('v1').then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const networkFetch = fetch(event.request).then((response) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+        return cached || networkFetch;
+      })
+    )
+  );
+});
+```
+
+### ไดอะแกรมการไหลของ request
+
+export const fetchDiagram = `sequenceDiagram
+  participant P as Page
+  participant SW as Service Worker
+  participant C as Cache Storage
+  participant N as Network
+
+  P->>SW: fetch(request)
+  SW->>C: caches.match(request)
+  alt cache hit
+    C-->>SW: cached Response
+    SW-->>P: Response (instant)
+  else cache miss
+    SW->>N: fetch(request)
+    N-->>SW: fresh Response
+    SW->>C: cache.put(request, response.clone())
+    SW-->>P: Response
+  end`;
+
+<Mermaid code={fetchDiagram} title="การไหลของ fetch แบบ cache-first ผ่าน service worker" />
+
+### หลุมพราง
+
+**clone ก่อน cache เสมอ** body ของ `Response` คือ readable stream ที่ consume ได้เพียงครั้งเดียว ถ้าคุณส่ง `Response` ตัวเดียวกันให้ทั้ง caller และ `cache.put()` ฝั่งใดฝั่งหนึ่งจะได้ body ว่างเปล่า ใช้ `response.clone()` ก่อนจัดเก็บ
+
+**อย่าดักจับ cross-origin opaque response อย่างประมาท** request ไปยัง third-party origin ที่ไม่มี CORS จะคืน opaque response (`type === 'opaque'`) ที่มี `status === 0` การ cache opaque response ทำให้พื้นที่จัดเก็บ cache บวมขึ้นอย่างคาดเดาไม่ได้ ใช้ตรรกะของ fetch-event เฉพาะกับ request แบบ same-origin เท่านั้น เว้นแต่คุณจะรู้ว่ากำลังทำอะไรอยู่
+
+```js
+self.addEventListener('fetch', (event) => {
+  // Only handle same-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
+  );
+});
+```
+
+<Callout title="ประเด็นสำคัญ">
+เมื่อ service worker ควบคุมหน้าเว็บแล้ว ทุก request จะผ่าน `fetch` handler ของมัน ถ้าคุณเรียก `event.respondWith()` แต่ Promise ของคุณ reject หรือไม่คืนค่าอะไรเลย หน้าเว็บจะได้รับ network error — จัดการทุกเส้นทางของโค้ดอย่างชัดเจน
+</Callout>
+
+export const quizFetchEvent = [
+  {
+    q: 'จะเกิดอะไรขึ้นถ้า fetch handler เรียก event.respondWith() ด้วย Promise ที่ reject?',
+    options: [
+      'เบราว์เซอร์ลอง request ใหม่โดยอัตโนมัติ',
+      'หน้าเว็บได้รับ network error',
+      'request ข้าม service worker ไป',
+      'cache ถูกล้าง',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไมจึงต้อง clone Response ก่อนส่งให้ cache.put()?',
+    options: [
+      'การ clone เป็นข้อกำหนดของ Cache Storage API',
+      'body ของ Response คือ readable stream ที่ consume ได้เพียงครั้งเดียว',
+      'cache.put() รับเฉพาะ response ที่ clone แล้วเท่านั้น',
+      'เพื่อป้องกันไม่ให้ SW ถูก terminate',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'กลยุทธ์ fetch แบบใดที่คืน cached response ทันทีและอัปเดต cache อยู่เบื้องหลัง?',
+    options: ['Cache-first', 'Network-first', 'Stale-while-revalidate', 'Network-only'],
+    answer: 2,
+  },
+  {
+    q: 'opaque response คืออะไร?',
+    options: [
+      'response ที่ไม่มี body',
+      'cross-origin response ที่ fetch มาโดยไม่มี CORS มี status 0 และ header ถูกซ่อนไว้',
+      'cached response ที่หมดอายุแล้ว',
+      'response ที่ถูกสร้างขึ้นทั้งหมดภายใน service worker',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="service-workers/fetch-event" questions={quizFetchEvent} />
+
+<ProgressTracker client:visible id="service-workers/fetch-event" />

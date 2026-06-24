@@ -1,0 +1,143 @@
+---
+title: 'Stale-While-Revalidate'
+description: 'เสิร์ฟ response จาก cache ทันทีและอัปเดต cache ในเบื้องหลังด้วยการ fetch สด ๆ จาก network — ได้การโหลดทันทีพร้อมความสดใหม่ในที่สุด'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Stale-while-revalidate
+
+Stale-while-revalidate (SWR) คือสิ่งที่ดีที่สุดของทั้งสองโลก: service worker คืน response จาก cache **ทันที** — ผู้ใช้จึงไม่ต้องรอ network เลย — และในขณะเดียวกันก็เริ่ม fetch จาก network ในเบื้องหลังเพื่ออัปเดต cache สำหรับครั้งถัดไป
+
+ใน request ครั้งแรกสุดสำหรับ resource หนึ่ง ยังไม่มีอะไรใน cache SW จึงรอ response จาก network แคชมัน แล้วคืนมันกลับไป ตั้งแต่ request ครั้งที่สองเป็นต้นไป สำเนาใน cache (ซึ่งอาจเก่า) จะถูกคืนกลับทันทีในขณะที่สำเนาสด ๆ ถูก fetch อยู่เงียบ ๆ ในเบื้องหลัง ผู้ใช้เห็นเนื้อหาทันทีและจะได้เวอร์ชันล่าสุดในการเข้าชมครั้งถัดไป
+
+รูปแบบนี้เข้ากันได้ดีโดยธรรมชาติกับ resource ที่อัปเดตเป็นครั้งคราวแต่เวลาโหลดที่ทันทีสำคัญกว่าความสดใหม่ระดับเป๊ะทุกพิกเซล: avatar ของผู้ใช้, ฟีดข่าว, config JSON, ไฟล์ CSS, และ web font ล้วนเป็นตัวเลือกที่ดี มันไม่เหมาะกับข้อมูลแบบเรียลไทม์ — ราคาหุ้น, สกอร์สด, หรืออะไรก็ตามที่การช้าไปหนึ่งเวอร์ชันยอมรับไม่ได้
+
+## SWR ทำงานอย่างไร
+
+1. service worker รับ `fetch` event เข้ามา
+2. มันเปิด cache และตรวจหา response ที่มีอยู่
+3. มันเริ่ม fetch จาก network **โดยไม่สนใจ** ว่า cache จะมี response หรือไม่ (การ revalidate ในเบื้องหลัง)
+4. หากมี response ใน cache มันจะถูกคืนกลับไปยังหน้าเพจทันที; หากไม่มี response ใน cache handler จะรอ network แล้วคืนค่านั้นแทน
+5. เมื่อ response จาก network มาถึง รายการใน cache จะถูกอัปเดตเงียบ ๆ เพื่อให้ request ครั้งถัดไปได้สำเนาที่สดใหม่ที่สุด
+
+```js
+const CACHE = 'swr-v1';
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.open(CACHE).then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const networkFetch = fetch(event.request).then((response) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+        // Serve cache instantly; fall back to network on miss
+        return cached || networkFetch;
+      })
+    )
+  );
+});
+```
+
+export const swrDiagram = `sequenceDiagram
+  participant P as Page
+  participant SW as Service Worker
+  participant C as Cache Storage
+  participant N as Network
+
+  P->>SW: fetch(request)
+  SW->>C: cache.match(request)
+  SW->>N: fetch(request) [background]
+  C-->>SW: cached Response (may be stale)
+  SW-->>P: Response (instant)
+  N-->>SW: fresh Response
+  SW->>C: cache.put(request, fresh.clone())
+  Note over SW,C: Cache updated for next request`;
+
+<Mermaid code={swrDiagram} title="flow แบบ stale-while-revalidate" />
+
+## Cache-then-network (SWR ฝั่งเพจ)
+
+ยังมีรูปแบบนี้ในเวอร์ชันฝั่งเพจอีกด้วย หน้าเพจยิงทั้งการค้นหาใน cache และการ fetch จาก network พร้อมกัน render ผลลัพธ์จาก cache ทันที แล้วจึงอัปเดต UI เมื่อ response จาก network มาถึง — ไม่ต้องใช้ service worker เลย
+
+```js
+async function fetchWithCacheThenNetwork(url) {
+  const cache = await caches.open('swr-v1');
+  const cached = await cache.match(url);
+
+  // Start the network request immediately, don't await yet
+  const networkPromise = fetch(url).then((response) => {
+    cache.put(url, response.clone());
+    return response.json();
+  });
+
+  // Render the stale cached version right away if available
+  if (cached) {
+    const staleData = await cached.json();
+    renderUI(staleData); // show immediately
+  }
+
+  // Update the UI when the fresh data lands
+  const freshData = await networkPromise;
+  renderUI(freshData);
+}
+```
+
+วิธีนี้มีประโยชน์ใน framework ที่ component สามารถ re-render เมื่อข้อมูลสด ๆ มาถึง ให้ประสบการณ์ที่ค่อย ๆ ดีขึ้นโดยไม่มี loading spinner ที่มองเห็นได้เลย
+
+<Callout title="จุดสำคัญ">
+Stale-while-revalidate ให้การโหลดทันทีพร้อมความสดใหม่ในที่สุด — เยี่ยมสำหรับ avatar, feed, และ CSS ผู้ใช้ไม่ต้องรอ network เลย แต่จะช้ากว่าเวอร์ชันล่าสุดอย่างมากที่สุดหนึ่งเวอร์ชันเสมอ
+</Callout>
+
+export const quizStaleWhileRevalidate = [
+  {
+    q: 'ใน stale-while-revalidate cache ถูกอัปเดตเมื่อใด?',
+    options: [
+      'ก่อนที่ response จะถูกคืนกลับไปยังหน้าเพจ',
+      'หลังจาก response จาก cache ถูกคืนแล้ว โดยทำในเบื้องหลัง',
+      'เฉพาะตอนที่ cache ว่างเปล่าเท่านั้น',
+      'ระหว่าง install event ของ SW',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'asset ประเภทใดที่ stale-while-revalidate เหมาะน้อยที่สุด?',
+    options: [
+      'avatar ของผู้ใช้',
+      'ไฟล์ CSS',
+      'ฟีดราคาหุ้นแบบเรียลไทม์',
+      'ฟีดข่าวที่อัปเดตทุกชั่วโมง',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'fetch handler แบบ SWR คืนค่าอะไรใน request ครั้งแรกสุดสำหรับ resource หนึ่ง?',
+    options: [
+      'undefined',
+      'response จาก cache',
+      'response จาก network (cache miss จึงต้องรอ)',
+      'error',
+    ],
+    answer: 2,
+  },
+  {
+    q: "SWR ถูกอธิบายว่า 'เสิร์ฟของเก่า แล้ว revalidate ในเบื้องหลัง' คำว่า revalidate ในที่นี้หมายความว่าอย่างไร?",
+    options: [
+      'การตรวจสอบว่า SW ยังถูกลงทะเบียนอยู่หรือไม่',
+      'การ fetch สำเนาสด ๆ จาก network และอัปเดต cache',
+      'การลบและเพิ่มรายการใน cache ใหม่',
+      'การรัน install event ใหม่',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/stale-while-revalidate" questions={quizStaleWhileRevalidate} />
+
+<ProgressTracker client:visible id="caching-strategies/stale-while-revalidate" />

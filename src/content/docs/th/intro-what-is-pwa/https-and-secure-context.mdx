@@ -1,0 +1,146 @@
+---
+title: 'HTTPS และ Secure Context'
+description: 'ทำไม service worker ต้องการ secure context, window.isSecureContext คืออะไร, การบล็อก mixed content, กฎ scope และข้อยกเว้น localhost'
+sidebar:
+  order: 4
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## HTTPS และ Secure Context
+
+Service worker และ API อื่นๆ ของ PWA ทำงานเฉพาะในสิ่งที่ browser เรียกว่า **secure context** การทำความเข้าใจว่า secure context คืออะไร ทำไมจึงสำคัญ และจะตรวจสอบได้อย่างไร จะช่วยให้คุณหลีกเลี่ยงปัญหาที่น่าหงุดหงิดในระหว่างการพัฒนาและ deployment
+
+### Secure context คืออะไร
+
+**Secure context** คือ environment ที่ตรงตามมาตรฐานขั้นต่ำของการรับรองความถูกต้องและความลับ ตามที่กำหนดโดย W3C ในทางปฏิบัติ หน้าจะอยู่ใน secure context เมื่อ:
+
+- มันถูก serve ผ่าน **HTTPS** (เช่น `https://example.com`)
+- หรือมันทำงานบน **`localhost`** หรือ `127.0.0.1` (ข้อยกเว้นพิเศษสำหรับการพัฒนา)
+
+หน้าที่ถูก serve ผ่าน `http://` ในทุกโดเมนอื่นนอกจาก localhost ไม่ใช่ secure context ไม่ว่าจะ deploy ที่ไหน
+
+### ทำไม service worker จึงต้องการ secure context
+
+Service worker เป็น proxy ที่ทรงพลัง มันสามารถ intercept request ทุก request จากแอปของคุณ แก้ไข response และ cache เนื้อหาได้ หากถูก serve ผ่าน HTTP ทั่วไป ผู้โจมตีที่อยู่บนเครือข่ายเดียวกัน (man-in-the-middle) สามารถ:
+
+- แทนที่ script ของ service worker ด้วยโค้ดที่เป็นอันตรายได้
+- Intercept หรือดัดแปลง response ที่ service worker cache ไว้
+- ดักจับข้อมูลส่วนตัวก่อนที่จะถูกส่ง
+
+การกำหนดให้ต้อง HTTPS จะทำให้แน่ใจว่า service worker ที่ browser รัน เป็นของจริงและไม่ถูกดัดแปลง
+
+### การตรวจสอบ window.isSecureContext
+
+Browser เปิดเผย flag boolean ที่คุณสามารถตรวจสอบได้ตลอดเวลา:
+
+```js
+if (window.isSecureContext) {
+  console.log('Running in a secure context — service worker APIs available.');
+} else {
+  console.warn('Not a secure context. PWA features will be unavailable.');
+}
+```
+
+ตรวจสอบ flag นี้ก่อนที่จะพยายาม register service worker หรือใช้ API อื่นๆ ที่ต้องการ secure context (Push, Notifications, Web Authentication, Web Crypto) เพื่อให้ message error ที่ชัดเจนแก่ผู้ใช้แทนที่จะเห็น exception ที่ไม่ได้จัดการ
+
+### Mixed content blocking
+
+แม้ว่า origin หลักของคุณจะเป็น HTTPS แต่ browser จะบล็อก **mixed content** — resource ที่โหลดผ่าน HTTP จากหน้า HTTPS
+
+- **Active mixed content** (scripts, stylesheets, iframes) ถูกบล็อกโดยค่าเริ่มต้นในทุก browser สมัยใหม่
+- **Passive mixed content** (images, audio, video) อาจถูกบล็อกหรือแสดง warning เช่นกัน ขึ้นอยู่กับการตั้งค่า browser
+
+หากหน้า HTTPS ของคุณโหลด resource ผ่าน `http://` การ register service worker อาจยังคงทำงานได้ แต่ resource เหล่านั้นจะถูกบล็อกหรือทำให้ lock indicator ใน address bar เสียหาย ตรวจสอบ DevTools Console และ Network tab เพื่อค้นหาคำเตือน mixed content
+
+### กฎ scope ของ service worker
+
+Service worker ควบคุม URL ภายใน **scope** ของมัน ซึ่งค่าเริ่มต้นคือ directory ที่ script ของ SW อยู่ Scope นี้ถูกจำกัดโดย HTTPS อีกชั้น:
+
+- SW ที่ serve จาก `https://example.com/app/sw.js` ควบคุมเฉพาะ URL ภายใต้ `/app/`
+- SW ไม่สามารถยกระดับ scope ของตัวเองให้สูงกว่า path ของไฟล์ SW ได้ ยกเว้นจะมี `Service-Worker-Allowed` response header
+- ใน HTTPS ทั้งหมดนี้ถูก enforce อย่างเคร่งครัด — ไม่มี loophole ใดที่จะอนุญาตให้ SW ที่ไม่น่าเชื่อถือ intercept traffic ที่ไม่ได้มีเจตนาให้มัน intercept
+
+### ข้อยกเว้น localhost
+
+`localhost` และ `127.0.0.1` ได้รับการยกเว้นโดยทั้ง spec และ browser ว่าเป็น secure context แม้ว่าจะ serve ผ่าน `http://` ก็ตาม เหตุผลคือ traffic บน localhost ไม่เคยผ่านเครือข่าย ดังนั้นความเสี่ยงจาก man-in-the-middle จึงไม่มี
+
+ในทางปฏิบัติ:
+- เซิร์ฟเวอร์ dev ท้องถิ่นของคุณบน `http://localhost:5173` เป็น secure context ที่สมบูรณ์
+- Service worker, Push API และ Web Authentication ทั้งหมดทำงานได้บน localhost โดยไม่ต้องมีใบรับรอง TLS
+- เมื่อ deploy เป็น production ต้องใช้ HTTPS จริง — ข้อยกเว้น localhost ไม่ครอบคลุม IP หรือ hostname อื่น
+
+```js
+// Safe registration pattern — checks secure context first
+async function registerServiceWorker() {
+  if (!window.isSecureContext) {
+    console.warn('Secure context required. Skipping service worker registration.');
+    return;
+  }
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service workers not supported in this browser.');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    console.log('SW registered. Scope:', reg.scope);
+  } catch (err) {
+    console.error('SW registration failed:', err);
+  }
+}
+
+registerServiceWorker();
+```
+
+<Callout title="ประเด็นสำคัญ">
+Service worker และ PWA API อื่นๆ ทำงานได้เฉพาะใน secure context — ใช้ HTTPS ใน production และ localhost ใน development
+</Callout>
+
+export const quizHttpsSecureContext = [
+  {
+    q: 'property ใดบอกคุณว่าหน้าเว็บปัจจุบันรันอยู่ใน secure context หรือไม่?',
+    options: [
+      'document.isSecure',
+      'navigator.secureContext',
+      'window.isSecureContext',
+      'location.isHttps',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'origin ใดต่อไปนี้ที่ browser สมัยใหม่ถือว่าเป็น secure context?',
+    options: [
+      'http://192.168.1.10:3000',
+      'http://myapp.local',
+      'http://localhost:5173',
+      'http://dev.example.com',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'service worker ลงทะเบียนที่ /dashboard/sw.js โดยไม่มี option หรือ header พิเศษ มันควบคุมหน้าใดบ้าง?',
+    options: [
+      'origin ทั้งหมด (/)',
+      'เฉพาะ /dashboard/ และ sub-path ของมัน',
+      'เฉพาะ URL /dashboard/sw.js เท่านั้น',
+      'path ใดก็ได้ที่ opt in ผ่าน navigator.serviceWorker.controller',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'จะทำให้ service worker ที่ลงทะเบียนที่ /app/sw.js มี scope เป็น / (ทั้ง origin) ได้อย่างไร?',
+    options: [
+      'ส่ง { scope: "/" } ไปยัง register() — ไม่ต้องทำอย่างอื่น',
+      'ย้ายไฟล์ไปที่ /sw.js',
+      'ตั้ง Service-Worker-Allowed: / response header บนไฟล์ SW และส่ง { scope: "/" } ไปยัง register()',
+      'ไม่สามารถขยาย scope เกินไดเรกทอรีของไฟล์ SW ได้',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/https-and-secure-context" questions={quizHttpsSecureContext} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/https-and-secure-context" />

@@ -1,0 +1,210 @@
+---
+title: Update Flow
+description: 'Detect and apply service worker updates in SvelteKit — autoUpdate vs prompt registerType, virtual:pwa-register stores, and the manual updatefound/statechange pattern.'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Service worker update flow in SvelteKit
+
+Deploying a new build means your service worker file changes — at minimum, `version` in `$service-worker` changes, causing `` `cache-\${version}` `` to be a new string. The browser detects this, downloads the new SW, and enters the update lifecycle described below.
+
+### Registration
+
+**Built-in SW (`src/service-worker.js`):** SvelteKit registers it automatically during build. In development the type is `'module'`; in production it is `'classic'`. You never need to call `navigator.serviceWorker.register()` yourself.
+
+**`@vite-pwa/sveltekit`:** The plugin handles registration via the `registerType` option. The `virtual:pwa-register` module (and its Svelte-specific variant `virtual:pwa-register/svelte`) exposes Svelte stores you can use in any component.
+
+### The update timeline
+
+export const updateDiagram = `sequenceDiagram
+  participant B as Browser
+  participant OSW as Old SW (active)
+  participant NSW as New SW (waiting)
+  participant P as Page
+
+  B->>NSW: Download + parse new sw.js
+  NSW->>NSW: install event (precache new assets)
+  NSW-->>OSW: waiting — old SW still controls tabs
+  P->>P: updatefound event fires
+  note over P: show reload banner
+  P->>NSW: postMessage SKIP_WAITING
+  NSW->>NSW: skipWaiting() — activates immediately
+  NSW->>B: clients.claim() — takes over open tabs
+  P->>P: reload`;
+
+<Mermaid code={updateDiagram} title="Service worker update sequence" />
+
+### Option A: `autoUpdate` with `@vite-pwa/sveltekit`
+
+```ts
+// vite.config.ts
+SvelteKitPWA({
+  registerType: 'autoUpdate',
+})
+```
+
+The new SW activates the moment its `install` phase completes — no user prompt. Best for apps where asset URLs are fingerprinted (hashed), so old and new assets cannot collide.
+
+### Option B: `prompt` with `virtual:pwa-register/svelte`
+
+```ts
+// vite.config.ts
+SvelteKitPWA({
+  registerType: 'prompt',
+})
+```
+
+The new SW waits. Your Svelte component uses `useRegisterSW` from `virtual:pwa-register/svelte` to show a banner when an update is ready:
+
+```svelte
+<!-- src/lib/ReloadPrompt.svelte -->
+<script lang="ts">
+  import { useRegisterSW } from 'virtual:pwa-register/svelte';
+
+  const { needRefresh, offlineReady, updateServiceWorker } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW registered:', r);
+    },
+    onRegisterError(error) {
+      console.error('SW registration error', error);
+    },
+  });
+
+  function close() {
+    offlineReady.set(false);
+    needRefresh.set(false);
+  }
+
+  $: toast = $offlineReady || $needRefresh;
+</script>
+
+{#if toast}
+  <div class="pwa-toast" role="alert">
+    {#if $offlineReady}
+      <span>App ready to work offline.</span>
+    {:else}
+      <span>New version available.</span>
+    {/if}
+    {#if $needRefresh}
+      <button on:click={() => updateServiceWorker(true)}>Reload</button>
+    {/if}
+    <button on:click={close}>Close</button>
+  </div>
+{/if}
+```
+
+`updateServiceWorker(true)` sends `SKIP_WAITING` to the waiting SW and reloads the page once it activates.
+
+### Option C: manual `updatefound` / `statechange` (built-in SW)
+
+When you use `src/service-worker.js` without `@vite-pwa/sveltekit`, wire the update detection yourself:
+
+```js
+// src/app.ts (or any module that runs on every page)
+async function registerAndWatch() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.register(
+    '/service-worker.js',
+    { type: import.meta.env.DEV ? 'module' : 'classic' }
+  );
+
+  registration.addEventListener('updatefound', () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+
+    newWorker.addEventListener('statechange', () => {
+      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        showUpdateBanner(registration);
+      }
+    });
+  });
+}
+
+function showUpdateBanner(registration) {
+  const banner = document.createElement('div');
+  banner.textContent = 'New version available. ';
+  const btn = document.createElement('button');
+  btn.textContent = 'Reload';
+  btn.onclick = () => {
+    registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+    window.location.reload();
+  };
+  banner.appendChild(btn);
+  document.body.prepend(banner);
+}
+
+registerAndWatch();
+```
+
+Your service worker must listen for that message:
+
+```js
+// src/service-worker.js
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+```
+
+### Periodic update checks for SPAs
+
+SvelteKit apps are often SPAs — the user may stay on the same page for hours. Trigger a manual update check on an interval:
+
+```js
+registration.addEventListener('updatefound', () => { /* … */ });
+setInterval(() => registration.update(), 60 * 60 * 1000); // every hour
+```
+
+<Callout title="Key point">
+With `@vite-pwa/sveltekit`, use the `virtual:pwa-register/svelte` API — it gives you `needRefresh` and `offlineReady` Svelte stores plus `updateServiceWorker()`. With the built-in SW, wire `updatefound` and `statechange` yourself and use `postMessage` to keep `skipWaiting()` user-driven.
+</Callout>
+
+export const quizUpdateFlow = [
+  {
+    q: 'What does registerType: "autoUpdate" do when a new SW is installed?',
+    options: [
+      'It shows a built-in browser prompt asking the user to reload',
+      'The new SW activates immediately without a user prompt',
+      'The new SW waits until all tabs are closed',
+      'The new SW is downloaded but never activated',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which virtual module exposes needRefresh and updateServiceWorker as Svelte stores?',
+    options: [
+      'virtual:pwa-register',
+      'virtual:pwa-register/svelte',
+      '$service-worker',
+      'virtual:workbox/svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In the manual update pattern, what message type does the page send to the waiting SW?',
+    options: ['ACTIVATE_NOW', 'SKIP_WAITING', 'CLAIM_CLIENTS', 'UPDATE_READY'],
+    answer: 1,
+  },
+  {
+    q: 'Why is it important to keep skipWaiting() user-driven rather than calling it unconditionally in install?',
+    options: [
+      'Because skipWaiting() is not available inside the install event',
+      'To prevent the new SW from running on the server',
+      'Calling it unconditionally can break a page that is already loaded with the old SW assets',
+      'Because SvelteKit does not support skipWaiting()',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/update-flow" questions={quizUpdateFlow} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/update-flow" />

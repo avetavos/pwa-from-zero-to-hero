@@ -1,0 +1,206 @@
+---
+title: 'Auditing a PWA with Lighthouse'
+description: 'How to run a Lighthouse PWA audit in Chrome DevTools, navigate the Application tab, interpret installability checks, and fix the most common failures.'
+sidebar:
+  order: 5
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Auditing a PWA with Lighthouse
+
+Lighthouse is Chrome's built-in quality tool. It runs automated checks against your page and produces a categorised report — one category being **Progressive Web App**. The PWA category does not produce a numeric score; it gives you a pass/fail result for each installability criterion. If any criterion fails, the browser will refuse to show the install prompt.
+
+Getting into the habit of running a Lighthouse audit early — before you wire up caching strategies or push notifications — means you catch missing pieces while the codebase is still small.
+
+### How to run a Lighthouse PWA audit
+
+1. Open Chrome and navigate to your app (it must be served over HTTPS or `localhost`).
+2. Open DevTools with `F12` or `Cmd+Option+I`.
+3. Click the **Lighthouse** tab (you may need to click the `»` overflow arrow to find it).
+4. Under **Categories**, tick **Progressive Web App** (untick the others to speed up the run).
+5. Click **Analyze page load**.
+
+Lighthouse reloads the page, collects data, and renders the report. The PWA section lists every installability check as a green tick or a red cross.
+
+### The Application tab tour
+
+While Lighthouse gives you a written report, the **Application** tab in DevTools lets you inspect the live state of your PWA at any time without reloading.
+
+| Panel | What it shows |
+|---|---|
+| **Manifest** | The parsed `manifest.webmanifest` — name, icons (with previews), `start_url`, `display`, colours. A warning banner appears if required fields are missing. |
+| **Service Workers** | Every registered SW for this origin: its script URL, status (`activated and is running`, `waiting to activate`, `stopped`), and a **skipWaiting** button to force-activate a waiting SW. |
+| **Storage** | Cache Storage entries created by your SW; useful for verifying pre-cache lists. |
+| **Background Services** | Logs for Background Fetch, Background Sync, Push Messaging — useful once you add those APIs. |
+
+Open the **Manifest** panel first on any unfamiliar PWA. It instantly tells you whether the browser has parsed a valid manifest and which icons it found.
+
+### What Lighthouse checks for installability
+
+Chrome's install criteria (as of Chrome 2023+) map directly onto Lighthouse's PWA checks:
+
+| Criterion | What must be true |
+|---|---|
+| **Web app manifest** | A `<link rel="manifest">` tag exists and the file is reachable. |
+| **`name` or `short_name`** | At least one is present in the manifest. |
+| **`start_url`** | Present and responds with a 200 when fetched. |
+| **`display`** | Set to `standalone`, `fullscreen`, or `minimal-ui`. |
+| **Icons** | At least one icon at **192 × 192** and one at **512 × 512** (or larger). Icons must declare a `src`, `sizes`, and `type`. |
+| **Service worker** | A SW is registered and controls the page. |
+| **HTTPS** | The page is on a secure origin (`https://` or `localhost`). |
+
+### Common failures and how to fix them
+
+| Failure message | Root cause | Fix |
+|---|---|---|
+| `No manifest detected` | Missing `<link rel="manifest">` or the file returns a 404. | Add `<link rel="manifest" href="/manifest.webmanifest">` to `<head>` and make sure the file is served. |
+| `Manifest does not contain a 192px icon` | Icons array is empty or all icons are smaller than 192 px. | Add an entry with `"sizes": "192x192"` and another with `"sizes": "512x512"`. |
+| `Page controlled by a service worker` fails | No SW registered, SW threw during install, or SW scope does not cover the page. | Register the SW from the root (`/sw.js`) and confirm the console shows no registration errors. |
+| `Does not redirect HTTP to HTTPS` | Production server is not enforcing HTTPS. | Configure your host or CDN to issue a 301 redirect from `http://` to `https://`. |
+| `start_url does not respond with a 200` | `start_url` points to a path that returns 404, or the SW does not handle that request. | Make sure `start_url` is a real route and the SW's fetch handler returns something for it. |
+| `display is not one of standalone, fullscreen, minimal-ui` | `"display": "browser"` or field is missing. | Change to `"display": "standalone"`. |
+
+### Try it live
+
+The demo below is a minimal PWA that passes all Lighthouse installability checks. Open it in StackBlitz and run a Lighthouse audit inside the preview to see every criterion pass.
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#5A0FC8" />
+    <title>Lighthouse PWA Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+      h1 { color: #5A0FC8; }
+      #status { margin-top: 1rem; padding: .75rem 1rem; border-radius: 6px; background: #f3f0ff; }
+    </style>
+  </head>
+  <body>
+    <h1>Lighthouse PWA Demo</h1>
+    <p>This app passes every Lighthouse installability check.</p>
+    <div id="status">Checking service worker…</div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'manifest.webmanifest': `{
+  "name": "Lighthouse PWA Demo",
+  "short_name": "LH Demo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%235A0FC8'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3E%F0%9F%94%A6%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%235A0FC8'/%3E%3Ctext x='256' y='350' font-size='280' text-anchor='middle' fill='white'%3E%F0%9F%94%A6%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}`,
+  'sw.js': `const CACHE = 'lh-demo-v1';
+const PRECACHE = ['/', '/index.html', '/main.js', '/manifest.webmanifest'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((names) => Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached ?? fetch(event.request))
+  );
+});`,
+  'main.js': `const status = document.getElementById('status');
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then((reg) => {
+      status.textContent = 'Service worker registered. Scope: ' + reg.scope;
+      status.style.background = '#e8f5e9';
+    })
+    .catch((err) => {
+      status.textContent = 'Registration failed: ' + err;
+      status.style.background = '#fce4ec';
+    });
+} else {
+  status.textContent = 'Service workers are not supported in this browser.';
+}`,
+};
+
+<PwaPlayground files={proj} openFile="manifest.webmanifest" />
+
+<Callout title="Key point">
+Run a Lighthouse PWA audit early — it tells you exactly which installability box is unchecked.
+</Callout>
+
+export const quizLighthouseAudit = [
+  {
+    q: 'Where do you find the Lighthouse PWA audit in Chrome DevTools?',
+    options: [
+      'Application tab > Manifest panel',
+      'Lighthouse tab > Progressive Web App category',
+      'Network tab > PWA filter',
+      'Sources tab > Service Workers panel',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which two icon sizes must a manifest declare to pass the Lighthouse installability check?',
+    options: [
+      '48x48 and 96x96',
+      '128x128 and 256x256',
+      '192x192 and 512x512',
+      '64x64 and 512x512',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'A Lighthouse audit reports "Page controlled by a service worker" fails even though sw.js exists. What is the most likely cause?',
+    options: [
+      'The manifest is missing a theme_color field',
+      'The service worker file is served from a subdirectory so its scope does not cover the page',
+      'The app is using display: standalone instead of display: browser',
+      'The start_url is set to / instead of index.html',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does the Application tab > Service Workers panel let you do during development?',
+    options: [
+      'Edit the manifest fields directly in the browser',
+      'Force a waiting service worker to activate immediately via the skipWaiting button',
+      'View Lighthouse audit scores without running a full report',
+      'Change the HTTPS certificate for localhost',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/lighthouse-audit" questions={quizLighthouseAudit} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/lighthouse-audit" />

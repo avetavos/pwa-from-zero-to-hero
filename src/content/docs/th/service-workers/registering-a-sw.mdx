@@ -1,0 +1,140 @@
+---
+title: การ Register Service Worker
+description: 'วิธี register service worker ด้วย navigator.serviceWorker.register(), การ feature-detect และทำความเข้าใจ scope กับข้อกำหนดเรื่อง HTTPS'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การ register service worker
+
+ก่อนที่ service worker จะดักจับ request ใด ๆ ได้ หน้าเว็บต้อง **register** มันเสียก่อน การ register เป็นการบอกเบราว์เซอร์ว่าจะหาไฟล์ service worker ได้ที่ไหน และมันควรควบคุม URL ใดบ้าง
+
+### การเรียก register
+
+```js
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then((registration) => {
+      console.log('SW registered, scope:', registration.scope);
+    })
+    .catch((error) => {
+      console.error('SW registration failed:', error);
+    });
+}
+```
+
+`navigator.serviceWorker.register()` คืนค่าเป็น **Promise** ที่ resolve ออกมาเป็น object `ServiceWorkerRegistration` property ที่สำคัญที่สุดบน object นั้นคือ `scope`
+
+### Feature detection
+
+ควรครอบการเรียกด้วย `'serviceWorker' in navigator` เสมอ เบราว์เซอร์ที่ไม่รองรับ service worker (เบราว์เซอร์รุ่นเก่ามาก ๆ บางตัว หรือหน้าเว็บที่เสิร์ฟผ่าน HTTP ธรรมดา) จะข้ามบล็อกนี้ไปเฉย ๆ อย่าปล่อยให้ API ที่หายไปทำให้หน้าเว็บของคุณพัง
+
+### Scope
+
+**scope** เป็นตัวกำหนดว่า service worker ควบคุมหน้าและ sub-path ใดบ้าง โดยค่าเริ่มต้นคือไดเรกทอรีที่บรรจุไฟล์ service worker อยู่:
+
+| ตำแหน่งไฟล์ SW | scope เริ่มต้น | หน้าที่ถูกควบคุม |
+|---|---|---|
+| `/sw.js` | `/` | ทั้ง origin |
+| `/app/sw.js` | `/app/` | เฉพาะ `/app/` และที่อยู่ภายใต้นั้น |
+| `/shop/sw.js` | `/shop/` | เฉพาะ `/shop/` และที่อยู่ภายใต้นั้น |
+
+คุณสามารถจำกัด scope ให้แคบลงได้ (แต่ไม่สามารถขยายให้กว้างเกินไดเรกทอรีของไฟล์ SW ได้) โดยส่ง option `scope` เข้าไป:
+
+```js
+navigator.serviceWorker.register('/sw.js', { scope: '/shop/' });
+```
+
+### Secure context (HTTPS / localhost)
+
+service worker จะทำงานได้บน **secure origin** เท่านั้น:
+
+- `https://` — หน้า HTTPS ใด ๆ ใน production
+- `http://localhost` และ `http://127.0.0.1` — ได้รับการยกเว้นอย่างชัดเจนสำหรับการพัฒนาในเครื่อง
+
+การพยายาม register บน `http://` ธรรมดา (ที่ไม่ใช่ localhost) จะล้มเหลวแบบเงียบ ๆ หรือโยน `SecurityError` ออกมา ควร deploy PWA ของคุณผ่าน HTTPS เสมอ
+
+### ลองเล่นแบบสด ๆ
+
+เดโมด้านล่างจะ register service worker แบบ minimal เปิดโปรเจกต์ StackBlitz แล้วดูที่ console ของเบราว์เซอร์ — คุณจะเห็น log ของการ register และ scope ของ SW
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><link rel="manifest" href="/manifest.webmanifest" /><title>SW demo</title></head>
+  <body>
+    <h1>Service worker demo</h1>
+    <pre id="log"></pre>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const log = (m) => (document.getElementById('log').textContent += m + '\\n');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then((r) => log('registered, scope: ' + r.scope));
+} else { log('service workers not supported'); }`,
+  'sw.js': `self.addEventListener('install', () => { console.log('SW installing'); self.skipWaiting(); });
+self.addEventListener('activate', (e) => { console.log('SW active'); e.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request)); });`,
+  'manifest.webmanifest': `{
+  "name": "SW Demo",
+  "short_name": "SW Demo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8"
+}`,
+};
+
+<PwaPlayground files={proj} />
+
+<Callout title="ประเด็นสำคัญ">
+service worker ที่ `/sw.js` จะควบคุมทั้ง origin — scope เริ่มต้นของมันคือ `/` วางไฟล์ไว้ที่ root ของเว็บไซต์เพื่อให้ครอบคลุมทั้งหมด การย้ายมันเข้าไปในไดเรกทอรีย่อยจะจำกัด scope ให้แคบลงเหลือเพียงไดเรกทอรีย่อยนั้นแบบเงียบ ๆ
+</Callout>
+
+export const quizRegisterSw = [
+  {
+    q: 'navigator.serviceWorker.register() คืนค่าอะไร?',
+    options: [
+      'object ServiceWorker',
+      'Promise ที่ resolve ออกมาเป็น ServiceWorkerRegistration',
+      'boolean ที่บอกว่าสำเร็จหรือไม่',
+      'undefined',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'service worker สามารถ register ได้บน origin แบบใดบ้าง?',
+    options: [
+      'origin แบบ HTTP ใด ๆ',
+      'เฉพาะ origin แบบ https:// เท่านั้น',
+      'origin แบบ https:// และ localhost ผ่าน http://',
+      'เฉพาะ origin แบบ file:// เท่านั้น',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'คุณวาง sw.js ไว้ที่ /admin/sw.js scope เริ่มต้นของมันคืออะไร?',
+    options: ['/admin/', '/', '/admin/sw.js', 'ต้องตั้ง scope แบบชัดเจนเสมอ'],
+    answer: 0,
+  },
+  {
+    q: 'ทำไมจึงควรครอบการเรียก register ด้วย "serviceWorker" in navigator?',
+    options: [
+      'เพื่อป้องกันไม่ให้ SW ทำงานสองครั้ง',
+      'เพื่อหลีกเลี่ยง error ในเบราว์เซอร์หรือ context ที่ไม่รองรับ service worker',
+      'เพื่อจำกัด scope ของ SW ไว้ที่หน้าปัจจุบัน',
+      'เพราะ register() เป็น asynchronous',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="service-workers/registering-a-sw" questions={quizRegisterSw} />
+
+<ProgressTracker client:visible id="service-workers/registering-a-sw" />

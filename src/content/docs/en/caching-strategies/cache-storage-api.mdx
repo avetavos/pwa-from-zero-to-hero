@@ -1,0 +1,285 @@
+---
+title: 'The Cache Storage API'
+description: 'Using caches.open, cache.addAll for precaching at install time, cache.put and cache.match, response.clone(), and deleting old caches at activate.'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Opening a cache
+
+The Cache Storage API is exposed as the `caches` global inside a service worker context. To open (or create) a named cache, call `caches.open('cache-v1')`, which returns a `Promise<Cache>`. Caches are identified purely by string name — there is no schema, no expiry, and no automatic eviction. You own the lifecycle entirely.
+
+```js
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('cache-v1').then((cache) => {
+      console.log('Cache opened:', cache);
+    })
+  );
+});
+```
+
+Multiple caches can coexist. A common pattern is to keep one cache per version of your app so that an old SW and a new SW never share the same cache namespace.
+
+## Precaching at install time
+
+`cache.addAll(urls)` accepts an array of URL strings and fetches and stores all of them atomically. If any single request fails — network error, 404, or otherwise — the entire `addAll` call rejects and the install event fails. This is intentional: it guarantees your app shell is either fully cached or not cached at all.
+
+```js
+const CACHE_NAME = 'cache-v1';
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/app.js',
+  '/style.css',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+  );
+});
+```
+
+Keep the precache list short. Every URL in the list is a mandatory network request at install time — a 404 will prevent the SW from activating.
+
+## cache.put and caches.match
+
+For runtime caching you add individual responses using `cache.put(request, response)`. You retrieve them with either `cache.match(request)` (searches only that specific cache) or `caches.match(request)` (searches all caches and returns the first match).
+
+```js
+// Runtime cache: intercept a fetch, cache the response, return it
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(event.request).then((response) => {
+        // Store a clone; return the original
+        caches.open('cache-v1').then((cache) => {
+          cache.put(event.request, response.clone());
+        });
+        return response;
+      });
+    })
+  );
+});
+```
+
+```js
+// Searching a specific named cache vs. all caches
+caches.open('cache-v1').then((cache) => {
+  cache.match('/app.js').then((res) => {
+    console.log('From named cache:', res);
+  });
+});
+
+caches.match('/app.js').then((res) => {
+  console.log('From any cache:', res);
+});
+```
+
+## response.clone()
+
+A `Response` object wraps a body that is a one-time readable stream. Once you consume it — by calling `.json()`, `.text()`, or passing it to `cache.put()` — the stream is drained and the body is gone. Any subsequent read returns an empty result.
+
+When you want to both cache a response and return it to the caller, you must clone it first. `response.clone()` creates a second `Response` that shares the same body data but has an independent read cursor.
+
+```js
+fetch(event.request).then((response) => {
+  const clone = response.clone();       // independent copy
+  cache.put(event.request, clone);      // cache the clone
+  return response;                      // return the original to the page
+});
+```
+
+<Callout title="Key point">
+Clone a Response before caching — its body is a one-time stream. Pass the clone to `cache.put()` and return the original to the page, or vice versa. Either way, you need two independent Response objects.
+</Callout>
+
+## Deleting old caches at activate
+
+When you deploy a new version of your SW with a new cache name, the old caches remain on disk until you explicitly remove them. The activate event is the right place to do this: the new SW has taken over, so it is safe to delete caches that the old SW depended on.
+
+```js
+const CACHE_VERSION = 'v1';
+const CURRENT_CACHES = new Set(['cache-v1', 'images-v1']);
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => !CURRENT_CACHES.has(name))
+          .map((name) => {
+            console.log('Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+    })
+  );
+});
+```
+
+After cleanup, call `self.clients.claim()` if you want the newly activated SW to take control of existing open pages immediately rather than waiting for a full page reload.
+
+## Interactive demo
+
+export const proj = {
+  'index.html': `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <title>Cache Storage API Demo</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; white-space: pre-wrap; min-height: 80px; }
+  </style>
+</head>
+<body>
+  <h1>Cache Storage API demo</h1>
+  <p>Open DevTools → Application → Cache Storage to inspect what gets cached.</p>
+  <button id="btn">Cache Assets</button>
+  <pre id="log">Waiting for action...</pre>
+  <script src="/main.js"></script>
+</body>
+</html>`,
+  'main.js': `const log = document.getElementById('log');
+const btn = document.getElementById('btn');
+
+function append(msg) {
+  log.textContent += msg + '\\n';
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then((reg) => append('SW registered: ' + reg.scope))
+    .catch((err) => append('SW registration failed: ' + err));
+}
+
+btn.addEventListener('click', () => {
+  log.textContent = '';
+  append('Opening cache...');
+  caches.open('cache-v1').then((cache) => {
+    return cache.addAll(['/', '/index.html', '/main.js']).then(() => {
+      append('Assets cached successfully via cache.addAll!');
+      return caches.keys();
+    }).then((keys) => {
+      append('Current caches: ' + keys.join(', '));
+    });
+  }).catch((err) => append('Error: ' + err));
+});`,
+  'sw.js': `var CACHE_NAME = 'cache-v1';
+var CURRENT_CACHES = ['cache-v1'];
+
+self.addEventListener('install', function(event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(['/', '/index.html']);
+    })
+  );
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      return Promise.all(
+        cacheNames.filter(function(name) {
+          return CURRENT_CACHES.indexOf(name) === -1;
+        }).map(function(name) {
+          return caches.delete(name);
+        })
+      );
+    }).then(function() {
+      return self.clients.claim();
+    })
+  );
+});
+
+self.addEventListener('fetch', function(event) {
+  event.respondWith(
+    caches.match(event.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(event.request).then(function(response) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(event.request, clone);
+        });
+        return response;
+      });
+    })
+  );
+});`,
+  'manifest.webmanifest': `{
+  "name": "Cache Storage API Demo",
+  "short_name": "CacheDemo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0066cc",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/0066cc/ffffff?text=C",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}`,
+};
+
+<PwaPlayground client:visible files={proj} openFile="sw.js" />
+
+export const quizCacheStorageApi = [
+  {
+    q: 'Which Cache Storage method atomically stores an array of URLs at install time?',
+    options: [
+      'cache.put',
+      'caches.open',
+      'cache.addAll',
+      'caches.match',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why must you clone a Response before passing it to cache.put()?',
+    options: [
+      'The API requires it by spec',
+      'A Response body is a one-time readable stream',
+      'Cloning improves performance',
+      'cache.put() modifies the response',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does caches.match() do differently from cache.match()?',
+    options: [
+      'caches.match() searches all caches; cache.match() searches only one named cache',
+      'They are identical',
+      'cache.match() is faster',
+      'caches.match() only works in the install event',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'When should old caches be deleted?',
+    options: [
+      'During the install event',
+      'During the fetch event',
+      'During the activate event',
+      'When the user closes the tab',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/cache-storage-api" questions={quizCacheStorageApi} />
+
+<ProgressTracker client:visible id="caching-strategies/cache-storage-api" />

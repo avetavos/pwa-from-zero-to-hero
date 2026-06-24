@@ -1,0 +1,209 @@
+---
+title: Install Prompt
+description: 'วิธีดักจับ beforeinstallprompt, แสดงปุ่มติดตั้งของคุณเอง, เรียก prompt(), จัดการ appinstalled และการรับมือกับความแตกต่างบน iOS'
+sidebar:
+  order: 5
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ขั้นตอนการติดตั้ง
+
+เมื่อเบราว์เซอร์ตัดสินใจว่า PWA ของคุณสามารถติดตั้งได้ (manifest ที่ถูกต้อง + service worker ที่ลงทะเบียน + HTTPS) จะยิง event `beforeinstallprompt` บน `window` โดยค่าเริ่มต้นเบราว์เซอร์จะแสดง install badge หรือ prompt ของตัวเองทันที — แต่คุณสามารถดักจับ event นั้น ซ่อน UI เริ่มต้น และแสดงปุ่มติดตั้งของคุณเองในเวลาที่เหมาะสม
+
+### ขั้นตอนที่ 1 — เก็บ event ไว้
+
+```js
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  // ป้องกันเบราว์เซอร์แสดง mini-infobar ของตัวเอง
+  event.preventDefault();
+  // เก็บ event เพื่อเรียกใช้ในภายหลัง
+  deferredPrompt = event;
+  // แสดงปุ่มติดตั้งของคุณเอง
+  document.getElementById('install-btn').hidden = false;
+});
+```
+
+### ขั้นตอนที่ 2 — เรียก prompt จาก user gesture
+
+คุณต้องเรียก `deferredPrompt.prompt()` จากภายใน handler ที่เริ่มต้นโดยผู้ใช้ (การคลิก) การเรียกนอก user gesture จะทำให้เกิด error
+
+```js
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  // แสดง install dialog ของเบราว์เซอร์
+  deferredPrompt.prompt();
+  // รอการเลือกของผู้ใช้
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log('User choice:', outcome); // 'accepted' หรือ 'dismissed'
+  deferredPrompt = null;
+  document.getElementById('install-btn').hidden = true;
+});
+```
+
+### ขั้นตอนที่ 3 — ตอบสนองต่อการติดตั้งที่สำเร็จ
+
+event `appinstalled` ยิงหลังจากผู้ใช้ยืนยันการติดตั้ง:
+
+```js
+window.addEventListener('appinstalled', () => {
+  console.log('PWA installed successfully');
+  deferredPrompt = null;
+});
+```
+
+### ความแตกต่างบน iOS
+
+Safari บน iOS **ไม่** ยิง `beforeinstallprompt` ไม่มีวิธีการเรียก install dialog แบบ programmatic ทางเลือกเดียวคือแสดง banner แนะนำที่แนะนำผู้ใช้ให้ทำด้วยตนเอง:
+
+1. แตะปุ่ม **Share** ใน Safari
+2. เลื่อนลงแล้วแตะ **Add to Home Screen**
+
+ตรวจสอบ iOS เพื่อแสดงคำแนะนำที่ถูกต้อง:
+
+```js
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+
+if (isIos && !isInStandaloneMode) {
+  document.getElementById('ios-hint').hidden = false;
+}
+```
+
+### ลองใช้งานจริง
+
+playground ด้านล่างเชื่อมต่อ install-button flow แบบครบถ้วน เนื่องจาก StackBlitz ทำงานภายใน iframe event `beforeinstallprompt` จะไม่ยิง — แต่คุณสามารถตรวจสอบโค้ดทั้งหมดและรันบน domain จริงเพื่อทดสอบ
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Install Prompt Demo</title>
+    <style>
+      body { font-family: sans-serif; padding: 2rem; }
+      button { padding: .6rem 1.4rem; font-size: 1rem; cursor: pointer; }
+      #ios-hint { background: #fffbe6; border: 1px solid #f0ad4e; padding: 1rem; border-radius: 6px; margin-top: 1rem; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <h1>Install Prompt Demo</h1>
+    <p id="status">Waiting for beforeinstallprompt&hellip;</p>
+    <button id="install-btn" hidden>Install App</button>
+    <div id="ios-hint" hidden>
+      <strong>iOS:</strong> Tap the Share button, then &ldquo;Add to Home Screen&rdquo;.
+    </div>
+    <pre id="log"></pre>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const log = (m) => { document.getElementById('log').textContent += m + '\\n'; };
+const statusEl = document.getElementById('status');
+const installBtn = document.getElementById('install-btn');
+const iosHint = document.getElementById('ios-hint');
+
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.hidden = false;
+  statusEl.textContent = 'App is installable — click the button below.';
+  log('beforeinstallprompt fired');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const result = await deferredPrompt.userChoice;
+  log('User choice: ' + result.outcome);
+  deferredPrompt = null;
+  installBtn.hidden = true;
+});
+
+window.addEventListener('appinstalled', () => {
+  log('appinstalled fired');
+  statusEl.textContent = 'App installed!';
+});
+
+// iOS detection
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+if (isIos && !isStandalone) {
+  iosHint.hidden = false;
+  statusEl.textContent = 'iOS detected — use Share → Add to Home Screen.';
+}`,
+  'manifest.webmanifest': `{
+  "name": "Install Prompt Demo",
+  "short_name": "InstallDemo",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}`,
+  'sw.js': `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));`,
+};
+
+<PwaPlayground files={proj} openFile="main.js" />
+
+<Callout title="ประเด็นสำคัญ">
+คุณต้องเรียก `event.preventDefault()` บน `beforeinstallprompt` เพื่อระงับ install UI เริ่มต้นของเบราว์เซอร์ จากนั้นเรียก `deferredPrompt.prompt()` เฉพาะจากภายใน user gesture (click handler) เท่านั้น การเรียก `prompt()` นอก user gesture จะทำให้เกิด error
+</Callout>
+
+export const quizInstallPrompt = [
+  {
+    q: 'ต้องเรียกอะไรบน event beforeinstallprompt เพื่อระงับ install UI เริ่มต้นของเบราว์เซอร์?',
+    options: [
+      'event.stopPropagation()',
+      'event.preventDefault()',
+      'event.stopImmediatePropagation()',
+      'event.cancel()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ต้องเรียก deferredPrompt.prompt() จากที่ไหน?',
+    options: [
+      'จาก async function ใด ๆ',
+      'จาก setTimeout callback',
+      'โดยตรงจาก user gesture handler เช่น click',
+      'จาก DOMContentLoaded event',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'event ใดที่ยิงหลังผู้ใช้ติดตั้ง PWA สำเร็จ?',
+    options: ['beforeinstallprompt', 'install', 'appinstalled', 'activate'],
+    answer: 2,
+  },
+  {
+    q: 'ผู้ใช้ iOS ต้องติดตั้ง PWA อย่างไรเมื่อ beforeinstallprompt ไม่พร้อมใช้งาน?',
+    options: [
+      'ติดตั้ง PWA บน iOS ไม่ได้',
+      'ใช้เมนูเบราว์เซอร์ตัวเลือก Install App',
+      'แตะ Share แล้ว Add to Home Screen ใน Safari',
+      'ดาวน์โหลดแอปจาก App Store',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/install-prompt" questions={quizInstallPrompt} />
+
+<ProgressTracker client:visible id="web-app-manifest/install-prompt" />

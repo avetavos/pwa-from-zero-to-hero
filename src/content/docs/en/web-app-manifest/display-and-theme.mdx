@@ -1,0 +1,152 @@
+---
+title: Display and Theme
+description: 'How display, display_override, theme_color, background_color, orientation, categories, and screenshots control the installed app window and OS integration.'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Controlling how the app looks after installation
+
+Once a user installs your PWA, the manifest fields in this lesson determine whether the app looks like a native app or still shows browser UI — and how it integrates with the OS at the visual level.
+
+### `display`
+
+The `display` field sets the preferred display mode for the app window:
+
+| Value | Browser UI | Use case |
+|---|---|---|
+| `standalone` | No address bar, minimal OS chrome | Most apps — feels native |
+| `fullscreen` | No browser UI at all | Games, immersive experiences |
+| `minimal-ui` | Back/forward/reload buttons only | Content viewers, media players |
+| `browser` | Full browser UI | Fallback — same as a normal tab |
+
+```json
+{ "display": "standalone" }
+```
+
+### `display_override`
+
+`display_override` is an ordered preference list. The browser picks the first value it supports, then falls back to `display`. Use it to request newer modes like `window-controls-overlay` (a title-bar extension) on browsers that support it:
+
+```json
+{
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"]
+}
+```
+
+### `theme_color` and `background_color`
+
+**`theme_color`** colours the browser's toolbar and the task switcher tile on Android. Set it to your brand's primary colour. You can also set it per-page with `<meta name="theme-color">` — the meta tag overrides the manifest for that page.
+
+**`background_color`** is the colour shown during the splash screen (the brief flash between tapping the icon and the app's first render). Set it to match your app's background so the transition feels seamless.
+
+```json
+{
+  "theme_color": "#5A0FC8",
+  "background_color": "#ffffff"
+}
+```
+
+### Display mode decision flow
+
+export const displayDiagram = `flowchart TD
+  A["Browser reads display_override list"] --> B{"Supports first value?"}
+  B -->|"Yes"| C["Use that display mode"]
+  B -->|"No"| D{"More items in override list?"}
+  D -->|"Yes"| A
+  D -->|"No"| E["Fall back to display field"]
+  E --> F{"display value supported?"}
+  F -->|"Yes"| G["Use display value"]
+  F -->|"No"| H["Use browser (default)"]`;
+
+<Mermaid code={displayDiagram} title="How the browser selects a display mode" />
+
+### `orientation`
+
+`orientation` locks the screen orientation when the PWA is running. Common values: `"portrait"`, `"landscape"`, `"any"`, `"natural"`. Omit it to let the user rotate freely.
+
+```json
+{ "orientation": "portrait" }
+```
+
+### `categories`
+
+`categories` is an array of strings hinting to app directories and OS stores what type of app this is. There is no fixed spec-required vocabulary, but common values mirror Play Store categories: `"productivity"`, `"utilities"`, `"games"`, `"finance"`, etc.
+
+```json
+{ "categories": ["productivity", "utilities"] }
+```
+
+### `screenshots`
+
+`screenshots` provides images shown in install dialogs on browsers and OS stores that support them. Each entry has `src`, `sizes`, `type`, and an optional `form_factor` (`"narrow"` for mobile, `"wide"` for desktop).
+
+```json
+{
+  "screenshots": [
+    {
+      "src": "/screenshots/home-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home screen on mobile"
+    },
+    {
+      "src": "/screenshots/home-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Home screen on desktop"
+    }
+  ]
+}
+```
+
+Chrome on desktop requires at least one screenshot before it shows the rich install dialog with a preview panel.
+
+<Callout title="Key point">
+`display: standalone` removes the browser address bar so the PWA feels like a native app. Use `display_override` to request newer display modes progressively — browsers that do not understand the override fall back to `display`.
+</Callout>
+
+export const quizDisplayTheme = [
+  {
+    q: 'Which display value removes all browser UI to create a fully immersive experience?',
+    options: ['standalone', 'minimal-ui', 'fullscreen', 'browser'],
+    answer: 2,
+  },
+  {
+    q: 'What is the purpose of background_color in the manifest?',
+    options: [
+      'It sets the CSS background-color property for the app',
+      'It colours the splash screen shown while the app is loading',
+      'It overrides the theme_color on Android',
+      'It defines the app icon background',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How does display_override work when the browser does not support its first value?',
+    options: [
+      'The app fails to install',
+      'The browser uses the display field as a fallback',
+      'The browser ignores both display and display_override',
+      'The app launches in fullscreen mode by default',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which manifest field hints to app stores about the category of your app?',
+    options: ['description', 'keywords', 'categories', 'scope'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/display-and-theme" questions={quizDisplayTheme} />
+
+<ProgressTracker client:visible id="web-app-manifest/display-and-theme" />

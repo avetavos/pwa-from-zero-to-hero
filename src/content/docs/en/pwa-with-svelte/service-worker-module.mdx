@@ -1,0 +1,153 @@
+---
+title: The $service-worker Module
+description: 'Use the $service-worker virtual module to access build, files, version, and prerendered — then precache them in a vanilla SvelteKit service worker.'
+sidebar:
+  order: 3
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Vanilla SvelteKit service workers
+
+SvelteKit automatically bundles and registers any file you place at `src/service-worker.js` (or `.ts`). Inside that file, the `$service-worker` virtual module gives you everything you need to write a robust precaching service worker without any third-party library.
+
+### What `$service-worker` exports
+
+| Export | Type | Contents |
+|---|---|---|
+| `build` | `string[]` | Hashed client-side assets (`_app/immutable/…`) |
+| `files` | `string[]` | Everything copied from `static/` |
+| `version` | `string` | Unique string that changes on every build |
+| `prerendered` | `string[]` | Paths of prerendered HTML pages |
+
+`build` and `files` together cover the full set of assets your app needs to work offline. `version` makes a unique cache name so old caches are cleaned up reliably after each deploy.
+
+### Creating `src/service-worker.js`
+
+```js
+/// <reference types="@sveltejs/kit" />
+import { build, files, version, prerendered } from '$service-worker';
+
+const CACHE = `cache-\${version}`;
+
+const ASSETS = [
+  ...build,       // hashed JS/CSS bundles
+  ...files,       // static/ assets (icons, fonts, …)
+  ...prerendered, // prerendered HTML pages
+];
+
+// ── Install: precache all assets ──────────────────────────────────────────────
+self.addEventListener('install', (event) => {
+  async function addFilesToCache() {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+  }
+  event.waitUntil(addFilesToCache());
+});
+
+// ── Activate: delete old caches ───────────────────────────────────────────────
+self.addEventListener('activate', (event) => {
+  async function deleteOldCaches() {
+    for (const key of await caches.keys()) {
+      if (key !== CACHE) await caches.delete(key);
+    }
+  }
+  event.waitUntil(deleteOldCaches());
+});
+
+// ── Fetch: serve from cache, fall back to network ─────────────────────────────
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  async function respond() {
+    const url = new URL(event.request.url);
+    const cache = await caches.open(CACHE);
+
+    // Always serve build/files assets from cache (they are hashed)
+    if (ASSETS.includes(url.pathname)) {
+      const cached = await cache.match(url.pathname);
+      if (cached) return cached;
+    }
+
+    // For everything else: network first, cache as fallback
+    try {
+      const response = await fetch(event.request);
+      if (response.status === 200) {
+        cache.put(event.request, response.clone());
+      }
+      return response;
+    } catch {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      throw new Error('No cached response and network unavailable');
+    }
+  }
+
+  event.respondWith(respond());
+});
+```
+
+### Why the cache name uses `version`
+
+Every SvelteKit build produces a fresh `version` string derived from the build timestamp and content hash. The pattern `` `cache-\${version}` `` means each deployment gets its own isolated cache. The `activate` handler then deletes every cache whose name is not the current version — automatically cleaning up storage from all previous deploys.
+
+### TypeScript version
+
+For TypeScript projects, rename the file to `src/service-worker.ts` and add the reference directive so the SW globals are typed correctly:
+
+```ts
+/// <reference types="@sveltejs/kit" />
+import { build, files, version, prerendered } from '$service-worker';
+
+declare const self: ServiceWorkerGlobalScope;
+
+const CACHE = `cache-\${version}`;
+// … rest of the file is identical
+```
+
+### What about `prerendered`?
+
+If your app prerender pages (via `export const prerender = true` in route files or adapter-static), SvelteKit populates `prerendered` with their paths. Including them in `ASSETS` means those pages load instantly offline, without a network round-trip.
+
+<Callout title="Key point">
+`$service-worker` gives you the exact list of built assets plus a version string — precache `build` and `files` on `install`, and delete every cache whose name does not match the current version in `activate`. No Workbox required.
+</Callout>
+
+export const quizServiceWorkerModule = [
+  {
+    q: 'What does the build export from $service-worker contain?',
+    options: [
+      'The raw source files from src/',
+      'Hashed client-side JS and CSS bundles produced by the SvelteKit build',
+      'The contents of the static/ directory',
+      'The SvelteKit adapter configuration',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why is the cache named using the version export?',
+    options: [
+      'To allow multiple users to share the same cache',
+      'Because caches.open() requires a numeric key',
+      'So each deployment gets a unique cache and old caches can be cleaned up in activate',
+      'To enable the browser to serve the SW over HTTP',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which event is the right place to delete stale caches from previous deployments?',
+    options: ['install', 'fetch', 'activate', 'message'],
+    answer: 2,
+  },
+  {
+    q: 'Which $service-worker export lists paths to prerendered HTML pages?',
+    options: ['build', 'files', 'version', 'prerendered'],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/service-worker-module" questions={quizServiceWorkerModule} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/service-worker-module" />

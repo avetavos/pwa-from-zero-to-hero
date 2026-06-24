@@ -1,0 +1,154 @@
+---
+title: 'Capable, Reliable, and Installable'
+description: 'The three pillars that define a Progressive Web App: device API access, offline reliability via service workers, and native-like installability.'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The three pillars of a PWA
+
+Google's PWA definition rests on three qualities: **Capable**, **Reliable**, and **Installable**. A web app that achieves all three is indistinguishable from a native app for the vast majority of use cases. Understanding what each pillar means — and what technology delivers it — gives you a concrete checklist for every PWA you build.
+
+### Capable — reaching device APIs
+
+The modern web platform exposes hardware and OS capabilities that were once the exclusive domain of native apps. Key examples include:
+
+- **Camera and microphone** via `MediaDevices.getUserMedia()` — powers video calls, QR scanners, and document capture.
+- **Geolocation** via the Geolocation API — real-time location, mapping, and proximity features.
+- **Push notifications** via the Push API combined with the Notifications API — re-engages users even when the browser is closed.
+- **Payments** via the Payment Request API — streamlined checkout without redirecting to an external flow.
+- **Clipboard, file system, contacts, and more** — the list grows with every browser release.
+
+The goal of the Capable pillar is not to replicate every native API (Bluetooth support, for instance, still varies by browser) but to ensure that the web platform is a credible deployment target for the features your users actually need.
+
+### Reliable — instant load and offline resilience
+
+A reliable PWA loads immediately and continues to function on an unreliable network. This is entirely the job of the **service worker** and the **Cache Storage API**.
+
+When a service worker is registered and active, it sits between the page and the network, intercepting every `fetch` event. You decide the caching strategy: serve from cache first, fall back to network, or race both. The result is an app that:
+
+- Opens instantly on repeat visits because assets come from the local cache.
+- Works in airplane mode or on a 2G connection by serving a cached shell.
+- Recovers gracefully when a request fails, instead of showing a browser error page.
+
+```js
+// A simple cache-first fetch strategy inside sw.js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached ?? fetch(event.request);
+    })
+  );
+});
+```
+
+### Installable — add to home screen and desktop
+
+An installable PWA can be added to the device home screen or desktop and launched from there, just like a native app. The browser handles the install flow automatically once three conditions are met:
+
+1. The page is served over HTTPS (or localhost).
+2. A valid Web App Manifest is linked from the page (`<link rel="manifest">`).
+3. A service worker with a `fetch` handler is registered.
+
+On Chrome and Edge, the browser fires a `BeforeInstallPromptEvent` that you can capture and use to show your own "Install" button at the right moment. Once installed, the app launches in a standalone window — no address bar, no browser chrome — giving users the native feel they expect.
+
+```js
+// Capture the install prompt and show it on a button click
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredPrompt = event;
+  document.getElementById('install-btn').hidden = false;
+});
+
+document.getElementById('install-btn').addEventListener('click', () => {
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((choice) => {
+    if (choice.outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    deferredPrompt = null;
+  });
+});
+```
+
+### How the three pillars interact
+
+export const pillarsDiagram = `flowchart TD
+  PWA["Progressive Web App"]
+
+  PWA --> CAP["Capable"]
+  PWA --> REL["Reliable"]
+  PWA --> INS["Installable"]
+
+  CAP --> CAM["Camera / getUserMedia"]
+  CAP --> GEO["Geolocation API"]
+  CAP --> PUSH["Push API + Notifications"]
+  CAP --> PAY["Payment Request API"]
+
+  REL --> SW["Service Worker"]
+  REL --> CACHE["Cache Storage API"]
+  REL --> OFFLINE["Offline / flaky network support"]
+
+  INS --> MANIFEST["Web App Manifest"]
+  INS --> HTTPS["HTTPS or localhost"]
+  INS --> PROMPT["BeforeInstallPromptEvent"]`;
+
+<Mermaid code={pillarsDiagram} title="The three PWA pillars and the technologies behind each one" />
+
+<Callout title="Key point">
+"Reliable" means it loads even on a flaky network — that is what the service worker and cache buy you.
+</Callout>
+
+export const quizCapableReliableInstallable = [
+  {
+    q: 'Which API enables a PWA to access the device camera?',
+    options: [
+      'navigator.camera.open()',
+      'MediaDevices.getUserMedia()',
+      'CameraAccess.request()',
+      'HTMLVideoElement.captureStream()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What three conditions must be met before a browser will offer to install a PWA?',
+    options: [
+      'HTTPS, a valid manifest, and a service worker with a fetch handler',
+      'HTTPS, a valid manifest, and at least one cached asset',
+      'A service worker, push notifications, and geolocation permission',
+      'A manifest, an app icon, and a splash screen',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'What browser event can you capture to show a custom "Install" button at the right moment?',
+    options: [
+      'appinstalled',
+      'installready',
+      'beforeinstallprompt',
+      'serviceworkerinstalled',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which PWA pillar is primarily responsible for making an app work in airplane mode?',
+    options: [
+      'Capable — device APIs include offline storage',
+      'Installable — installed apps cache themselves automatically',
+      'Reliable — the service worker intercepts fetches and serves from cache',
+      'Capable — the Push API queues requests when offline',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/capable-reliable-installable" questions={quizCapableReliableInstallable} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/capable-reliable-installable" />

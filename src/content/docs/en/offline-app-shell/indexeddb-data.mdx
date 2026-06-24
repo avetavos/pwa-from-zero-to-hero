@@ -1,0 +1,217 @@
+---
+title: Storing Offline Data with IndexedDB
+description: 'How to use the IndexedDB API to store structured app data offline, and when to choose IndexedDB over Cache Storage or localStorage.'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Storing offline data with IndexedDB
+
+The browser gives you three main client-side storage mechanisms, each designed for a different job. Picking the right one prevents subtle bugs and keeps your offline experience reliable.
+
+### Storage comparison
+
+| | localStorage | Cache Storage | IndexedDB |
+|---|---|---|---|
+| **Stores** | Key/value strings | HTTP request/response pairs | Structured objects (any JS value) |
+| **Async?** | No (synchronous, blocks the main thread) | Yes (Promise-based) | Yes (event-based / Promise wrappers) |
+| **Queryable?** | No | By URL only | Yes — indexes, key ranges, cursors |
+| **Size limit** | ~5 MB | Quota-based (~hundreds of MB) | Quota-based (~hundreds of MB) |
+| **Available in SW?** | No | Yes | Yes |
+| **Best for** | Tiny settings / flags | Caching network resources | App data: tasks, messages, user records |
+
+The rule of thumb: use **Cache Storage** for the network assets your service worker caches (HTML, CSS, JS, images), and use **IndexedDB** for the actual data your application works with.
+
+### The raw IndexedDB API
+
+IndexedDB is a transactional, object-oriented database built into every modern browser. It stores JavaScript objects in named **object stores**, identified by a key path you choose.
+
+#### Opening a database
+
+```js
+const request = indexedDB.open('my-app-db', 1);
+
+request.onupgradeneeded = (event) => {
+  const db = event.target.result;
+  // Create an object store keyed on the 'id' property
+  if (!db.objectStoreNames.contains('tasks')) {
+    db.createObjectStore('tasks', { keyPath: 'id' });
+  }
+};
+
+request.onsuccess = (event) => {
+  const db = event.target.result;
+  console.log('Database opened:', db.name);
+};
+
+request.onerror = (event) => {
+  console.error('Failed to open database:', event.target.error);
+};
+```
+
+`indexedDB.open(name, version)` returns an `IDBOpenDBRequest`. The `onupgradeneeded` callback fires whenever the version number increases — this is the only place you can create or modify object stores and indexes.
+
+#### Writing a record
+
+Once you have a `db` reference, wrap every operation in a transaction. Pass the store name and the mode — `'readwrite'` to write, `'readonly'` to read.
+
+```js
+function saveTask(db, task) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tasks', 'readwrite');
+    const store = tx.objectStore('tasks');
+    const putRequest = store.put(task); // insert or replace by keyPath
+
+    putRequest.onsuccess = () => resolve(putRequest.result);
+    putRequest.onerror = () => reject(putRequest.error);
+  });
+}
+
+// Usage
+saveTask(db, { id: 'task-1', title: 'Buy groceries', done: false });
+```
+
+`store.put(record)` inserts the object if the key does not exist, or replaces it if it does. Use `store.add(record)` if you want an error on duplicate keys instead.
+
+#### Reading a record
+
+```js
+function getTask(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tasks', 'readonly');
+    const store = tx.objectStore('tasks');
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => resolve(getRequest.result); // undefined if not found
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+// Usage
+getTask(db, 'task-1').then((task) => console.log(task));
+```
+
+#### Iterating all records
+
+To read every record, open a cursor on the store.
+
+```js
+function getAllTasks(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tasks', 'readonly');
+    const store = tx.objectStore('tasks');
+    const results = [];
+    const cursorRequest = store.openCursor();
+
+    cursorRequest.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        results.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+
+    cursorRequest.onerror = () => reject(cursorRequest.error);
+  });
+}
+```
+
+### Versioning and migrations
+
+The second argument to `indexedDB.open()` is the schema version. Every time you increment it, `onupgradeneeded` fires with `event.oldVersion` and `event.newVersion` available, letting you migrate the schema incrementally.
+
+```js
+request.onupgradeneeded = (event) => {
+  const db = event.target.result;
+  const oldVersion = event.oldVersion;
+
+  if (oldVersion < 1) {
+    db.createObjectStore('tasks', { keyPath: 'id' });
+  }
+  if (oldVersion < 2) {
+    // Version 2 adds a 'notes' store
+    db.createObjectStore('notes', { keyPath: 'id' });
+  }
+};
+```
+
+Never delete a store or index without checking `oldVersion` — users may be upgrading from any past version, not just the previous one.
+
+### Practical wrappers
+
+The raw event-based API is verbose. In production, most teams use a thin wrapper like the `idb` library (a few KB) that surfaces the same API as Promise chains. The concepts are identical — open, transaction, store, put/get — the wrapper just removes the boilerplate event handlers.
+
+### Data flow diagram
+
+export const idbDiagram = `sequenceDiagram
+  participant App as Page / SW
+  participant IDB as IndexedDB
+
+  App->>IDB: indexedDB.open('my-app-db', 1)
+  IDB-->>App: onupgradeneeded (create stores)
+  IDB-->>App: onsuccess (db handle)
+  App->>IDB: db.transaction('tasks', 'readwrite')
+  App->>IDB: store.put(task)
+  IDB-->>App: onsuccess (key)
+  App->>IDB: store.get('task-1')
+  IDB-->>App: onsuccess (record)`;
+
+<Mermaid code={idbDiagram} title="IndexedDB open, write, and read sequence" />
+
+<Callout title="Key point">
+Cache Storage is for requests/responses; IndexedDB is for app data — use both.
+</Callout>
+
+export const quizIdb = [
+  {
+    q: 'Which browser storage API is available inside a service worker?',
+    options: [
+      'localStorage only',
+      'Cache Storage only',
+      'Both Cache Storage and IndexedDB',
+      'Neither — service workers cannot access storage',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'When does the onupgradeneeded callback fire?',
+    options: [
+      'Every time the database is opened',
+      'Only the very first time the database is created',
+      'Whenever the version number passed to indexedDB.open() is higher than the stored version',
+      'Whenever an object store is accessed for the first time',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the difference between store.put() and store.add()?',
+    options: [
+      'put() is read-only; add() creates new records',
+      'put() inserts or replaces by key; add() errors if the key already exists',
+      'add() inserts or replaces by key; put() errors if the key already exists',
+      'There is no difference — both behave identically',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the correct storage choice for caching a JavaScript bundle so it loads offline?',
+    options: [
+      'IndexedDB, because it supports large values',
+      'localStorage, because it is synchronous',
+      'Cache Storage, because it is designed for HTTP request/response pairs',
+      'sessionStorage, because it persists across service worker restarts',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/indexeddb-data" questions={quizIdb} />
+
+<ProgressTracker client:visible id="offline-app-shell/indexeddb-data" />

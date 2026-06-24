@@ -1,0 +1,173 @@
+---
+title: 'Cache-First and Network-First'
+description: 'Implementing cache-first (offline-first for static assets) and network-first (fresh data with cache fallback) strategies in the service worker fetch handler.'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Cache-first and network-first
+
+The two most fundamental caching strategies are **cache-first** and **network-first**. Cache-first prioritises speed: the service worker serves from cache immediately and only touches the network when there is a cache miss — making it ideal for the app shell, fonts, icons, and other static assets that change infrequently. Network-first prioritises freshness: it always attempts a live fetch and only falls back to the cache when the network is unavailable — making it the right choice for API responses, dynamic HTML pages, and any resource where serving stale data would be harmful.
+
+Choosing between them is a trade-off: cache-first gives instant loads at the risk of stale content; network-first gives fresh content at the cost of a network round-trip on every request.
+
+## Cache-first
+
+Serve from cache immediately. Only fetch from the network on a cache miss, then cache the result for next time. This strategy is best for static assets that change infrequently — JavaScript bundles, CSS stylesheets, web fonts, and images. Because the cache is checked before the network, pages load at memory speed even on a slow connection.
+
+The key discipline with cache-first is **cache versioning**: because assets are served from cache without consulting the network, you must bump the cache name (for example from `app-v1` to `app-v2`) whenever you deploy new assets, and delete old caches in the `activate` event to reclaim storage.
+
+```js
+const CACHE = 'app-v1';
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        return caches.open(CACHE).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      });
+    })
+  );
+});
+```
+
+export const cacheFirstDiagram = `flowchart LR
+  A[Request] --> B{Check cache}
+  B -- hit --> C[Return cached response]
+  B -- miss --> D[Fetch from network]
+  D --> E[Store in cache]
+  E --> F[Return response]`;
+
+<Mermaid code={cacheFirstDiagram} title="Cache-first strategy" />
+
+## Network-first
+
+Always try the network first. On network failure, fall back to the cache. This is best for dynamic data where you want freshness — API JSON responses, server-rendered HTML — but still need offline resilience so users are not left staring at a blank page.
+
+The trade-off is that every successful request pays a full network round-trip, so pages load no faster than the server responds. On a slow connection this is noticeably slower than cache-first. Network-first is therefore the wrong choice for large static assets; reserve it for the resources where stale data is genuinely unacceptable.
+
+```js
+const CACHE = 'app-v1';
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        return caches.open(CACHE).then((cache) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+```
+
+export const networkFirstDiagram = `flowchart LR
+  A[Request] --> B[Fetch from network]
+  B -- success --> C[Store in cache]
+  C --> D[Return response]
+  B -- failure --> E{Check cache}
+  E -- hit --> F[Return cached response]
+  E -- miss --> G[Return undefined / error]`;
+
+<Mermaid code={networkFirstDiagram} title="Network-first strategy" />
+
+## Try it live
+
+The demo below registers a service worker that uses cache-first for all requests. Open the StackBlitz project, load the page once so the SW installs, then reload — the second load is served entirely from the cache. Open DevTools → Application → Cache Storage to see the cached entries.
+
+export const proj = {
+  'index.html': `<!doctype html><html><head><meta charset="utf-8"/><link rel="manifest" href="/manifest.webmanifest"/><title>Cache-First Demo</title></head><body><h1>Cache-First Demo</h1><p>Open DevTools → Application → Cache Storage to see cached resources.</p><pre id="log"></pre><script type="module" src="/main.js"></script></body></html>`,
+  'main.js': `const log = (m) => (document.getElementById('log').textContent += m + '\\n');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(() => log('SW registered — reload to serve from cache'));
+} else { log('Service workers not supported'); }`,
+  'sw.js': `var CACHE = 'app-v1';
+self.addEventListener('install', function(e) {
+  e.waitUntil(caches.open(CACHE).then(function(cache) {
+    return cache.addAll(['/index.html']);
+  }));
+  self.skipWaiting();
+});
+self.addEventListener('activate', function(e) {
+  e.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', function(e) {
+  e.respondWith(
+    caches.match(e.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(e.request).then(function(response) {
+        return caches.open(CACHE).then(function(cache) {
+          cache.put(e.request, response.clone());
+          return response;
+        });
+      });
+    })
+  );
+});`,
+  'manifest.webmanifest': `{"name":"Cache Demo","short_name":"Cache","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#5A0FC8"}`,
+};
+
+<PwaPlayground files={proj} />
+
+<Callout title="Key point">
+Cache-first is fast but can serve stale assets — version your cache name (e.g. `app-v2`) and delete old caches in the `activate` event whenever you deploy new assets.
+</Callout>
+
+export const quizCacheFirstNetworkFirst = [
+  {
+    q: 'Which strategy tries the network first and only falls back to cache on failure?',
+    options: [
+      'Cache-first',
+      'Network-first',
+      'Cache-only',
+      'Stale-while-revalidate',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Cache-first is most appropriate for:',
+    options: [
+      'Frequently changing API responses',
+      'User authentication requests',
+      'Static assets like fonts, icons, and app shell JS',
+      'Payment endpoints',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you invalidate stale cache-first assets after a deploy?',
+    options: [
+      'Call caches.clear() on every request',
+      'Bump the cache name version and delete old caches in the activate event',
+      'Delete the SW file',
+      'Set Cache-Control: no-store on responses',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does the network-first fetch handler return when both the network and cache fail?',
+    options: [
+      'An empty Response',
+      'A 404 response',
+      'undefined (no response)',
+      'The page is shown an error',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/cache-first-network-first" questions={quizCacheFirstNetworkFirst} />
+
+<ProgressTracker client:visible id="caching-strategies/cache-first-network-first" />

@@ -1,0 +1,140 @@
+---
+title: Registering a Service Worker
+description: 'How to register a service worker with navigator.serviceWorker.register(), feature-detect it, and understand scope and HTTPS requirements.'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Registering a service worker
+
+Before a service worker can intercept any requests, the page must **register** it. Registration tells the browser where to find the service worker file and which URLs it should control.
+
+### The registration call
+
+```js
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then((registration) => {
+      console.log('SW registered, scope:', registration.scope);
+    })
+    .catch((error) => {
+      console.error('SW registration failed:', error);
+    });
+}
+```
+
+`navigator.serviceWorker.register()` returns a **Promise** that resolves to a `ServiceWorkerRegistration` object. The most important property on that object is `scope`.
+
+### Feature detection
+
+Always guard the call with `'serviceWorker' in navigator`. Browsers that do not support service workers (some very old browsers, or pages served over plain HTTP) will simply skip the block. Never let a missing API crash your page.
+
+### Scope
+
+The **scope** determines which pages and sub-paths the service worker controls. By default it is the directory that contains the service worker file:
+
+| SW file location | Default scope | Pages controlled |
+|---|---|---|
+| `/sw.js` | `/` | The entire origin |
+| `/app/sw.js` | `/app/` | Only `/app/` and below |
+| `/shop/sw.js` | `/shop/` | Only `/shop/` and below |
+
+You can narrow the scope (but never widen it beyond the SW file's directory) by passing a `scope` option:
+
+```js
+navigator.serviceWorker.register('/sw.js', { scope: '/shop/' });
+```
+
+### Secure context (HTTPS / localhost)
+
+Service workers only run on **secure origins**:
+
+- `https://` — any HTTPS page in production.
+- `http://localhost` and `http://127.0.0.1` — explicitly exempted for local development.
+
+Attempting to register on plain `http://` (other than localhost) will silently fail or throw a `SecurityError`. Always deploy your PWA over HTTPS.
+
+### Try it live
+
+The demo below registers a minimal service worker. Open the StackBlitz project and check the browser console — you will see the registration log and the SW's scope.
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><link rel="manifest" href="/manifest.webmanifest" /><title>SW demo</title></head>
+  <body>
+    <h1>Service worker demo</h1>
+    <pre id="log"></pre>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const log = (m) => (document.getElementById('log').textContent += m + '\\n');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then((r) => log('registered, scope: ' + r.scope));
+} else { log('service workers not supported'); }`,
+  'sw.js': `self.addEventListener('install', () => { console.log('SW installing'); self.skipWaiting(); });
+self.addEventListener('activate', (e) => { console.log('SW active'); e.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request)); });`,
+  'manifest.webmanifest': `{
+  "name": "SW Demo",
+  "short_name": "SW Demo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8"
+}`,
+};
+
+<PwaPlayground files={proj} />
+
+<Callout title="Key point">
+A service worker at `/sw.js` controls the whole origin — its default scope is `/`. Place the file at the site root for full coverage. Moving it into a subdirectory silently narrows the scope to that subdirectory.
+</Callout>
+
+export const quizRegisterSw = [
+  {
+    q: 'What does navigator.serviceWorker.register() return?',
+    options: [
+      'A ServiceWorker object',
+      'A Promise that resolves to a ServiceWorkerRegistration',
+      'A boolean indicating success',
+      'undefined',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'On which origins can a service worker be registered?',
+    options: [
+      'Any HTTP origin',
+      'Only https:// origins',
+      'https:// origins and localhost over http://',
+      'Only file:// origins',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'You place sw.js at /admin/sw.js. What is its default scope?',
+    options: ['/admin/', '/', '/admin/sw.js', 'The scope must always be set explicitly'],
+    answer: 0,
+  },
+  {
+    q: 'Why should you wrap the register call with "serviceWorker" in navigator?',
+    options: [
+      'To prevent the SW from running twice',
+      'To avoid errors in browsers or contexts that do not support service workers',
+      'To limit the SW scope to the current page',
+      'Because register() is asynchronous',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="service-workers/registering-a-sw" questions={quizRegisterSw} />
+
+<ProgressTracker client:visible id="service-workers/registering-a-sw" />

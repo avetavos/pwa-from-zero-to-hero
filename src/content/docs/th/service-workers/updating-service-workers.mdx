@@ -1,0 +1,180 @@
+---
+title: การอัปเดต Service Worker
+description: 'เบราว์เซอร์ตรวจจับการเปลี่ยนแปลงของ service worker อย่างไร, waiting worker, skipWaiting และ clients.claim และจะแจ้งให้ผู้ใช้ reload อย่างปลอดภัยได้อย่างไร'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การอัปเดต service worker
+
+การ deploy PWA เวอร์ชันใหม่ก็คือการ deploy service worker ตัวใหม่ การเข้าใจว่าเบราว์เซอร์ตรวจจับและนำการอัปเดตนั้นมาใช้อย่างไร — และจะสื่อสารกับผู้ใช้อย่างไร — ช่วยป้องกันบั๊กที่แอบแฝงและความประหลาดใจเรื่อง asset ที่ล้าสมัย
+
+### เบราว์เซอร์ตรวจจับการอัปเดตอย่างไร
+
+เบราว์เซอร์จะตรวจไฟล์ service worker ของคุณว่ามีการเปลี่ยนแปลงหรือไม่ในทุกครั้งที่โหลดหน้า (และทุกครั้งที่คุณเรียก `registration.update()` เอง) มันเปรียบเทียบไฟล์ที่ดาวน์โหลดมาใหม่กับ SW ที่ติดตั้งอยู่ปัจจุบันแบบ byte-for-byte แม้ความต่างเพียง **ไบต์เดียว** — string เวอร์ชันของ cache ที่เปลี่ยนไป, comment ใหม่, การปรับ whitespace — ก็ทริกเกอร์ flow การอัปเดต:
+
+1. SW ตัวใหม่ถูกดาวน์โหลดและ parse
+2. SW ตัวใหม่เข้าสู่เฟส `install`
+3. ถ้าการติดตั้งสำเร็จ SW ตัวใหม่จะนั่งอยู่ใน **Waiting** — มันไม่สามารถ activate ได้ขณะที่ SW ตัวเก่ายังควบคุมแท็บที่เปิดอยู่
+
+### ปัญหา waiting worker
+
+ต้นเหตุของความสับสนที่พบบ่อยที่สุดใน PWA ระดับ production:
+
+- ผู้ใช้เปิดแอปของคุณ SW ตัวเก่า activate และควบคุมแท็บนั้น
+- คุณ deploy v2 เบราว์เซอร์ติดตั้ง SW ตัวใหม่ แต่มันนั่งอยู่ใน Waiting
+- ผู้ใช้เปิดแท็บนั้นทิ้งไว้ทั้งวัน
+- SW ตัวใหม่ไม่เคย activate เลย — ผู้ใช้ไม่เคยเห็น v2
+
+### skipWaiting() — ทรงพลังแต่อันตราย
+
+การเรียก `self.skipWaiting()` ภายใน handler ของ `install` ของ SW ตัวใหม่จะบังคับให้มัน activate ทันที โดยข้ามการรอ:
+
+```js
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('v2').then((cache) => cache.addAll(['/', '/app.js', '/styles.css']))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+```
+
+อันตรายคือ: หน้าเก่ายังคงทำงานอยู่ ถ้า v2 มี cache schema หรือ asset URL ที่ต่างออกไป หน้าที่โหลดไปแล้วอาจ request ทรัพยากรที่ SW ตัวใหม่เสิร์ฟได้ไม่ถูกต้อง ผลลัพธ์คือประสบการณ์ที่พังกลางเซสชัน
+
+**คำแนะนำ:** ใช้ `skipWaiting()` เฉพาะเมื่อ asset URL ของคุณมีการใส่เวอร์ชัน (เช่น `app.abc123.js`) เพื่อให้ asset ตัวเก่าและตัวใหม่เข้ากันได้ หรือไม่ก็แจ้งให้ผู้ใช้ reload เสมอ
+
+### การแจ้งให้ผู้ใช้ reload
+
+แพตเทิร์นที่ปลอดภัยที่สุด: ตรวจจับ waiting worker จากหน้าเว็บแล้วแสดง banner แบบไม่รบกวน
+
+```js
+// main.js — page code
+async function registerSw() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.register('/sw.js');
+
+  registration.addEventListener('updatefound', () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+
+    newWorker.addEventListener('statechange', () => {
+      if (
+        newWorker.state === 'installed' &&
+        navigator.serviceWorker.controller
+      ) {
+        // A new SW is waiting — show update prompt
+        showUpdateBanner(registration);
+      }
+    });
+  });
+}
+
+function showUpdateBanner(registration) {
+  const banner = document.createElement('div');
+  banner.textContent = 'A new version is available. ';
+  const btn = document.createElement('button');
+  btn.textContent = 'Reload';
+  btn.onclick = () => {
+    if (registration.waiting) {
+      // Tell the waiting SW to skip waiting, then reload
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+    window.location.reload();
+  };
+  banner.appendChild(btn);
+  document.body.prepend(banner);
+}
+
+registerSw();
+```
+
+SW ที่เกี่ยวข้องจะคอยฟังข้อความนั้น:
+
+```js
+// sw.js — service worker
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+```
+
+วิธีนี้ทำให้ `skipWaiting()` เป็น **user-driven** อย่างสมบูรณ์ — เวอร์ชันใหม่จะ activate ก็ต่อเมื่อผู้ใช้คลิก Reload อย่างชัดเจนเท่านั้น เป็นการป้องกันการพังกลางเซสชัน
+
+### registration.update() — การตรวจสอบเชิงรุก
+
+โดยค่าเริ่มต้นเบราว์เซอร์จะตรวจหาการอัปเดต SW ตอน navigation สำหรับ single-page app ที่ผู้ใช้อาจไม่เคยทริกเกอร์ navigation เลย ให้เรียก `registration.update()` เป็นช่วง ๆ:
+
+```js
+setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
+```
+
+### เช็กลิสต์การอัปเดต
+
+| ขั้นตอน | ทำไม |
+|---|---|
+| เปลี่ยนอย่างน้อยหนึ่งไบต์ใน `sw.js` | ทริกเกอร์การตรวจ byte-diff ของเบราว์เซอร์ |
+| ใส่เวอร์ชันให้ชื่อ cache (`v2`, `v3`) | ช่วยให้ activate handler ลบ cache ที่ล้าสมัยได้ |
+| ลบ cache เก่าใน `activate` | หลีกเลี่ยงการเก็บ asset ที่ล้าสมัยไว้ไม่รู้จบ |
+| แจ้งให้ผู้ใช้ reload แทนการบังคับ `skipWaiting()` | ป้องกันความไม่ตรงกันของ asset กลางเซสชัน |
+| เรียก `clients.claim()` หลัง `skipWaiting()` | เข้าควบคุมหน้าที่เปิดอยู่ได้ทันที |
+
+<Callout title="ประเด็นสำคัญ">
+`skipWaiting()` activate service worker ตัวใหม่ทันที ซึ่งอาจทำให้หน้าที่โหลดไปแล้วรันกับ asset ที่ไม่ตรงกัน แจ้งให้ผู้ใช้ reload แทน — ปล่อยให้การอัปเดตเกิดขึ้นบนการโหลดหน้าที่สะอาด
+</Callout>
+
+export const quizUpdatingSw = [
+  {
+    q: 'เบราว์เซอร์ตัดสินว่าไฟล์ service worker เปลี่ยนไปได้อย่างไร?',
+    options: [
+      'ตรวจเฉพาะ HTTP header Last-Modified เท่านั้น',
+      'เปรียบเทียบไฟล์ใหม่กับเวอร์ชันที่ติดตั้งอยู่แบบ byte-for-byte',
+      'ตรวจหมายเลขเวอร์ชันของ SW ใน package.json',
+      'ใช้ hash ที่ฝังอยู่ในการเรียก register',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไม service worker ที่เพิ่งติดตั้งจึงนั่งอยู่ใน Waiting?',
+    options: [
+      'มันต้องผ่านการตรวจ security',
+      'เบราว์เซอร์กำลังดาวน์โหลด asset ใหม่',
+      'service worker ตัวเก่ายังควบคุมแท็บที่เปิดอยู่',
+      'ยังไม่ได้เรียก skipWaiting()',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ความเสี่ยงของการเรียก self.skipWaiting() แบบไม่มีเงื่อนไขใน install handler คืออะไร?',
+    options: [
+      'service worker จะไม่ activate เลย',
+      'SW ตัวใหม่ activate ขณะที่หน้าเก่ายังเปิดอยู่ ซึ่งอาจทำให้ asset ไม่ตรงกัน',
+      'เบราว์เซอร์เพิกเฉยต่อการเรียกนี้ใน production',
+      'Cache Storage ถูกล้างโดยอัตโนมัติ',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'แนวทางใดที่ทำให้ skipWaiting() เป็น user-driven และหลีกเลี่ยงการพังกลางเซสชัน?',
+    options: [
+      'เรียก self.skipWaiting() ทันทีภายใน install event',
+      'ใช้ registration.update() บน timer',
+      'แสดง banner อัปเดตและเรียก skipWaiting() ก็ต่อเมื่อผู้ใช้คลิก Reload',
+      'reload หน้าเว็บโดยอัตโนมัติใน activate handler',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="service-workers/updating-service-workers" questions={quizUpdatingSw} />
+
+<ProgressTracker client:visible id="service-workers/updating-service-workers" />

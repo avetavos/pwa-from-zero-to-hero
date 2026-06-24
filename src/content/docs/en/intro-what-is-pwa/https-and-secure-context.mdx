@@ -1,0 +1,150 @@
+---
+title: 'HTTPS and Secure Contexts'
+description: 'Why service workers require a secure context, what window.isSecureContext means, how mixed content blocks registration, and why localhost counts as secure.'
+sidebar:
+  order: 4
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Why secure contexts matter for PWAs
+
+Service workers are powerful. They intercept every network request your page makes, can modify responses, and persist across browser sessions. That power comes with a mandatory security requirement: service workers — and most other modern PWA APIs — will only run inside a **secure context**.
+
+### What is a secure context?
+
+A secure context is a `Window` or `Worker` whose origin was delivered over a secure transport. Browsers expose a straightforward boolean you can check at any time:
+
+```js
+console.log(window.isSecureContext); // true or false
+```
+
+The browser sets `window.isSecureContext` to `true` when:
+
+- The page was loaded over **`https://`** with a valid TLS certificate.
+- The page was loaded from **`http://localhost`**, **`http://127.0.0.1`**, or **`http://[::1]`** — these loopback addresses are explicitly exempted by the spec and treated as secure by all modern browsers.
+
+For any other `http://` origin, `window.isSecureContext` is `false` and the service worker registration will throw a `SecurityError` or fail silently.
+
+```js
+// Always guard registration with a secure-context check
+if ('serviceWorker' in navigator) {
+  if (!window.isSecureContext) {
+    console.warn('Not a secure context — service worker will not register.');
+  } else {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => console.log('Registered, scope:', reg.scope))
+      .catch((err) => console.error('Registration failed:', err));
+  }
+}
+```
+
+### Mixed content blocks service worker registration
+
+A page is only considered secure if **every resource it loads** comes from a secure origin. Loading even a single `http://` subresource from an `https://` page creates **mixed content**, which browsers block or downgrade.
+
+Mixed content matters for PWAs in two practical ways:
+
+1. **Active mixed content** (scripts, service workers, iframes over `http://`) is always blocked. Your `sw.js` must itself be served over `https://`.
+2. **Passive mixed content** (images, audio, video over `http://`) triggers a browser warning and, in some configurations, forces `window.isSecureContext` to `false`, preventing SW registration.
+
+The fix is straightforward: audit all resource URLs in your app, migrate them to `https://`, and use Content Security Policy headers to enforce it going forward.
+
+### Service worker scope
+
+The **scope** of a service worker determines which pages it controls. By default the scope is the directory that contains the SW file:
+
+| SW file path | Default scope | Controls |
+|---|---|---|
+| `/sw.js` | `/` | The entire origin |
+| `/app/sw.js` | `/app/` | Only `/app/` and below |
+| `/shop/checkout/sw.js` | `/shop/checkout/` | Only `/shop/checkout/` and below |
+
+You can narrow the scope by passing a `scope` option to `register()`. You cannot widen it beyond the SW file's directory — unless the server sends a `Service-Worker-Allowed` response header on the SW file with the desired wider scope:
+
+```http
+Service-Worker-Allowed: /
+```
+
+```js
+// Widen the scope with the header above set on /app/sw.js
+navigator.serviceWorker.register('/app/sw.js', { scope: '/' });
+```
+
+Without that header, trying to register a wider scope than the SW file's directory throws a `SecurityError`.
+
+### Localhost is secure — use it freely in development
+
+During development you do not need a self-signed certificate or a tunnel. All modern browsers treat `localhost`, `127.0.0.1`, and `::1` as secure origins, so you can register service workers, use the Push API, access the camera, and test the full installability flow on a plain `http://localhost` dev server.
+
+```js
+// Full secure-context diagnostic you can drop into DevTools
+(function diagnose() {
+  const results = {
+    isSecureContext: window.isSecureContext,
+    protocol: location.protocol,
+    hostname: location.hostname,
+    serviceWorkerSupported: 'serviceWorker' in navigator,
+  };
+  console.table(results);
+  if (!results.isSecureContext) {
+    console.warn(
+      'Secure context required. Deploy over HTTPS or use localhost.'
+    );
+  }
+})();
+```
+
+<Callout title="Key point">
+Service workers and many PWA APIs only run in a secure context — HTTPS in production, localhost in development.
+</Callout>
+
+export const quizHttpsSecureContext = [
+  {
+    q: 'Which property tells you whether the current page is running in a secure context?',
+    options: [
+      'document.isSecure',
+      'navigator.secureContext',
+      'window.isSecureContext',
+      'location.isHttps',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which of the following origins is treated as a secure context by modern browsers?',
+    options: [
+      'http://192.168.1.10:3000',
+      'http://myapp.local',
+      'http://localhost:5173',
+      'http://dev.example.com',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'A service worker is registered at /dashboard/sw.js with no extra options or headers. Which pages does it control?',
+    options: [
+      'The entire origin (/)',
+      'Only /dashboard/ and its sub-paths',
+      'Only the exact URL /dashboard/sw.js',
+      'Any path that explicitly opts in via navigator.serviceWorker.controller',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'How can a service worker registered at /app/sw.js be given a scope of / (the entire origin)?',
+    options: [
+      'Pass { scope: "/" } to register() — no other change needed',
+      'Move the file to /sw.js',
+      'Set a Service-Worker-Allowed: / response header on the SW file and pass { scope: "/" } to register()',
+      'It is not possible to widen scope beyond the SW file directory',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/https-and-secure-context" questions={quizHttpsSecureContext} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/https-and-secure-context" />

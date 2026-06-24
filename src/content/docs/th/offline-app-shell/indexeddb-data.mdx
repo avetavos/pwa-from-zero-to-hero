@@ -1,0 +1,217 @@
+---
+title: การเก็บข้อมูล Offline ด้วย IndexedDB
+description: 'วิธีใช้ IndexedDB API เพื่อเก็บข้อมูลแอปแบบมีโครงสร้างสำหรับ offline และเมื่อไรควรเลือก IndexedDB แทน Cache Storage หรือ localStorage'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การเก็บข้อมูล offline ด้วย IndexedDB
+
+เบราว์เซอร์มีกลไก client-side storage หลักสามแบบ แต่ละแบบออกแบบสำหรับงานที่แตกต่างกัน การเลือกแบบที่ถูกต้องจะป้องกัน bugs ที่ลึกซึ้งและทำให้ประสบการณ์ offline ของคุณเชื่อถือได้
+
+### การเปรียบเทียบ storage
+
+| | localStorage | Cache Storage | IndexedDB |
+|---|---|---|---|
+| **เก็บ** | Key/value strings | HTTP request/response pairs | Structured objects (ค่า JS ใดก็ได้) |
+| **Async?** | ไม่ (synchronous, บล็อก main thread) | ใช่ (Promise-based) | ใช่ (event-based / Promise wrappers) |
+| **Query ได้?** | ไม่ | ตาม URL เท่านั้น | ใช่ — indexes, key ranges, cursors |
+| **ขีดจำกัดขนาด** | ~5 MB | Quota-based (~หลายร้อย MB) | Quota-based (~หลายร้อย MB) |
+| **ใช้ใน SW ได้?** | ไม่ | ใช่ | ใช่ |
+| **เหมาะสำหรับ** | การตั้งค่าขนาดเล็ก / flags | Cache network resources | ข้อมูลแอป: tasks, messages, user records |
+
+หลักการง่าย ๆ: ใช้ **Cache Storage** สำหรับ network assets ที่ service worker cache (HTML, CSS, JS, รูปภาพ) และใช้ **IndexedDB** สำหรับข้อมูลจริงที่แอปพลิเคชันของคุณทำงานด้วย
+
+### Raw IndexedDB API
+
+IndexedDB เป็น transactional, object-oriented database ที่ built-in ในทุกเบราว์เซอร์สมัยใหม่ มันเก็บ JavaScript objects ใน named **object stores** ที่ระบุด้วย key path ที่คุณเลือก
+
+#### การเปิด database
+
+```js
+const request = indexedDB.open('my-app-db', 1);
+
+request.onupgradeneeded = (event) => {
+  const db = event.target.result;
+  // Create an object store keyed on the 'id' property
+  if (!db.objectStoreNames.contains('tasks')) {
+    db.createObjectStore('tasks', { keyPath: 'id' });
+  }
+};
+
+request.onsuccess = (event) => {
+  const db = event.target.result;
+  console.log('Database opened:', db.name);
+};
+
+request.onerror = (event) => {
+  console.error('Failed to open database:', event.target.error);
+};
+```
+
+`indexedDB.open(name, version)` คืนค่า `IDBOpenDBRequest` callback `onupgradeneeded` จะ fire เมื่อใดก็ตามที่ version number เพิ่มขึ้น — นี่เป็นที่เดียวที่คุณสามารถสร้างหรือแก้ไข object stores และ indexes ได้
+
+#### การเขียน record
+
+เมื่อมี `db` reference แล้ว ให้ wrap ทุก operation ในการ transaction ส่ง store name และ mode — `'readwrite'` เพื่อเขียน, `'readonly'` เพื่ออ่าน
+
+```js
+function saveTask(db, task) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tasks', 'readwrite');
+    const store = tx.objectStore('tasks');
+    const putRequest = store.put(task); // insert or replace by keyPath
+
+    putRequest.onsuccess = () => resolve(putRequest.result);
+    putRequest.onerror = () => reject(putRequest.error);
+  });
+}
+
+// Usage
+saveTask(db, { id: 'task-1', title: 'Buy groceries', done: false });
+```
+
+`store.put(record)` แทรก object ถ้า key ไม่มีอยู่ หรือแทนที่ถ้ามีอยู่แล้ว ใช้ `store.add(record)` ถ้าต้องการ error เมื่อ key ซ้ำกันแทน
+
+#### การอ่าน record
+
+```js
+function getTask(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tasks', 'readonly');
+    const store = tx.objectStore('tasks');
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => resolve(getRequest.result); // undefined if not found
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+// Usage
+getTask(db, 'task-1').then((task) => console.log(task));
+```
+
+#### การวนผ่าน records ทั้งหมด
+
+เพื่ออ่านทุก record ให้เปิด cursor บน store
+
+```js
+function getAllTasks(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('tasks', 'readonly');
+    const store = tx.objectStore('tasks');
+    const results = [];
+    const cursorRequest = store.openCursor();
+
+    cursorRequest.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        results.push(cursor.value);
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+
+    cursorRequest.onerror = () => reject(cursorRequest.error);
+  });
+}
+```
+
+### Versioning และ migrations
+
+argument ที่สองของ `indexedDB.open()` คือ schema version ทุกครั้งที่คุณเพิ่มมันขึ้น `onupgradeneeded` จะ fire โดยมี `event.oldVersion` และ `event.newVersion` พร้อมใช้งาน ทำให้คุณสามารถ migrate schema แบบ incremental ได้
+
+```js
+request.onupgradeneeded = (event) => {
+  const db = event.target.result;
+  const oldVersion = event.oldVersion;
+
+  if (oldVersion < 1) {
+    db.createObjectStore('tasks', { keyPath: 'id' });
+  }
+  if (oldVersion < 2) {
+    // Version 2 adds a 'notes' store
+    db.createObjectStore('notes', { keyPath: 'id' });
+  }
+};
+```
+
+อย่าลบ store หรือ index โดยไม่ตรวจสอบ `oldVersion` — ผู้ใช้อาจ upgrade จาก version ก่อนหน้าใด ๆ ไม่ใช่เฉพาะ version ก่อนหน้าเท่านั้น
+
+### Practical wrappers
+
+Raw event-based API มีความยืดยาว ใน production ทีมส่วนใหญ่ใช้ thin wrapper เช่น library `idb` (ขนาดไม่กี่ KB) ที่นำเสนอ API เดียวกันในรูปแบบ Promise chains แนวคิดเหมือนกัน — open, transaction, store, put/get — wrapper เพียงแค่ลด boilerplate event handlers
+
+### Data flow diagram
+
+export const idbDiagram = `sequenceDiagram
+  participant App as Page / SW
+  participant IDB as IndexedDB
+
+  App->>IDB: indexedDB.open('my-app-db', 1)
+  IDB-->>App: onupgradeneeded (create stores)
+  IDB-->>App: onsuccess (db handle)
+  App->>IDB: db.transaction('tasks', 'readwrite')
+  App->>IDB: store.put(task)
+  IDB-->>App: onsuccess (key)
+  App->>IDB: store.get('task-1')
+  IDB-->>App: onsuccess (record)`;
+
+<Mermaid code={idbDiagram} title="IndexedDB open, write, and read sequence" />
+
+<Callout title="ประเด็นสำคัญ">
+Cache Storage สำหรับ requests/responses; IndexedDB สำหรับข้อมูลแอป — ใช้ทั้งสอง
+</Callout>
+
+export const quizIdb = [
+  {
+    q: 'Which browser storage API is available inside a service worker?',
+    options: [
+      'localStorage only',
+      'Cache Storage only',
+      'Both Cache Storage and IndexedDB',
+      'Neither — service workers cannot access storage',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'When does the onupgradeneeded callback fire?',
+    options: [
+      'Every time the database is opened',
+      'Only the very first time the database is created',
+      'Whenever the version number passed to indexedDB.open() is higher than the stored version',
+      'Whenever an object store is accessed for the first time',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the difference between store.put() and store.add()?',
+    options: [
+      'put() is read-only; add() creates new records',
+      'put() inserts or replaces by key; add() errors if the key already exists',
+      'add() inserts or replaces by key; put() errors if the key already exists',
+      'There is no difference — both behave identically',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the correct storage choice for caching a JavaScript bundle so it loads offline?',
+    options: [
+      'IndexedDB, because it supports large values',
+      'localStorage, because it is synchronous',
+      'Cache Storage, because it is designed for HTTP request/response pairs',
+      'sessionStorage, because it persists across service worker restarts',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/indexeddb-data" questions={quizIdb} />
+
+<ProgressTracker client:visible id="offline-app-shell/indexeddb-data" />

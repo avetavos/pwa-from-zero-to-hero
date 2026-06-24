@@ -1,0 +1,211 @@
+---
+title: Notifications API
+description: 'วิธีขอ permission สำหรับ notification, แสดง notification จากหน้าเพจและจาก service worker, เพิ่ม actions และจัดการ notificationclick'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Notifications API
+
+Notifications API ช่วยให้ PWA ของคุณแสดง system-level notification ได้ ต่างจาก alert box ตรงที่ notification จะปรากฏใน notification tray ของอุปกรณ์และมองเห็นได้แม้ผู้ใช้จะสลับแท็บไปแล้ว
+
+### การขอ permission
+
+ก่อนแสดง notification ใดๆ คุณต้องขอ permission ก่อน การเรียกนี้จะ return Promise ที่ resolve เป็น `"granted"`, `"denied"` หรือ `"default"`:
+
+```js
+async function askPermission() {
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    console.log('Notifications allowed');
+  } else {
+    console.warn('Notifications blocked or dismissed');
+  }
+}
+```
+
+เรียกฟังก์ชันนี้เป็นการตอบสนองต่อ user gesture — การคลิกปุ่ม, การส่งฟอร์ม, การ swipe อย่าเรียกตอนโหลดหน้าเพจ
+
+### การแสดง notification จากหน้าเพจ
+
+เมื่อได้รับ permission แล้ว คุณสามารถสร้าง notification ได้โดยตรงจาก JavaScript ของหน้าเพจ:
+
+```js
+new Notification('Your order shipped!', {
+  body: 'It will arrive by Thursday.',
+  icon: '/icons/icon-192.png',
+  badge: '/icons/badge-72.png',
+});
+```
+
+วิธีนี้ใช้ได้ แต่ notification จะไม่ปรากฏถ้าไม่มีแท็บเปิดอยู่ วิธีที่ดีกว่าคือแสดง notification จาก service worker
+
+### การแสดง notification จาก service worker
+
+ใช้ `registration.showNotification()` บน `ServiceWorkerRegistration` object โดย SW ยังคงทำงานต่อแม้ทุกแท็บจะปิดแล้ว ดังนั้น notification นี้จึงส่งได้อย่างน่าเชื่อถือ:
+
+```js
+// main.js — page code
+async function notify(title, options) {
+  const registration = await navigator.serviceWorker.ready;
+  registration.showNotification(title, options);
+}
+
+notify('Your order shipped!', {
+  body: 'It will arrive by Thursday.',
+  icon: '/icons/icon-192.png',
+  badge: '/icons/badge-72.png',
+  actions: [
+    { action: 'view', title: 'View order' },
+    { action: 'dismiss', title: 'Dismiss' },
+  ],
+  data: { orderId: 'ORD-42' },
+});
+```
+
+### ตัวเลือก notification
+
+| ตัวเลือก | ประเภท | วัตถุประสงค์ |
+|---|---|---|
+| `body` | string | ข้อความรองด้านล่างชื่อเรื่อง |
+| `icon` | string (URL) | รูปภาพขนาดใหญ่ข้าง notification |
+| `badge` | string (URL) | ไอคอนขาวดำขนาดเล็กสำหรับ status bar |
+| `image` | string (URL) | รูปภาพ inline ขนาดใหญ่ |
+| `actions` | array | ปุ่มที่ผู้ใช้สามารถกดได้โดยไม่ต้องเปิดแอป |
+| `data` | any | ข้อมูลส่วนตัวที่ส่งไปยัง `notificationclick` handler |
+| `tag` | string | แทนที่ notification ที่มีอยู่ที่มี tag เดียวกัน |
+| `renotify` | boolean | แจ้งเตือนผู้ใช้อีกครั้งแม้จะแทนที่ notification ที่มี tag แล้ว |
+| `requireInteraction` | boolean | ทำให้ notification ยังคงมองเห็นได้จนกว่าผู้ใช้จะโต้ตอบ |
+| `silent` | boolean | ปิดเสียงและการสั่น |
+
+### การจัดการ notificationclick
+
+event `notificationclick` จะเกิดขึ้นใน service worker เมื่อผู้ใช้แตะ notification หรือปุ่ม action:
+
+```js
+// sw.js — service worker
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'view') {
+    // Open or focus the app
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        if (clientList.length > 0) {
+          return clientList[0].focus();
+        }
+        return clients.openWindow('/orders/' + event.notification.data.orderId);
+      })
+    );
+  }
+});
+```
+
+อย่าลืมเรียก `event.notification.close()` เสมอ — บน Android notification จะยังคงเปิดอยู่จนกว่าจะปิดอย่างชัดเจน
+
+### ลองใช้งานจริง
+
+demo ด้านล่างแสดง local notification จาก service worker กด "Grant permission" เมื่อได้รับการแจ้ง จากนั้นกด "Notify me"
+
+export const projNotifications = {
+  'index.html': `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><link rel="manifest" href="/manifest.webmanifest" /><title>Notifications demo</title></head>
+  <body>
+    <h1>Notifications demo</h1>
+    <button id="ask">Grant permission</button>
+    <button id="notify" disabled>Notify me</button>
+    <pre id="log"></pre>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const log = (m) => (document.getElementById('log').textContent += m + '\\n');
+const notifyBtn = document.getElementById('notify');
+
+document.getElementById('ask').onclick = async () => {
+  const perm = await Notification.requestPermission();
+  log('Permission: ' + perm);
+  if (perm === 'granted') notifyBtn.disabled = false;
+};
+
+notifyBtn.onclick = async () => {
+  const reg = await navigator.serviceWorker.ready;
+  reg.showNotification('Hello from the SW!', {
+    body: 'This notification came from your service worker.',
+    icon: '/pwa-from-zero-to-hero/placeholder-icon.png',
+    data: { ts: Date.now() },
+  });
+  log('Notification sent via SW');
+};
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(() => log('SW registered'));
+}`,
+  'sw.js': `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow('/'));
+});`,
+  'manifest.webmanifest': `{
+  "name": "Notifications Demo",
+  "short_name": "Notify",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8"
+}`,
+};
+
+<PwaPlayground files={projNotifications} openFile="main.js" />
+
+<Callout title="Key point">
+ควรแสดง notification จาก service worker ผ่าน `registration.showNotification()` เสมอ แทนที่จะใช้ `new Notification()` Notification จาก SW จะถูกส่งได้อย่างน่าเชื่อถือแม้ไม่มีแท็บเปิดอยู่ และรองรับ action buttons และการจัดการ `notificationclick` ใน SW
+</Callout>
+
+export const quizNotifications = [
+  {
+    q: 'What does Notification.requestPermission() return?',
+    options: [
+      'A boolean',
+      'A Promise that resolves to "granted", "denied", or "default"',
+      'A ServiceWorkerRegistration',
+      'void',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why is registration.showNotification() preferred over new Notification()?',
+    options: [
+      'It is faster',
+      'It works even when no tab is open, because it runs in the service worker',
+      'It does not require permission',
+      'It supports more CSS styling options',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where does the notificationclick event fire?',
+    options: [
+      'In the page JavaScript',
+      'In the service worker',
+      'In a shared worker',
+      'In the browser UI thread',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which notification option replaces an existing notification with the same identifier?',
+    options: ['data', 'renotify', 'tag', 'badge'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="push-advanced/notifications" questions={quizNotifications} />
+
+<ProgressTracker client:visible id="push-advanced/notifications" />

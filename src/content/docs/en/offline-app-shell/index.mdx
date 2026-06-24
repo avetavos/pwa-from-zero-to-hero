@@ -1,0 +1,133 @@
+---
+title: Offline App Shell — Overview
+description: 'What "works offline" really means, the app-shell architecture model, and how to separate cached shell assets from dynamic content.'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## What "works offline" actually means
+
+When a user opens your app with no internet connection, the browser still needs something to render. Without any offline strategy, Chrome shows the famous offline dinosaur, Firefox shows a "Server not found" page, and Safari goes blank. A PWA can do better.
+
+"Works offline" does not necessarily mean every feature is available without a network. It means the user sees a **meaningful, usable UI** instead of a browser error page. Depending on your app, that might mean:
+
+- A news reader that shows the last-fetched articles.
+- A todo list that lets users create items and syncs when the connection returns.
+- A map app that displays a cached tile set for a city the user visited before.
+- At minimum, a shell page that explains the user is offline and keeps branding intact.
+
+The common thread is that the browser is not solely responsible for connectivity — the service worker is.
+
+### Why the network is not enough
+
+Traditional web pages are fully dependent on the network for every byte: HTML, CSS, JavaScript, images. A single dropped connection means nothing loads. Service workers break this dependency by acting as a programmable proxy that can serve assets from a local cache.
+
+### The app-shell model
+
+The **app shell** is the minimal set of HTML, CSS, and JavaScript needed to render the application's frame — the navigation bar, sidebar, loading skeleton, and any other chrome that is identical on every page. It changes infrequently (think: once per deployment) and is typically small.
+
+Dynamic content — the actual data your app shows — is loaded separately, often from an API or IndexedDB. This content changes constantly and cannot be fully precached.
+
+The insight is simple: **cache the shell once, load it instantly on every visit, then fetch only the content.**
+
+### First vs. repeat visits
+
+On the **first visit** the browser has no cache yet, so everything comes from the network. The service worker installs in the background and populates the cache with shell assets.
+
+On **every subsequent visit** (including offline ones) the service worker intercepts the navigation request and responds from the cache. The shell appears instantly — usually in under 100 ms — while the app asynchronously fetches fresh content.
+
+export const shellDiagram = `flowchart TD
+  subgraph CacheStorage["Cache Storage (precached on install)"]
+    A[index.html]
+    B[app.css]
+    C[app.js]
+  end
+
+  subgraph Network["Network / IndexedDB"]
+    D[Article data]
+    E[User profile]
+    F[Product listings]
+  end
+
+  V[Browser visits URL]
+  SW[Service Worker]
+
+  V --> SW
+  SW -->|"cache hit — instant"| CacheStorage
+  CacheStorage -->|"shell rendered"| R[Page visible]
+  R -->|"runtime fetch"| Network
+  Network -->|"fill in data"| R`;
+
+<Mermaid code={shellDiagram} title="App shell served from cache; dynamic content loaded from network or IndexedDB" />
+
+### Performance benefits
+
+Beyond offline support, caching the shell delivers measurable performance gains:
+
+- **Time to First Byte (TTFB)** for the shell drops to near zero — the response comes from local storage, not a server.
+- **Cumulative Layout Shift (CLS)** is reduced because the shell's layout is already in place before any dynamic content arrives.
+- **Repeat visits** feel instant even on slow connections because navigation no longer waits on the network.
+
+### When not to use the app-shell model
+
+The app-shell pattern works best for **Single Page Applications (SPAs)** and sites where a common layout wraps all pages. It is less suited to:
+
+- Content-heavy sites where every URL has a unique HTML structure (consider server-rendered HTML with a runtime cache instead).
+- Sites where the "shell" is large (several MB) — the precache cost outweighs the benefit.
+- Apps that must always show the freshest possible data for every pixel (use network-first strategies instead).
+
+<Callout title="Key point">
+Cache the app shell so the UI loads instantly and offline, then fill in data.
+</Callout>
+
+export const quizIndex = [
+  {
+    q: 'What is the primary goal of the app-shell architecture?',
+    options: [
+      'Cache all data so the app works fully without any network',
+      'Cache the minimal UI frame so it loads instantly, then load content dynamically',
+      'Replace the service worker with a CDN',
+      'Eliminate the need for a web app manifest',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'When does the service worker first populate the app shell cache?',
+    options: [
+      'Every time the user navigates to a page',
+      'Only when the user manually clears the cache',
+      'During the install event on the first visit',
+      'After the user installs the PWA to the home screen',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which type of content is NOT a good candidate for precaching in the app shell?',
+    options: [
+      'The main navigation HTML skeleton',
+      'A global stylesheet shared across all pages',
+      'A real-time feed of news articles',
+      'A shared JavaScript bundle',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What happens on a repeat visit when the app shell is cached?',
+    options: [
+      'The browser ignores the service worker and fetches from the network',
+      'The service worker responds with the shell from cache immediately, then the app fetches content',
+      'The shell is re-downloaded to ensure it is up to date',
+      'The browser prompts the user to go online',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="offline-app-shell/index" />

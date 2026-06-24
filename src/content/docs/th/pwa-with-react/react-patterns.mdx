@@ -1,0 +1,185 @@
+---
+title: 'React PWA Patterns'
+description: 'hook สำหรับแสดงสถานะ online/offline, hook สำหรับปุ่ม install prompt, และแนวทางสำหรับ Next.js และ CRA ที่เลิกใช้งาน'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## บทนำ
+
+นอกจาก update prompt แล้ว React PWA ยังได้ประโยชน์จาก utility hook สองตัว ได้แก่ hook สำหรับตรวจสอบสถานะเครือข่าย และ hook สำหรับ install prompt โดย hook เหล่านี้ห่อหุ้ม browser API ไว้ภายใต้ React abstraction ที่สะอาด ทำให้ component ยังคงเป็น declarative
+
+## useOnlineStatus hook
+
+`useOnlineStatus` hook อ่านค่า `navigator.onLine` ตอน mount และคอยอัปเดตค่าให้ตรงกันเสมอโดยฟัง event `online` และ `offline` บน `window` การใช้ guard `typeof navigator` ทำให้ hook ปลอดภัยในสภาพแวดล้อม SSR ที่ไม่มี `window`
+
+```tsx
+import { useState, useEffect } from 'react';
+
+export function useOnlineStatus(): { isOnline: boolean } {
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    function handleOnline() {
+      setIsOnline(true);
+    }
+    function handleOffline() {
+      setIsOnline(false);
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return { isOnline };
+}
+```
+
+ตัวอย่างการใช้งาน:
+
+```tsx
+import { useOnlineStatus } from './useOnlineStatus';
+
+export function NetworkBanner() {
+  const { isOnline } = useOnlineStatus();
+
+  return (
+    <div className={isOnline ? 'banner banner--online' : 'banner banner--offline'}>
+      {isOnline ? 'Online' : 'Offline'}
+    </div>
+  );
+}
+```
+
+## useInstallPrompt hook
+
+browser จะยิง event `beforeinstallprompt` ก่อนที่จะแสดง native install UI การเก็บ event นั้นไว้ใน `useRef` ทำให้คุณสามารถเรียก prompt จากปุ่มได้ทุกเมื่อ หลังจากผู้ใช้ตอบสนองแล้ว ให้ล้าง ref เพื่อให้ปุ่มหายไป
+
+```tsx
+import { useState, useEffect, useRef } from 'react';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+export function useInstallPrompt(): {
+  isInstallable: boolean;
+  promptInstall: () => void;
+} {
+  const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    function handleBeforeInstallPrompt(e: Event) {
+      e.preventDefault();
+      deferredPrompt.current = e as BeforeInstallPromptEvent;
+      setIsInstallable(true);
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  async function promptInstall() {
+    if (!deferredPrompt.current) return;
+    await deferredPrompt.current.prompt();
+    await deferredPrompt.current.userChoice;
+    deferredPrompt.current = null;
+    setIsInstallable(false);
+  }
+
+  return { isInstallable, promptInstall };
+}
+```
+
+ตัวอย่างการใช้งาน:
+
+```tsx
+import { useInstallPrompt } from './useInstallPrompt';
+
+export function InstallButton() {
+  const { isInstallable, promptInstall } = useInstallPrompt();
+
+  if (!isInstallable) return null;
+
+  return (
+    <button onClick={promptInstall}>
+      Install app
+    </button>
+  );
+}
+```
+
+## CRA เลิกใช้งานแล้ว
+
+Create React App ไม่ได้รับการดูแลรักษาอย่างต่อเนื่องอีกต่อไป สำหรับ React PWA ใหม่ ให้ใช้ Vite ร่วมกับ `vite-plugin-pwa` ซึ่งเร็วกว่า ปรับแต่งได้มากกว่า และยังมีการพัฒนาอยู่ หากโปรเจกต์ต้องการ SSR หรือ full-stack React solution ให้ใช้ Next.js ร่วมกับ package ที่ใช้ Workbox เช่น `@ducanh2912/next-pwa` หรือ `serwist`
+
+## หมายเหตุสำหรับ Next.js
+
+สำหรับโปรเจกต์ Next.js App Router hook `virtual:pwa-register/react` ใช้ได้เฉพาะกับ Vite เท่านั้น ไม่สามารถใช้ได้ที่นี่ แนวทางที่แนะนำคือ package `@ducanh2912/next-pwa` ซึ่งสร้างบน Workbox และรองรับ server-component model ของ App Router หรือจะใช้ library `serwist` ที่เป็น Workbox wrapper แบบ framework-agnostic พร้อม support ระดับ first-class สำหรับ Next.js ทั้งสองตัวสร้าง service worker ตอน build time และ integrate กับ Next.js build pipeline
+
+<Callout title="คำแนะนำ">
+แนะนำให้ใช้ Vite + `vite-plugin-pwa` สำหรับ React PWA ใหม่ สำหรับ Next.js ให้ใช้ Workbox/serwist-based setup แทน
+</Callout>
+
+export const quizReactPatterns = [
+  {
+    q: 'Browser event ใดที่ยิงขึ้นก่อนที่ install prompt จะแสดงให้ผู้ใช้เห็น?',
+    options: [
+      'install',
+      'appinstalled',
+      'beforeinstallprompt',
+      'prompt',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'เหตุใด useOnlineStatus จึงต้องใช้ typeof เพื่อตรวจสอบ navigator.onLine?',
+    options: [
+      'navigator ไม่มีใน Chrome',
+      'navigator ไม่มีอยู่ในสภาพแวดล้อม SSR ที่ไม่มี window',
+      'navigator.onLine จะเป็น false เสมอใน dev',
+      'Hook ไม่สามารถเข้าถึง navigator ได้โดยตรง',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Package ใดที่แนะนำสำหรับเพิ่ม PWA support ให้กับโปรเจกต์ Next.js App Router?',
+    options: [
+      'vite-plugin-pwa',
+      'cra-template-pwa',
+      '@ducanh2912/next-pwa or serwist',
+      'workbox-webpack-plugin',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ควรทำอะไรหลังจากผู้ใช้ตอบสนองต่อ install prompt?',
+    options: [
+      'เรียก navigator.reload()',
+      'ล้าง beforeinstallprompt event ref ที่เก็บไว้เพื่อให้ปุ่มหายไป',
+      'Register service worker ใหม่',
+      'เรียก updateServiceWorker(true)',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/react-patterns" questions={quizReactPatterns} />
+
+<ProgressTracker client:visible id="pwa-with-react/react-patterns" />

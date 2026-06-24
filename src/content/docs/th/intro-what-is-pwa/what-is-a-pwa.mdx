@@ -1,0 +1,138 @@
+---
+title: PWA คืออะไรกันแน่?
+description: 'ประวัติและเหตุผลของ Progressive Web Apps, ตัวอย่างในโลกจริง, และข้อกำหนดขั้นต่ำที่ทำให้เว็บไซต์กลายเป็น PWA'
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## เว็บกับแอป — ปัญหาคู่ขนาน
+
+เป็นเวลาหลายปีที่นักพัฒนาต้องเลือกระหว่างสองโลก: เว็บไซต์ที่ทุกคนเข้าถึงได้ผ่าน URL แต่รู้สึกด้อยกว่าบนมือถือ หรือแอป native ที่ให้ประสบการณ์ที่ดีแต่ต้องผ่านกระบวนการ app store และผู้ใช้ต้องดาวน์โหลดก่อนจึงจะลอง
+
+Google แนะนำคำว่า **Progressive Web App** ในปี 2015 เพื่ออธิบายแนวทางที่สาม: ใช้ web platform เป็นพื้นฐาน แต่เพิ่ม API สมัยใหม่เข้าไปจนเว็บไซต์นั้นทำสิ่งที่ผู้ใช้คาดหวังจาก native app ได้ — ติดตั้งได้, ทำงาน offline ได้, และโหลดเร็วบนทุกเครือข่าย
+
+## ตัวอย่างในโลกจริง
+
+ผลกระทบของ PWA นั้นวัดได้จริง บางกรณีที่มีการรายงานกันอย่างกว้างขวาง:
+
+- **Twitter Lite** — Twitter สร้าง PWA เพื่อแทนแอป Android ที่หนักกว่า ขนาดลดลง 97% เมื่อเทียบกับแอป native ส่วน tweet จากหน้าหลักเพิ่มขึ้น 75% หลังจากเปิดตัว
+- **Starbucks** — PWA ของ Starbucks ทำให้ผู้ใช้สั่งซื้อและปรับแต่งเมนูได้แม้ไม่มีสัญญาณ เมื่อเปิดตัว PWA จำนวนผู้ใช้ active รายวันเพิ่มขึ้นเป็นสองเท่า
+- **Pinterest** — การรีสร้างเป็น PWA ส่งผลให้การมีส่วนร่วมเพิ่มขึ้น 60% และรายได้จากโฆษณาหลักเพิ่มขึ้น 44%
+
+สิ่งที่ทำให้กรณีเหล่านี้มีความสำคัญไม่ใช่เทคโนโลยีเฉพาะตัว — แต่คือการที่เว็บ URL เดียวสามารถเข้าถึงผู้ใช้ทั่วโลกได้ ขณะที่ยังมอบประสบการณ์เทียบเท่า native app
+
+## อะไรทำให้เว็บไซต์เป็น PWA?
+
+ไม่มี binary flag ที่บอกว่าเว็บไซต์คือ PWA หรือไม่ใช่ แต่มีข้อกำหนดขั้นต่ำสามประการที่ browser ใช้ตัดสินว่าเว็บไซต์นั้น installable และ reliable พอหรือไม่:
+
+### 1. ให้บริการผ่าน HTTPS
+
+Service worker ทำหน้าที่เป็น network proxy ที่สามารถอ่านและแก้ไข request ทุกรายการ ดังนั้น browser จึงอนุญาตให้ลงทะเบียนได้บน origin ที่เชื่อถือได้เท่านั้น ซึ่งหมายถึง `https://` หรือ `localhost` เพื่อการพัฒนา
+
+### 2. มี Web App Manifest
+
+ไฟล์ JSON ที่ลิงก์จาก HTML ด้วย `<link rel="manifest">` ซึ่งอธิบายแอปของคุณ: ชื่อ, ชุดไอคอน, สีธีม, `start_url`, และ `display` mode เป็นอย่างน้อย
+
+```json
+{
+  "name": "My PWA",
+  "short_name": "MyApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+### 3. มี Service Worker ที่ลงทะเบียนแล้ว
+
+Service worker ต้องมี `fetch` event handler อยู่ด้วย แม้จะเป็นแค่ handler ที่ pass-through ก็ตาม นี่คือสัญญาณบอก browser ว่าแอปมีกลยุทธ์สำหรับ offline request
+
+```js
+// sw.js — minimal service worker ที่เป็น installable
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached ?? fetch(event.request);
+    })
+  );
+});
+```
+
+เมื่อทั้งสามเงื่อนไขนี้ครบ browser จะประเมินว่าเว็บไซต์ผ่านเกณฑ์ installability หรือไม่ และอาจแสดง install prompt ให้กับผู้ใช้
+
+## PWA ทำได้และทำไม่ได้อะไรบ้างเมื่อเทียบกับ native?
+
+| ความสามารถ | PWA | Native App |
+|---|---|---|
+| ทำงานได้ offline | ใช่ (ผ่าน service worker) | ใช่ |
+| Push notifications | ใช่ (ผ่าน Push API) | ใช่ |
+| เข้าถึง camera / microphone | ใช่ (ผ่าน MediaDevices) | ใช่ |
+| Geolocation | ใช่ | ใช่ |
+| Bluetooth / NFC | บางส่วน (ขึ้นอยู่กับ browser) | ใช่ (เต็มรูปแบบ) |
+| Background execution | จำกัด (Background Sync, Periodic Sync) | ใช่ (เต็มรูปแบบ) |
+| เข้าถึง contacts / SMS ของอุปกรณ์ | ไม่ได้ (Contact Picker API อยู่ระหว่างพัฒนา) | ใช่ |
+| App store listing | ทางเลือก (สามารถส่งได้) | จำเป็น |
+| URL / ค้นพบผ่าน search | ใช่ | ไม่ |
+| ไม่ต้องติดตั้งก่อนใช้งาน | ใช่ | ไม่ |
+
+ช่องว่างระหว่าง PWA กับ native app แคบลงเรื่อยๆ ในแต่ละปีเมื่อ browser เพิ่ม API ใหม่ สำหรับ app ส่วนใหญ่ที่ต้องการข้อมูล, การแจ้งเตือน, และ offline basic แล้ว PWA ก็เพียงพอสมบูรณ์แบบ
+
+<Callout title="ข้อกำหนดบังคับสามประการ">
+เกณฑ์บังคับสามข้อ: ให้บริการผ่าน HTTPS, มี web app manifest และมี service worker ที่ลงทะเบียนแล้ว
+</Callout>
+
+export const quizWhatIsAPwa = [
+  {
+    q: 'ใครบัญญัติคำว่า "Progressive Web App" ขึ้นมาและในปีใด?',
+    options: [
+      'Google Chrome team, 2012',
+      'Alex Russell และ Frances Berriman, 2015',
+      'Mozilla, 2014',
+      'Tim Berners-Lee, 2010',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ข้อใดต่อไปนี้ไม่ใช่หนึ่งในสามข้อกำหนดบังคับของ PWA?',
+    options: [
+      'ให้บริการผ่าน HTTPS',
+      'มี web app manifest',
+      'มี service worker ที่ลงทะเบียนแล้ว',
+      'มี responsive layout ที่ผ่าน Lighthouse audit',
+    ],
+    answer: 3,
+  },
+  {
+    q: 'เหตุใด Safari บน iOS จึงไม่แสดง ambient install prompt สำหรับ PWA?',
+    options: [
+      'Safari ไม่รองรับ web app manifest',
+      'iOS กำหนดให้การติดตั้งทั้งหมดต้องผ่าน App Store',
+      'Safari ใช้ heuristic ของตัวเองและให้ผู้ใช้ใช้ share sheet ด้วยตนเอง',
+      'PWA ไม่สามารถติดตั้งบน iOS ได้เลย',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ความสามารถ PWA ใดที่มีช่องว่างด้าน platform มากที่สุด ณ ปี 2025?',
+    options: [
+      'การเข้าถึงกล้องและไมโครโฟน',
+      'Offline caching ผ่าน Cache API',
+      'Web Bluetooth — ไม่รองรับบน Firefox หรือ iOS',
+      'Payment Request API',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/what-is-a-pwa" questions={quizWhatIsAPwa} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/what-is-a-pwa" />

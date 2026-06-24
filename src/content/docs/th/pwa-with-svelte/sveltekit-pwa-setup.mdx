@@ -1,0 +1,155 @@
+---
+title: SvelteKit PWA Setup
+description: 'ติดตั้ง @vite-pwa/sveltekit, เพิ่ม SvelteKitPWA() ใน vite.config.ts, และตั้งค่า registerType, manifest, strategies, และ injectManifest'
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ตั้งค่า `@vite-pwa/sveltekit`
+
+แพ็กเกจ `@vite-pwa/sveltekit` ห่อ Workbox ไว้ใน Vite plugin ที่เชื่อมกับ build pipeline ของ SvelteKit มันสร้าง service worker, ฉีด precache manifest, และสร้าง web app manifest — ทั้งหมดนี้จาก plugin call เดียว
+
+### การติดตั้ง
+
+```bash
+npm install -D @vite-pwa/sveltekit
+```
+
+### เพิ่ม plugin ใน `vite.config.ts`
+
+เปิด (หรือสร้าง) `vite.config.ts` ที่ root ของโปรเจกต์ และเพิ่ม `SvelteKitPWA` ต่อจาก `sveltekit()`:
+
+```ts
+import { sveltekit } from '@sveltejs/kit/vite';
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [
+    sveltekit(),
+    SvelteKitPWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'My SvelteKit App',
+        short_name: 'SK App',
+        description: 'An offline-capable SvelteKit PWA',
+        theme_color: '#ff3e00',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+### ตัวเลือกหลัก
+
+#### `registerType`
+
+ควบคุมวิธีที่ service worker จัดการกับการอัปเดต:
+
+| ค่า | พฤติกรรม |
+|---|---|
+| `'autoUpdate'` | SW ใหม่ activate ทันทีหลัง install — ไม่มี prompt |
+| `'prompt'` | SW ใหม่รอ; โค้ด UI ของคุณตัดสินใจว่าจะ apply การอัปเดตเมื่อใด |
+
+สำหรับแอป production ส่วนใหญ่ `'prompt'` ปลอดภัยกว่า — ป้องกันการ mismatch asset ในช่วงกลาง session
+
+#### `manifest`
+
+Plugin ฉีด `manifest.webmanifest` เข้าไปใน build output และเพิ่ม tag `<link rel="manifest">` ไปยังทุกหน้า ฟิลด์ `name`, `icons`, และ `theme_color` เป็นข้อกำหนดสำหรับเกณฑ์การติดตั้งของ Chrome
+
+#### `strategies`
+
+ค่า default คือ `'generateSW'` — plugin สร้าง service worker ที่ขับเคลื่อนด้วย Workbox ให้โดยอัตโนมัติ เปลี่ยนเป็น `'injectManifest'` เมื่อคุณต้องการเขียน SW logic เองและต้องการให้ Workbox ฉีดเฉพาะ precache list:
+
+```ts
+SvelteKitPWA({
+  strategies: 'injectManifest',
+  srcDir: './src',
+  filename: 'my-sw.ts',
+  injectManifest: {
+    injectionPoint: 'self.__WB_MANIFEST',
+    globPatterns: ['client/**/*.{js,css,ico,png,svg,webp}'],
+  },
+})
+```
+
+ไฟล์ SW ของคุณต้องมี injection point `self.__WB_MANIFEST` — Workbox จะแทนที่ด้วย precache list ที่สร้างขึ้นในขั้นตอน build
+
+#### ไฟล์ manifest แบบ static
+
+หากคุณต้องการไฟล์ static แทนการสร้างอัตโนมัติ ให้วาง `manifest.webmanifest` ไว้ในไดเรกทอรี `static/` และข้ามตัวเลือก `manifest` ใน plugin SvelteKit จะคัดลอกทุกอย่างใน `static/` ไปยัง build output โดยตรง
+
+```json
+{
+  "name": "My SvelteKit App",
+  "short_name": "SK App",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#ff3e00",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+<Callout title="Key point">
+เพิ่ม `SvelteKitPWA()` ใน Vite plugins ของคุณ — มันสร้าง service worker และ manifest สำหรับ SvelteKit build ใช้ `registerType: 'prompt'` ใน production เพื่อให้ผู้ใช้ควบคุมเวลาที่จะ apply การอัปเดต
+</Callout>
+
+export const quizSvelteKitPwaSetup = [
+  {
+    q: 'คุณเพิ่ม SvelteKitPWA() ไว้ที่ไหนในโปรเจกต์ SvelteKit?',
+    options: [
+      'plugins array ใน svelte.config.js',
+      'plugins array ใน vite.config.ts',
+      'head tag ใน src/app.html',
+      'src/hooks.server.ts',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ค่า registerType ใดที่ทำให้ SW ใหม่ activate ทันทีโดยไม่มี prompt?',
+    options: ['prompt', 'manual', 'autoUpdate', 'skipWaiting'],
+    answer: 2,
+  },
+  {
+    q: 'strategy แบบ injectManifest ต้องการอะไรในไฟล์ custom service worker ของคุณ?',
+    options: [
+      'import { manifest } from "workbox-core"',
+      'injection point แบบ self.__WB_MANIFEST ที่ Workbox จะแทนที่ในขั้นตอน build',
+      'การเรียก workbox.precacheAndRoute() อย่างชัดเจน',
+      'ค่าคงที่ CACHE_VERSION',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ค่า default ของ strategies คืออะไรเมื่อไม่ได้ตั้งค่าอย่างชัดเจน?',
+    options: ['injectManifest', 'networkFirst', 'generateSW', 'staleWhileRevalidate'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/sveltekit-pwa-setup" questions={quizSvelteKitPwaSetup} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/sveltekit-pwa-setup" />

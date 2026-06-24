@@ -1,0 +1,199 @@
+---
+title: Periodic Background Sync
+description: 'ใช้ Periodic Background Sync เพื่อรีเฟรชเนื้อหาขณะที่แอปปิดอยู่ — การลงทะเบียน, periodicsync event, ข้อจำกัดและความพร้อมใช้งาน'
+sidebar:
+  order: 5
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Periodic Background Sync
+
+Periodic Background Sync (PBS) ช่วยให้ PWA ที่ install แล้วปลุก service worker ให้ทำงานตามกำหนดเวลาซ้ำๆ เพื่อรีเฟรชข้อมูล — แม้เมื่อผู้ใช้ไม่ได้ใช้แอปอยู่ เมื่อผู้ใช้เปิดแอปครั้งต่อไป พวกเขาจะเห็นเนื้อหาใหม่แทนที่จะเป็นข้อมูลเก่า
+
+คิดว่ามันเป็น cron job ที่ทำงานภายในเบราว์เซอร์ โดยขึ้นอยู่กับ heuristics ของเบราว์เซอร์เองว่าเมื่อไหรที่ปลอดภัยและเป็นประโยชน์ที่จะปลุกแอปของคุณ
+
+### มันทำงานอย่างไร
+
+export const pbsDiagram = `sequenceDiagram
+  participant App as Installed PWA
+  participant SW as Service Worker
+  participant Browser as Browser Scheduler
+  participant Net as Network / API
+
+  App->>SW: registration.periodicSync.register('refresh-news', { minInterval })
+  Browser-->>SW: periodicsync event (browser decides timing)
+  SW->>Net: fetch('/api/latest-articles')
+  Net-->>SW: JSON response
+  SW->>SW: caches.open('news').put(...)
+  Note over App: User opens app — sees fresh content`;
+
+<Mermaid code={pbsDiagram} title="Periodic Background Sync flow" />
+
+### การตรวจสอบ support และ permission
+
+```js
+async function checkPeriodicSyncSupport() {
+  if (!('periodicSync' in (await navigator.serviceWorker.ready))) {
+    console.warn('Periodic Background Sync is not supported');
+    return false;
+  }
+
+  const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+  console.log('Periodic sync permission:', status.state); // "granted", "denied", or "prompt"
+  return status.state === 'granted';
+}
+```
+
+### การลงทะเบียน periodic sync
+
+```js
+async function registerPeriodicSync() {
+  const registration = await navigator.serviceWorker.ready;
+
+  if (!('periodicSync' in registration)) return;
+
+  try {
+    await registration.periodicSync.register('refresh-news', {
+      minInterval: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    });
+    console.log('Periodic sync registered');
+  } catch (err) {
+    console.warn('Periodic sync registration failed:', err);
+  }
+}
+```
+
+`minInterval` เป็นเพียง hint — เบราว์เซอร์จะ fire event **ไม่บ่อยกว่า** interval นี้ แต่อาจ fire น้อยกว่าหรือไม่ fire เลยขึ้นอยู่กับ heuristics ของมัน
+
+### การจัดการ periodicsync event ใน service worker
+
+```js
+// sw.js — service worker
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'refresh-news') {
+    event.waitUntil(refreshNewsCache());
+  }
+});
+
+async function refreshNewsCache() {
+  const response = await fetch('/api/latest-articles');
+  if (!response.ok) return;
+
+  const cache = await caches.open('news-v1');
+  await cache.put('/api/latest-articles', response);
+  console.log('News cache refreshed at', new Date().toISOString());
+}
+```
+
+`event.waitUntil()` ทำให้ SW ยังคงทำงานต่อจนกว่างาน async จะเสร็จสมบูรณ์ ถ้า fetch ของคุณใช้เวลานานเกินไปหรือล้มเหลว เบราว์เซอร์อาจไม่ retry ทันที
+
+### การแสดงรายการและยกเลิก sync
+
+```js
+// List all registered periodic syncs
+const registration = await navigator.serviceWorker.ready;
+const tags = await registration.periodicSync.getTags();
+console.log('Registered syncs:', tags);
+
+// Unregister a specific sync
+await registration.periodicSync.unregister('refresh-news');
+```
+
+### ข้อจำกัดและความพร้อมใช้งาน
+
+| ข้อจำกัด | รายละเอียด |
+|---|---|
+| **ต้อง install PWA** | Periodic sync ต้องการให้แอปถูก install บน home screen หรือ desktop |
+| **เฉพาะ Chromium** | ณ ปี 2025 เฉพาะเบราว์เซอร์ที่ใช้ Chromium เท่านั้นที่รองรับ PBS; Firefox และ Safari ไม่รองรับ |
+| **Browser กำหนด cadence** | เบราว์เซอร์ตัดสินใจ firing interval จริงตามแบตเตอรี่, เครือข่าย และ site engagement — ถือ `minInterval` เป็นค่าต่ำสุด ไม่ใช่ตาราง |
+| **ต้องมีเครือข่าย** | SW จะรัน handler เฉพาะเมื่ออุปกรณ์มีการเชื่อมต่อเครือข่าย |
+| **Engagement score** | Chrome ติดตาม site engagement; เว็บไซต์ที่มี engagement ต่ำอาจมี PBS ถูก throttle หรือปิดใช้งาน |
+| **ต้องใช้ HTTPS** | เหมือนกับฟีเจอร์ service worker ทั้งหมด PBS ทำงานได้เฉพาะบน secure origins |
+
+### การออกแบบแบบ best-effort
+
+เนื่องจากเบราว์เซอร์ควบคุม cadence ออกแบบแอปให้ทำงานได้ถูกต้องแม้ `periodicsync` จะไม่ fire เลย:
+
+1. แสดงข้อมูลใน cache เสมอถ้า cache มีอยู่ — แม้ข้อมูลเก่าก็ดีกว่าหน้าจอว่างเปล่า
+2. รีเฟรชเมื่อเปิดหน้าเพจเป็น fallback เมื่อ periodic sync ไม่ได้ทำงาน
+3. แสดง timestamp "อัปเดตล่าสุด" เพื่อให้ผู้ใช้เข้าใจความสดของข้อมูล
+
+```js
+// main.js — page code (fallback refresh on open)
+async function loadArticles() {
+  const cache = await caches.open('news-v1');
+  const cached = await cache.match('/api/latest-articles');
+
+  if (cached) {
+    renderArticles(await cached.json());
+    // Still refresh in the background
+    fetch('/api/latest-articles').then(async (res) => {
+      if (res.ok) {
+        await cache.put('/api/latest-articles', res.clone());
+        renderArticles(await res.json());
+      }
+    });
+  } else {
+    const res = await fetch('/api/latest-articles');
+    const data = await res.json();
+    renderArticles(data);
+  }
+}
+```
+
+> **บทเรียนแบบ code-only:** Periodic Background Sync ต้องการ PWA ที่ install แล้วและมีเฉพาะในเบราว์เซอร์ที่ใช้ Chromium ตัวอย่างด้านบนสมบูรณ์และถูกต้อง แต่ไม่สามารถรันใน in-browser playground ได้ ทดสอบใน Chrome หรือ Edge พร้อมกับ PWA ที่ install แล้ว
+
+<Callout title="Key point">
+Periodic Background Sync ทำงานได้เฉพาะกับ PWA ที่ install แล้ว และเบราว์เซอร์เป็นผู้ตัดสิน cadence จริง — ถือว่าเป็น best-effort เสมอ ควรใช้ fallback ที่รีเฟรชข้อมูลเมื่อเปิดหน้าเพจเสมอ เพื่อให้แอปยังทำงานได้อย่างถูกต้องเมื่อ sync ไม่ได้ทำงาน
+</Callout>
+
+export const quizPeriodicSync = [
+  {
+    q: 'What does the minInterval option in periodicSync.register() guarantee?',
+    options: [
+      'The sync fires exactly every minInterval milliseconds',
+      'The sync fires no more often than minInterval — the browser may fire it less frequently',
+      'The sync fires at least once per minInterval',
+      'Nothing — it is ignored by the browser',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which of these is required for Periodic Background Sync to work?',
+    options: [
+      'A push subscription with VAPID keys',
+      'The PWA must be installed and the browser must be Chromium-based',
+      'Notification permission must be granted',
+      'The page must be open in a tab',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where does the periodicsync event fire?',
+    options: [
+      'In the page JavaScript',
+      'In a Web Worker',
+      'In the service worker',
+      'In a shared worker',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why should you implement a fallback that refreshes data on page load?',
+    options: [
+      'Because periodic sync requires user permission on every firing',
+      'Because the browser may not fire periodicsync if engagement or battery conditions are not met',
+      'Because periodicsync only fires once per installation',
+      'Because the cache is cleared after every periodic sync',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="push-advanced/periodic-background-sync" questions={quizPeriodicSync} />
+
+<ProgressTracker client:visible id="push-advanced/periodic-background-sync" />

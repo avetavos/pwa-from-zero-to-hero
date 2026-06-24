@@ -1,0 +1,202 @@
+---
+title: Badging และ Share Target
+description: 'ใช้ navigator.setAppBadge เพื่อแสดงจำนวน unread บนไอคอนแอป, Web Share Target เพื่อรับเนื้อหาที่แชร์ และ navigator.share เพื่อแชร์จาก PWA ของคุณ'
+sidebar:
+  order: 4
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## App Badging API
+
+App Badging API ช่วยให้ PWA ที่ install แล้วแสดง badge เล็กๆ บนไอคอนใน OS taskbar, dock หรือ home screen ได้ นี่คือจุดสีเดียวกับจำนวน unread ที่คุณเห็นในแอปส่งข้อความ native
+
+### การตั้งค่าและล้าง badge
+
+```js
+// Show a numeric badge
+async function setBadge(count) {
+  if ('setAppBadge' in navigator) {
+    await navigator.setAppBadge(count);
+  }
+}
+
+// Show a plain dot (no number)
+async function setDotBadge() {
+  if ('setAppBadge' in navigator) {
+    await navigator.setAppBadge();
+  }
+}
+
+// Clear the badge
+async function clearBadge() {
+  if ('clearAppBadge' in navigator) {
+    await navigator.clearAppBadge();
+  }
+}
+```
+
+ตรวจสอบ feature ด้วย `'setAppBadge' in navigator` เสมอ — API นี้รองรับในเบราว์เซอร์ที่ใช้ Chromium บน desktop และ Android แต่ยังไม่รองรับในทุกเบราว์เซอร์
+
+### การอัปเดต badge จาก service worker
+
+คุณยังสามารถเรียก `navigator.setAppBadge` จากภายใน service worker ได้ เช่น เมื่อมี push message เข้ามา:
+
+```js
+// sw.js — service worker
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title || 'New message', {
+        body: data.body || '',
+        icon: '/icons/icon-192.png',
+      }),
+      navigator.setAppBadge(data.unreadCount || 1),
+    ])
+  );
+});
+```
+
+### แนวทางปฏิบัติที่ดีสำหรับ badging
+
+- อัปเดต badge ทุกครั้งที่แสดง notification ไม่ใช่แค่เมื่อแอปเปิดอยู่
+- ล้าง badge ใน `notificationclick` handler และเมื่อผู้ใช้ดูเนื้อหาที่เกี่ยวข้อง
+- อย่าใช้ badge เพื่อนับทุก background event — ใช้เฉพาะรายการที่ผู้ใช้มองเห็นได้ (ข้อความ, งาน, การแจ้งเตือน)
+
+---
+
+## Web Share Target
+
+Web Share Target API ช่วยให้ PWA ที่ install แล้วปรากฏใน OS share sheet เป็น destination ได้ เมื่อผู้ใช้แชร์รูปภาพจากแกลเลอรีหรือลิงก์จากเบราว์เซอร์อื่น PWA ของคุณสามารถแสดงอยู่ร่วมกับแอป native
+
+### ลงทะเบียน share target ใน manifest
+
+เพิ่ม `share_target` ใน `manifest.webmanifest` ของคุณ:
+
+```json
+{
+  "name": "My App",
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "media", "accept": ["image/*"] }]
+    }
+  }
+}
+```
+
+เมื่อผู้ใช้แชร์ไปยัง PWA ของคุณ เบราว์เซอร์จะ navigate ไปที่ `/share` และ POST `multipart/form-data` body พร้อม fields ที่ map ไว้ใน `params`
+
+### จัดการ share บนหน้าเพจ
+
+```js
+// /share page script
+const formData = new FormData(document.forms[0]);
+const title = formData.get('title');
+const text = formData.get('text');
+const url = formData.get('url');
+const file = formData.get('media');
+
+console.log('Received share:', { title, text, url, file });
+```
+
+สำหรับ GET-based share (เฉพาะข้อความ/URL) ใช้ `method: "GET"` และ params จะถูก append เป็น query strings
+
+---
+
+## Web Share API
+
+Web Share API (`navigator.share`) ช่วยให้ PWA ของคุณ trigger OS share sheet เพื่อแชร์เนื้อหา **จาก** แอปของคุณไปยังแอปอื่น เป็นคู่ตรงข้ามของ Share Target
+
+```js
+async function shareContent() {
+  if (!('share' in navigator)) {
+    // Fallback: copy to clipboard
+    await navigator.clipboard.writeText(window.location.href);
+    return;
+  }
+
+  try {
+    await navigator.share({
+      title: 'Check out this recipe',
+      text: 'I found this amazing recipe for sourdough bread.',
+      url: window.location.href,
+    });
+    console.log('Shared successfully');
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error('Share failed:', err);
+    }
+  }
+}
+```
+
+`navigator.share` ต้องเรียกจาก user gesture (คลิก, แตะ) จับ `AbortError` แยกต่างหาก — มันแค่หมายความว่าผู้ใช้ปิด share sheet
+
+### การแชร์ไฟล์
+
+คุณยังสามารถแชร์ไฟล์ (รูปภาพ, PDF) โดยใช้ option `files` ตรวจสอบ support ก่อน:
+
+```js
+async function shareFile(file) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: file.name });
+  }
+}
+```
+
+> **บทเรียนแบบ code-only:** Badging API ทำงานได้โดยไม่ต้องมี server Web Share Target ต้องการให้ PWA ถูก install ก่อน (การเปลี่ยน manifest จะมีผลหลัง installation) Web Share จะ trigger native OS share sheet ซึ่งไม่สามารถ demo ใน iframe ได้ รันตัวอย่างเหล่านี้ใน PWA ที่ install จริง
+
+<Callout title="Key point">
+Badging และ Web Share Target ทำให้ PWA ที่ install แล้วรู้สึกเหมือนแอป native ชั้นหนึ่ง — จำนวน unread บนไอคอนและการปรากฏใน OS share sheet ฟีเจอร์เหล่านี้ไม่มีค่าใช้จ่าย ไม่ต้องใช้ server แค่ manifest entry และ API call สองรายการ
+</Callout>
+
+export const quizBadgingShareTarget = [
+  {
+    q: 'Which method clears the badge from an app icon?',
+    options: [
+      'navigator.setAppBadge(0)',
+      'navigator.clearAppBadge()',
+      'navigator.removeBadge()',
+      'navigator.setAppBadge(null)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where do you declare a Web Share Target?',
+    options: [
+      'In the service worker with registration.shareTarget.register()',
+      'In the manifest.webmanifest under the share_target key',
+      'In a <meta name="share-target"> tag in the HTML head',
+      'In a navigator.share() call with the target option',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What must be true before navigator.share() can be called?',
+    options: [
+      'The PWA must be installed',
+      'The user must be signed in',
+      'It must be triggered from a user gesture such as a button click',
+      'Notification permission must be granted',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which error name should you catch and ignore when the user dismisses the share sheet?',
+    options: ['TypeError', 'AbortError', 'NotAllowedError', 'ShareError'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="push-advanced/badging-share-target" questions={quizBadgingShareTarget} />
+
+<ProgressTracker client:visible id="push-advanced/badging-share-target" />

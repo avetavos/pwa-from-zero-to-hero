@@ -1,0 +1,185 @@
+---
+title: 'React-Specific PWA Patterns'
+description: 'An online/offline indicator hook, an install-prompt button hook, and guidance on CRA deprecation and Next.js alternatives for React PWAs.'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Introduction
+
+Beyond the update prompt, React PWAs benefit from two utility hooks: one for network status and one for the install prompt. These hooks encapsulate browser APIs inside a clean React abstraction so components remain declarative.
+
+## useOnlineStatus hook
+
+The `useOnlineStatus` hook reads `navigator.onLine` at mount time and keeps the value in sync by listening to the `online` and `offline` events on `window`. A `typeof navigator` guard makes the hook safe in SSR environments where `window` is absent.
+
+```tsx
+import { useState, useEffect } from 'react';
+
+export function useOnlineStatus(): { isOnline: boolean } {
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    function handleOnline() {
+      setIsOnline(true);
+    }
+    function handleOffline() {
+      setIsOnline(false);
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return { isOnline };
+}
+```
+
+Usage example:
+
+```tsx
+import { useOnlineStatus } from './useOnlineStatus';
+
+export function NetworkBanner() {
+  const { isOnline } = useOnlineStatus();
+
+  return (
+    <div className={isOnline ? 'banner banner--online' : 'banner banner--offline'}>
+      {isOnline ? 'Online' : 'Offline'}
+    </div>
+  );
+}
+```
+
+## useInstallPrompt hook
+
+The browser fires a `beforeinstallprompt` event before showing the native install UI. Storing that event in a `useRef` lets you trigger the prompt from a button at any time. After the user responds, clear the ref so the button no longer appears.
+
+```tsx
+import { useState, useEffect, useRef } from 'react';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+export function useInstallPrompt(): {
+  isInstallable: boolean;
+  promptInstall: () => void;
+} {
+  const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    function handleBeforeInstallPrompt(e: Event) {
+      e.preventDefault();
+      deferredPrompt.current = e as BeforeInstallPromptEvent;
+      setIsInstallable(true);
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  async function promptInstall() {
+    if (!deferredPrompt.current) return;
+    await deferredPrompt.current.prompt();
+    await deferredPrompt.current.userChoice;
+    deferredPrompt.current = null;
+    setIsInstallable(false);
+  }
+
+  return { isInstallable, promptInstall };
+}
+```
+
+Usage example:
+
+```tsx
+import { useInstallPrompt } from './useInstallPrompt';
+
+export function InstallButton() {
+  const { isInstallable, promptInstall } = useInstallPrompt();
+
+  if (!isInstallable) return null;
+
+  return (
+    <button onClick={promptInstall}>
+      Install app
+    </button>
+  );
+}
+```
+
+## CRA is deprecated
+
+Create React App is no longer actively maintained. For new React PWAs, use Vite with `vite-plugin-pwa` — it is faster, more configurable, and actively developed. If your project requires SSR or a full-stack React solution, use Next.js with a Workbox-based package such as `@ducanh2912/next-pwa` or `serwist`.
+
+## Next.js note
+
+For Next.js App Router projects, the `virtual:pwa-register/react` hook is Vite-only and does not apply. The recommended approach is the `@ducanh2912/next-pwa` package, which is built on Workbox and handles the App Router's server-component model, or the `serwist` library which provides a framework-agnostic Workbox wrapper with first-class Next.js support. Both generate a service worker at build time and integrate with the Next.js build pipeline.
+
+<Callout title="Recommendation">
+Prefer Vite + `vite-plugin-pwa` for new React PWAs; for Next.js use a Workbox/serwist-based setup instead.
+</Callout>
+
+export const quizReactPatterns = [
+  {
+    q: 'Which browser event fires before the install prompt is shown to the user?',
+    options: [
+      'install',
+      'appinstalled',
+      'beforeinstallprompt',
+      'prompt',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why should useOnlineStatus guard navigator.onLine with a typeof check?',
+    options: [
+      'navigator is undefined in Chrome',
+      'navigator does not exist in SSR environments where window is absent',
+      'navigator.onLine is always false in dev',
+      'Hooks cannot access navigator directly',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which package is recommended for adding PWA support to a Next.js App Router project?',
+    options: [
+      'vite-plugin-pwa',
+      'cra-template-pwa',
+      '@ducanh2912/next-pwa or serwist',
+      'workbox-webpack-plugin',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What should you do after the user responds to the install prompt?',
+    options: [
+      'Call navigator.reload()',
+      'Clear the stored beforeinstallprompt event ref so the button disappears',
+      'Register a new service worker',
+      'Call updateServiceWorker(true)',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/react-patterns" questions={quizReactPatterns} />
+
+<ProgressTracker client:visible id="pwa-with-react/react-patterns" />

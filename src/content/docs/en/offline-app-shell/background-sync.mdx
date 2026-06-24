@@ -1,0 +1,382 @@
+---
+title: Background Sync
+description: 'How the Background Sync API lets a service worker queue failed writes and replay them automatically when connectivity returns.'
+sidebar:
+  order: 5
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Background Sync
+
+Most offline strategies focus on reading cached content. But what about **writes** — a form submission, a chat message, a purchase? If the user submits data while offline, a naive implementation either shows an error or silently drops the request. The Background Sync API solves this by letting you queue the operation and have the service worker replay it automatically once connectivity returns, even if the user has already closed the tab.
+
+### How it works
+
+The flow has three actors: the **page**, the **service worker**, and the **browser's sync infrastructure**.
+
+1. The page detects a failed (or potentially offline) write.
+2. The page calls `registration.sync.register('tag-name')` to schedule a sync event.
+3. The browser fires a `sync` event on the service worker when it has a stable connection. The SW retries the operation and calls `event.waitUntil()` so the browser keeps it alive until the work is done.
+4. If the sync attempt fails, the browser retries with exponential back-off.
+
+### Browser support
+
+Background Sync is currently supported only in **Chromium-based browsers** (Chrome, Edge, Samsung Internet, and most Android browsers). Firefox and Safari do not implement it. This makes graceful fallback essential — if the API is not available, you should attempt the network request immediately.
+
+### Feature detection
+
+```js
+async function registerSync(registration) {
+  if ('SyncManager' in window && registration.sync) {
+    await registration.sync.register('send-form');
+    console.log('Sync registered — will retry when online');
+  } else {
+    // Browser does not support Background Sync; attempt immediately
+    console.log('Background Sync not supported — sending now');
+    await sendQueuedData();
+  }
+}
+```
+
+Check for both `'SyncManager' in window` and `registration.sync` — older Chromium versions exposed `SyncManager` but not `registration.sync`.
+
+### Page side: queueing a write
+
+When the user submits a form, save the data to IndexedDB first, then register the sync tag. The write to IndexedDB is the durable record; the sync tag is just a signal to the service worker.
+
+```js
+async function handleSubmit(formData) {
+  // 1. Save to IndexedDB so the SW can read it later
+  await saveToIdb('outbox', { id: Date.now(), ...formData });
+
+  // 2. Get the SW registration
+  const registration = await navigator.serviceWorker.ready;
+
+  if (registration.sync) {
+    // 3. Register the background sync tag
+    await registration.sync.register('send-form');
+  } else {
+    // Fallback: try the request right now
+    await sendQueuedData();
+  }
+}
+```
+
+### Service worker side: replaying queued data
+
+The service worker listens for the `sync` event. The `event.tag` property matches the string passed to `registration.sync.register()`.
+
+```js
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'send-form') {
+    event.waitUntil(replayOutbox());
+  }
+});
+
+async function replayOutbox() {
+  const db = await openDatabase();
+  const tx = db.transaction('outbox', 'readwrite');
+  const store = tx.objectStore('outbox');
+  const allRequests = await getAllRecords(store);
+
+  for (const item of allRequests) {
+    const response = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+
+    if (response.ok) {
+      // Remove from outbox after successful send
+      await deleteRecord(store, item.id);
+    }
+  }
+}
+```
+
+If `replayOutbox()` throws or returns a rejected Promise, the browser treats the sync as failed and schedules a retry. Only resolve successfully once you are sure the data has been delivered.
+
+### Sequence diagram
+
+export const syncDiagram = `sequenceDiagram
+  participant U as User
+  participant P as Page
+  participant IDB as IndexedDB
+  participant SW as Service Worker
+  participant API as Server API
+
+  U->>P: Submits form (offline)
+  P->>IDB: saveToIdb('outbox', data)
+  P->>SW: registration.sync.register('send-form')
+  Note over U,SW: Connection restored
+  SW->>SW: sync event fires (tag: send-form)
+  SW->>IDB: read all outbox records
+  IDB-->>SW: queued items
+  SW->>API: POST /api/submit
+  API-->>SW: 200 OK
+  SW->>IDB: delete sent record`;
+
+<Mermaid code={syncDiagram} title="Background Sync: queue while offline, replay when connected" />
+
+### Interactive demo
+
+The playground below demonstrates the full flow. The page lets you submit a message. The service worker queues it to an in-memory outbox and registers a sync tag. When the browser fires the sync event the SW logs the replay. Toggle the browser's Network panel to "Offline" before submitting to see the queue in action.
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Background Sync Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+      input, button { padding: 0.5rem 0.75rem; font-size: 1rem; }
+      input { width: 100%; box-sizing: border-box; margin-bottom: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+      button { background: #5A0FC8; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+      #log { margin-top: 1rem; font-size: 0.85rem; color: #333; white-space: pre-wrap; background: #f5f5f5; padding: 0.75rem; border-radius: 4px; min-height: 60px; }
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+      .online { background: #d4edda; color: #155724; }
+      .offline { background: #f8d7da; color: #721c24; }
+    </style>
+  </head>
+  <body>
+    <h1>Background Sync</h1>
+    <p>Status: <span id="status" class="badge online">online</span></p>
+    <input id="msg" type="text" placeholder="Type a message and submit..." />
+    <button id="submit-btn">Submit</button>
+    <div id="log">Waiting for submissions...\n</div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'main.js': `const logEl = document.getElementById('log');
+const statusEl = document.getElementById('status');
+
+function log(text) {
+  logEl.textContent += text + '\n';
+}
+
+window.addEventListener('online', () => {
+  statusEl.textContent = 'online';
+  statusEl.className = 'badge online';
+});
+window.addEventListener('offline', () => {
+  statusEl.textContent = 'offline';
+  statusEl.className = 'badge offline';
+});
+
+// Open a tiny IndexedDB outbox
+function openOutbox() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('sync-demo', 1);
+    req.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore('outbox', { keyPath: 'id' });
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function enqueue(message) {
+  const db = await openOutbox();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('outbox', 'readwrite');
+    const store = tx.objectStore('outbox');
+    const item = { id: Date.now(), message, ts: new Date().toISOString() };
+    const put = store.put(item);
+    put.onsuccess = () => resolve(item);
+    put.onerror = () => reject(put.error);
+  });
+}
+
+document.getElementById('submit-btn').addEventListener('click', async () => {
+  const input = document.getElementById('msg');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  const item = await enqueue(text);
+  log('[page] Saved to outbox: ' + JSON.stringify(item));
+
+  const registration = await navigator.serviceWorker.ready;
+
+  if (registration.sync) {
+    await registration.sync.register('send-form');
+    log('[page] Background sync registered (tag: send-form)');
+  } else {
+    log('[page] Background Sync not supported — notifying SW directly');
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'REPLAY_OUTBOX' });
+    }
+  }
+});
+
+// Register SW
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then((reg) => {
+    log('[page] Service worker registered, scope: ' + reg.scope);
+  });
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SYNC_RESULT') {
+      log('[sw] Replayed: ' + event.data.message);
+    }
+  });
+}`,
+  'sw.js': `const CACHE = 'sync-demo-v1';
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+// ---- IndexedDB helpers inside SW ----
+function openOutbox() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('sync-demo', 1);
+    req.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore('outbox', { keyPath: 'id' });
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function getAllFromStore(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('outbox', 'readonly');
+    const store = tx.objectStore('outbox');
+    const results = [];
+    const cursor = store.openCursor();
+    cursor.onsuccess = (e) => {
+      const c = e.target.result;
+      if (c) { results.push(c.value); c.continue(); }
+      else resolve(results);
+    };
+    cursor.onerror = () => reject(cursor.error);
+  });
+}
+
+function deleteFromStore(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('outbox', 'readwrite');
+    const store = tx.objectStore('outbox');
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ---- Replay logic ----
+async function replayOutbox() {
+  const db = await openOutbox();
+  const items = await getAllFromStore(db);
+
+  console.log('[sw] Replaying', items.length, 'item(s) from outbox');
+
+  for (const item of items) {
+    try {
+      // In a real app, POST to your API endpoint here.
+      // We simulate success and notify the page.
+      console.log('[sw] Sending:', item.message);
+      await deleteFromStore(db, item.id);
+
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) {
+        client.postMessage({ type: 'SYNC_RESULT', message: item.message });
+      }
+    } catch (err) {
+      console.error('[sw] Failed to send item:', item.id, err);
+      throw err; // rethrow so the browser retries the sync
+    }
+  }
+}
+
+// ---- Background Sync event ----
+self.addEventListener('sync', (event) => {
+  console.log('[sw] sync event fired, tag:', event.tag);
+  if (event.tag === 'send-form') {
+    event.waitUntil(replayOutbox());
+  }
+});
+
+// ---- Fallback: message-based replay for non-Chromium browsers ----
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'REPLAY_OUTBOX') {
+    event.waitUntil(replayOutbox());
+  }
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});`,
+  'manifest.webmanifest': `{
+  "name": "Background Sync Demo",
+  "short_name": "BG Sync",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8"
+}`,
+};
+
+<PwaPlayground files={proj} openFile="main.js" />
+
+<Callout title="Key point">
+Background sync lets a user act offline and have it sent automatically when connectivity returns.
+</Callout>
+
+export const quizBgSync = [
+  {
+    q: 'Which method does the page call to schedule a background sync?',
+    options: [
+      'navigator.serviceWorker.sync()',
+      'registration.sync.register(tag)',
+      'self.addEventListener("sync", handler)',
+      'SyncManager.schedule(tag)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In which browsers is the Background Sync API currently supported?',
+    options: [
+      'All modern browsers including Firefox and Safari',
+      'Only Safari on iOS and macOS',
+      'Chromium-based browsers (Chrome, Edge, Samsung Internet)',
+      'Firefox and Chrome only',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What should the service worker do if the sync attempt fails (the network request throws)?',
+    options: [
+      'Delete the queued data to prevent infinite retries',
+      'Catch the error silently and resolve event.waitUntil()',
+      'Let the Promise reject so the browser schedules an automatic retry',
+      'Call event.retry() to trigger an immediate reattempt',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why is data saved to IndexedDB before registering the sync tag?',
+    options: [
+      'IndexedDB registration is required by the SyncManager API',
+      'So the service worker can access the queued data even if the page is closed',
+      'To prevent the sync tag from being overwritten',
+      'Because Cache Storage cannot store form data',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/background-sync" questions={quizBgSync} />
+
+<ProgressTracker client:visible id="offline-app-shell/background-sync" />

@@ -1,0 +1,169 @@
+---
+title: 'Service Worker Strategies'
+description: 'Choose between generateSW and injectManifest, configure precaching and runtime caching, and wire up registerType with the virtual:pwa-register API.'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Service worker strategies
+
+`@vite-pwa/astro` gives you two ways to build your service worker: **generateSW** (the default) and **injectManifest**. Choosing the right one depends on how much control you need over fetch handling.
+
+### generateSW — zero SW code, just config
+
+With `generateSW`, Vite PWA writes the entire service worker for you. You provide a configuration object under the `workbox` key and Workbox generates `sw.js` at build time. This is the right choice for the vast majority of Astro sites: precaching the static build output plus a handful of runtime caching rules cover most real-world requirements with no service worker code to maintain.
+
+Set `registerType: 'autoUpdate'` to let the new service worker install and activate silently whenever you ship an update. Users always get the latest version without seeing any prompt.
+
+```ts
+// astro.config.mjs
+AstroPWA({
+  registerType: 'autoUpdate',
+  workbox: {
+    globPatterns: ['**/*.{css,js,html,svg,png,ico,txt,woff2}'],
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'google-fonts-cache',
+          expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+        },
+      },
+      {
+        urlPattern: /^https:\/\/api\.example\.com\/.*/i,
+        handler: 'NetworkFirst',
+        options: { cacheName: 'api-cache', networkTimeoutSeconds: 5 },
+      },
+    ],
+  },
+})
+```
+
+`globPatterns` defines which built files are added to the **precache manifest** — these are downloaded on install and served from cache on every subsequent visit, even offline. The `runtimeCaching` array adds caching rules that kick in at fetch time for URLs that match each pattern. `CacheFirst` is ideal for immutable assets like fonts; `NetworkFirst` is the right choice for API endpoints where freshness matters.
+
+### injectManifest — you control the SW
+
+When you need custom fetch logic — advanced routing, background sync, push notifications, or anything Workbox's automatic generation cannot express — switch to `injectManifest`. You write your own `src/sw.ts`; at build time Vite PWA compiles it and injects the precache manifest into it via the `self.__WB_MANIFEST` placeholder.
+
+```ts
+// astro.config.mjs
+AstroPWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.ts',
+})
+```
+
+```ts
+// src/sw.ts  (your custom service worker)
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
+
+declare let self: ServiceWorkerGlobalScope
+
+cleanupOutdatedCaches()
+precacheAndRoute(self.__WB_MANIFEST)
+
+self.addEventListener('fetch', (event) => {
+  // your custom fetch logic here
+})
+```
+
+`precacheAndRoute(self.__WB_MANIFEST)` replaces the placeholder with the real manifest list at build time, giving you automatic precaching alongside whatever custom fetch handling you add.
+
+### virtual:pwa-register and the prompt flow
+
+When `registerType` is `'prompt'`, the service worker waits for your code to trigger the update. Import `registerSW` from the virtual module `virtual:pwa-register` to wire up the confirmation UI:
+
+```ts
+// src/pwa.ts
+import { registerSW } from 'virtual:pwa-register'
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('New content available. Reload?')) {
+      updateSW(true)
+    }
+  },
+  onOfflineReady() {
+    console.log('App ready to work offline')
+  },
+})
+```
+
+```astro
+---
+// src/components/PwaInit.astro
+---
+<script>
+  import './pwa.ts'
+</script>
+```
+
+Add `<PwaInit />` to your root layout so the registration logic runs on every page. With `autoUpdate` you can skip this entirely — nothing calls `updateSW(true)` because the update is applied automatically.
+
+export const strategyDiagram = `flowchart TD
+  A[Need custom SW logic?] -->|No| B[generateSW]
+  A -->|Yes| C[injectManifest]
+  B --> D[Workbox generates sw.js automatically]
+  C --> E[You write src/sw.ts with workbox-precaching]
+  D --> F[Configure via workbox: options]
+  E --> G[Full control over fetch handling]`;
+
+<Mermaid code={strategyDiagram} title="generateSW vs injectManifest decision flow" />
+
+<Callout title="Key point">
+Use `generateSW` for standard caching, switch to `injectManifest` when you need custom service-worker logic.
+</Callout>
+
+export const quizSwAndStrategies = [
+  {
+    q: 'Which strategy lets Workbox generate the entire service worker file automatically from a config object?',
+    options: [
+      'injectManifest',
+      'generateSW',
+      'workboxSW',
+      'customSW',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does registerType: "autoUpdate" do when a new service worker is available?',
+    options: [
+      'Shows a browser-native prompt asking the user to reload',
+      'Waits for the user to call updateSW(true) before activating',
+      'Installs and activates the new service worker silently in the background',
+      'Blocks the page until the update is complete',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the purpose of the virtual:pwa-register module?',
+    options: [
+      'It generates the web app manifest at build time',
+      'It provides the registerSW function to handle update and offline-ready callbacks',
+      'It replaces self.__WB_MANIFEST with the real precache list',
+      'It installs workbox-precaching as a dev dependency',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'In an injectManifest service worker, what does precacheAndRoute(self.__WB_MANIFEST) do?',
+    options: [
+      'Downloads all assets from the network on first load',
+      'Injects the precache manifest list and registers routes so cached files are served offline',
+      'Generates a new manifest.webmanifest file',
+      'Clears all old caches before the SW activates',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/sw-and-strategies" questions={quizSwAndStrategies} />
+
+<ProgressTracker client:visible id="pwa-with-astro/sw-and-strategies" />

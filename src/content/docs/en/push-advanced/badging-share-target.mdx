@@ -1,0 +1,202 @@
+---
+title: Badging and Share Target
+description: 'Use navigator.setAppBadge to show unread counts on the app icon, Web Share Target to receive shared content, and navigator.share to share from your PWA.'
+sidebar:
+  order: 4
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## App Badging API
+
+The App Badging API lets an installed PWA display a small badge on its icon in the OS taskbar, dock, or home screen. This is the same unread-count dot you see on native messaging apps.
+
+### Setting and clearing a badge
+
+```js
+// Show a numeric badge
+async function setBadge(count) {
+  if ('setAppBadge' in navigator) {
+    await navigator.setAppBadge(count);
+  }
+}
+
+// Show a plain dot (no number)
+async function setDotBadge() {
+  if ('setAppBadge' in navigator) {
+    await navigator.setAppBadge();
+  }
+}
+
+// Clear the badge
+async function clearBadge() {
+  if ('clearAppBadge' in navigator) {
+    await navigator.clearAppBadge();
+  }
+}
+```
+
+Always feature-detect with `'setAppBadge' in navigator` — the API is supported in Chromium-based browsers on desktop and Android, but not yet in all browsers.
+
+### Updating the badge from the service worker
+
+You can also call `navigator.setAppBadge` from inside the service worker, for example when a push message arrives:
+
+```js
+// sw.js — service worker
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title || 'New message', {
+        body: data.body || '',
+        icon: '/icons/icon-192.png',
+      }),
+      navigator.setAppBadge(data.unreadCount || 1),
+    ])
+  );
+});
+```
+
+### Badging best practices
+
+- Update the badge whenever you show a notification, not only when the app is open.
+- Clear the badge in your `notificationclick` handler and when the user views the relevant content.
+- Do not use the badge to count every background event — only user-visible items (messages, tasks, alerts).
+
+---
+
+## Web Share Target
+
+The Web Share Target API lets your installed PWA appear in the OS share sheet as a destination. When the user shares a photo from their gallery or a link from another browser, your PWA can be listed alongside native apps.
+
+### Registering a share target in the manifest
+
+Add a `share_target` entry to your `manifest.webmanifest`:
+
+```json
+{
+  "name": "My App",
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "media", "accept": ["image/*"] }]
+    }
+  }
+}
+```
+
+When the user shares to your PWA, the browser navigates to `/share` and POSTs a `multipart/form-data` body with the fields mapped in `params`.
+
+### Handling the share on the page
+
+```js
+// /share page script
+const formData = new FormData(document.forms[0]);
+const title = formData.get('title');
+const text = formData.get('text');
+const url = formData.get('url');
+const file = formData.get('media');
+
+console.log('Received share:', { title, text, url, file });
+```
+
+For a GET-based share (text/URL only), use `method: "GET"` and the params are appended as query strings.
+
+---
+
+## Web Share API
+
+The Web Share API (`navigator.share`) lets your PWA trigger the OS share sheet to share content **from** your app to other apps. It is the outgoing counterpart to Share Target.
+
+```js
+async function shareContent() {
+  if (!('share' in navigator)) {
+    // Fallback: copy to clipboard
+    await navigator.clipboard.writeText(window.location.href);
+    return;
+  }
+
+  try {
+    await navigator.share({
+      title: 'Check out this recipe',
+      text: 'I found this amazing recipe for sourdough bread.',
+      url: window.location.href,
+    });
+    console.log('Shared successfully');
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error('Share failed:', err);
+    }
+  }
+}
+```
+
+`navigator.share` must be called from a user gesture (click, tap). Catch `AbortError` separately — it just means the user dismissed the share sheet.
+
+### Sharing files
+
+You can also share files (images, PDFs) using the `files` option. Check support first:
+
+```js
+async function shareFile(file) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: file.name });
+  }
+}
+```
+
+> **Code-only lesson:** The Badging API works without a server. Web Share Target requires the PWA to be installed (the manifest change takes effect after installation). Web Share fires the native OS share sheet, which cannot be demoed in an iframe. Run these examples in a real installed PWA.
+
+<Callout title="Key point">
+Badging and Web Share Target make an installed PWA feel like a first-class native app — unread counts on the icon and a presence in the OS share sheet. They are zero-cost features: no server needed, just a manifest entry and two API calls.
+</Callout>
+
+export const quizBadgingShareTarget = [
+  {
+    q: 'Which method clears the badge from an app icon?',
+    options: [
+      'navigator.setAppBadge(0)',
+      'navigator.clearAppBadge()',
+      'navigator.removeBadge()',
+      'navigator.setAppBadge(null)',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where do you declare a Web Share Target?',
+    options: [
+      'In the service worker with registration.shareTarget.register()',
+      'In the manifest.webmanifest under the share_target key',
+      'In a <meta name="share-target"> tag in the HTML head',
+      'In a navigator.share() call with the target option',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What must be true before navigator.share() can be called?',
+    options: [
+      'The PWA must be installed',
+      'The user must be signed in',
+      'It must be triggered from a user gesture such as a button click',
+      'Notification permission must be granted',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which error name should you catch and ignore when the user dismisses the share sheet?',
+    options: ['TypeError', 'AbortError', 'NotAllowedError', 'ShareError'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="push-advanced/badging-share-target" questions={quizBadgingShareTarget} />
+
+<ProgressTracker client:visible id="push-advanced/badging-share-target" />

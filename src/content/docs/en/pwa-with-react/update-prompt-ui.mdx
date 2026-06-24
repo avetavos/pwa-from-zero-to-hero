@@ -1,0 +1,161 @@
+---
+title: 'Update Prompt UI'
+description: "Use virtual:pwa-register/react's useRegisterSW hook to show a 'New content available — Reload' banner when a waiting service worker is detected."
+sidebar:
+  order: 4
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The prompt registration strategy
+
+When `registerType` is set to `'prompt'`, `vite-plugin-pwa` does NOT call `skipWaiting()` automatically. Instead it provides the `useRegisterSW()` hook from the `virtual:pwa-register/react` virtual module so you can build your own update UI. This gives users control over when the new service worker activates and the page reloads.
+
+## The useRegisterSW hook
+
+Import the hook from the virtual module that `vite-plugin-pwa` exposes at build time:
+
+```ts
+import { useRegisterSW } from 'virtual:pwa-register/react';
+```
+
+The hook returns three values:
+
+- `needRefresh` — a `[boolean, setter]` tuple. The boolean is `true` when a new service worker has installed and is waiting to activate.
+- `offlineReady` — a `[boolean, setter]` tuple. The boolean is `true` when the app's assets are fully cached and the app can run offline.
+- `updateServiceWorker(reloadPage?: boolean)` — call this with `true` to send `skipWaiting()` to the waiting service worker and reload the page.
+
+## ReloadPrompt component
+
+The component below reads those three values and renders a toast banner only when there is something to tell the user.
+
+```tsx
+import { useRegisterSW } from 'virtual:pwa-register/react';
+
+export function ReloadPrompt() {
+  const {
+    offlineReady: [offlineReady, setOfflineReady],
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW();
+
+  if (!offlineReady && !needRefresh) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '1rem',
+        right: '1rem',
+        padding: '1rem',
+        background: '#1e1e2e',
+        color: '#cdd6f4',
+        borderRadius: '0.5rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        zIndex: 9999,
+      }}
+    >
+      {offlineReady ? (
+        <p>App ready to work offline.</p>
+      ) : (
+        <p>New content available, click Reload to update.</p>
+      )}
+
+      {needRefresh && (
+        <button onClick={() => updateServiceWorker(true)}>Reload</button>
+      )}
+
+      <button
+        onClick={() => {
+          setOfflineReady(false);
+          setNeedRefresh(false);
+        }}
+      >
+        Close
+      </button>
+    </div>
+  );
+}
+```
+
+## Wiring it up
+
+Import `ReloadPrompt` in your `App.tsx` and render it at the bottom of the component tree so it floats above all other content:
+
+```tsx
+import { ReloadPrompt } from './ReloadPrompt';
+
+export default function App() {
+  return (
+    <>
+      {/* your app content */}
+      <ReloadPrompt />
+    </>
+  );
+}
+```
+
+## TypeScript type shim
+
+If TypeScript reports that it cannot find the module `virtual:pwa-register/react`, add a triple-slash reference to the `vite-plugin-pwa` client types at the top of your `vite-env.d.ts` (or any `.d.ts` file in your project):
+
+```ts
+/// <reference types="vite-plugin-pwa/client" />
+```
+
+This tells TypeScript about the virtual module declarations that `vite-plugin-pwa` ships, resolving the import error without any additional package installation.
+
+<Callout title="Key point">
+With `registerType: 'prompt'`, you must call `updateServiceWorker(true)` from a user action to apply the waiting SW.
+</Callout>
+
+export const quizUpdatePromptUi = [
+  {
+    q: 'Which virtual module provides the useRegisterSW hook?',
+    options: [
+      'virtual:pwa-register',
+      'virtual:pwa-register/react',
+      'vite-plugin-pwa/react',
+      'workbox-react',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does needRefresh[0] === true signal?',
+    options: [
+      'The app is offline',
+      'A new service worker is waiting to activate',
+      'The manifest has changed',
+      'The cache is full',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What argument should you pass to updateServiceWorker() to activate the SW and reload?',
+    options: [
+      'false',
+      'undefined',
+      'true',
+      '"reload"',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Why does vite-plugin-pwa need a TypeScript shim for virtual:pwa-register/react?',
+    options: [
+      'Because it is a runtime polyfill',
+      'Because virtual: modules are not real files and TypeScript needs a declaration for them',
+      'Because React does not support virtual modules',
+      'Because the hook is experimental',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/update-prompt-ui" questions={quizUpdatePromptUi} />
+
+<ProgressTracker client:visible id="pwa-with-react/update-prompt-ui" />

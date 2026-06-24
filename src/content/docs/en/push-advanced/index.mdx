@@ -1,0 +1,79 @@
+---
+title: 'Push & Advanced: Overview'
+description: 'An overview of advanced PWA engagement capabilities — Notifications, Push API, App Badging, Web Share, and Periodic Background Sync.'
+sidebar:
+  order: 1
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Advanced engagement capabilities
+
+A Progressive Web App can go far beyond offline caching. The browser platform provides a suite of engagement APIs that let your PWA behave like a first-class native application — waking up to deliver notifications, showing unread badges, receiving shared content, and refreshing data in the background.
+
+This module covers five of those capabilities:
+
+| Capability | API | Requires server? | Requires permission? |
+|---|---|---|---|
+| Local notifications | Notifications API | No | Yes |
+| Push messages | Push API | Yes (VAPID) | Yes |
+| App badge | Badging API | No | No |
+| Share content | Web Share + Share Target | No | No |
+| Background refresh | Periodic Background Sync | No | Yes (installed) |
+
+### Why these APIs matter
+
+Users spend the majority of their time outside your app. These APIs are the bridge back:
+
+- **Notifications** re-engage users with timely, relevant messages — order updates, chat messages, reminders.
+- **Push** lets your server initiate a notification even when the user has no tab open.
+- **Badging** gives users a glanceable unread count on the app icon without requiring them to open the app.
+- **Share Target** integrates your PWA into the OS share sheet so users can share photos, links, and text directly into your app.
+- **Periodic Background Sync** keeps content fresh for the next time the user opens the app, even if the device was offline.
+
+### What this module covers
+
+1. **Overview** (this page) — capabilities table and permissions overview.
+2. **Notifications** — the Notifications API: requesting permission, showing notifications from the page and from the service worker, handling `notificationclick`.
+3. **Push API** — end-to-end push: VAPID keys, subscribing, sending a subscription to your server, the SW `push` event.
+4. **Badging and Share Target** — `navigator.setAppBadge`, manifest `share_target`, and `navigator.share`.
+5. **Periodic Background Sync** — registering a periodic sync, handling the `periodicsync` event, and its limitations.
+
+### A word on permissions
+
+Most of these APIs require the user to **explicitly grant permission**. The golden rule:
+
+> Ask for permission at the moment it makes sense to the user — after they sign up for notifications, finish placing an order, or tap "Enable alerts". Never ask on first page load.
+
+<Callout title="Key point">
+Ask for notification permission in context, after the user does something that makes the request feel natural — never on first load. An unsolicited permission prompt is almost always dismissed, and browsers penalise sites that spam it.
+</Callout>
+
+export const quizPushAdvancedIndex = [
+  {
+    q: 'Which of these advanced PWA APIs requires a backend server with VAPID keys?',
+    options: ['Notifications API', 'Push API', 'Badging API', 'Web Share API'],
+    answer: 1,
+  },
+  {
+    q: 'What is the best moment to ask for notification permission?',
+    options: [
+      'Immediately on first page load',
+      'In context, after the user takes an action that makes the request natural',
+      'After 30 seconds on the page',
+      'Only when the user visits the settings page',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which API gives an installed PWA a glanceable unread count on its icon?',
+    options: ['Notifications API', 'Periodic Background Sync', 'Badging API', 'Push API'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="push-advanced/index" questions={quizPushAdvancedIndex} />
+
+<ProgressTracker client:visible id="push-advanced/index" />

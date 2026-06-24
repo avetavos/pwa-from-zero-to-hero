@@ -1,0 +1,89 @@
+---
+title: 'Caching Strategies: Overview'
+description: 'Why caching matters for reliability and speed, precache vs runtime cache, and a guide to choosing the right strategy for each asset type.'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Why caching matters
+
+A network request can fail for many reasons — the user is offline, on a slow connection, or the server is temporarily unavailable. Without a cache, any of these conditions means a broken experience. With a well-chosen caching strategy, the browser can serve assets instantly from local storage and sync with the server in the background.
+
+Caching also eliminates unnecessary round trips. A CSS file that has not changed does not need to travel across the network every time someone loads your page. Serving it from a local cache brings load times down from hundreds of milliseconds to near zero.
+
+### Precache vs runtime cache
+
+**Precaching** happens at service worker install time. You explicitly list the URLs you want cached, and the browser fetches and stores them before the SW activates. This is ideal for your app shell — the HTML, CSS, and JS files that form the structural skeleton of your UI.
+
+**Runtime caching** happens on demand. The first time a user requests a resource (an image, an API response, a font), the service worker intercepts the fetch, stores the response, and serves subsequent requests from cache. This approach is suitable for dynamic or user-specific content that you cannot enumerate at build time.
+
+## Strategy overview
+
+| Strategy | Best for | Trade-off |
+|---|---|---|
+| Cache-first | Static assets (CSS, JS, images) | Can serve stale assets |
+| Network-first | API data, HTML | Slower; needs cache fallback |
+| Stale-while-revalidate | Avatars, feeds, config | Eventually consistent |
+| Cache-only | Pre-cached app shell | No network fallback |
+| Network-only | Payments, analytics | No offline support |
+
+## Choosing a strategy
+
+export const decisionDiagram = `flowchart TD
+  A[Start: incoming request] --> B{Is the asset static?}
+  B -->|Yes| C[Cache-first]
+  B -->|No| D{Does freshness matter?}
+  D -->|Yes, always fresh| E[Network-first]
+  D -->|Mostly fresh is fine| F[Stale-while-revalidate]
+  D -->|No network needed| G[Cache-only]
+  E --> H{Network failed?}
+  H -->|Yes| I[Serve from cache fallback]
+  H -->|No| J[Return fresh response and update cache]`;
+
+<Mermaid code={decisionDiagram} title="Choosing a caching strategy" />
+
+<Callout title="Key point">
+Choose a strategy per request type — your app shell, API responses, and images each have different freshness requirements. A single blanket strategy will either waste bandwidth or serve stale data at the wrong moment.
+</Callout>
+
+export const quizIndex = [
+  {
+    q: 'What is the difference between precaching and runtime caching?',
+    options: [
+      'Precaching stores assets at install time; runtime caching stores them on first request',
+      'Precaching is faster than runtime caching',
+      'Runtime caching only works online',
+      'Precaching can only cache HTML files',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Which strategy is best for a frequently-changing news feed API?',
+    options: [
+      'Cache-only',
+      'Cache-first',
+      'Network-first',
+      'Network-only',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Stale-while-revalidate is ideal for:',
+    options: [
+      'Payment endpoints',
+      'Assets where instant load matters but occasional staleness is acceptable',
+      'Files that must always be fresh',
+      'Files that never change',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="caching-strategies/index" />

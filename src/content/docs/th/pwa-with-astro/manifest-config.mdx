@@ -1,0 +1,169 @@
+---
+title: 'การตั้งค่า Web App Manifest'
+description: 'วิธีกำหนด web app manifest ภายใน options ของ AstroPWA integration — ชื่อแอป, ไอคอน, สีธีม, display mode — และผลลัพธ์ที่ได้เป็นไฟล์ manifest.webmanifest'
+sidebar:
+  order: 3
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การตั้งค่า Web App Manifest
+
+**Web app manifest** คือไฟล์ JSON ที่บอกให้เบราว์เซอร์รู้ว่าควรแสดง PWA ของคุณอย่างไร — ตั้งแต่ชื่อ, ไอคอน, URL สำหรับเปิดแอป ไปจนถึง display mode เมื่อใช้ integration `@astrojs/pwa` (vite-plugin-pwa) คุณไม่ต้องเขียนไฟล์นั้นเอง เพียงประกาศค่าทั้งหมดใน `astro.config.mjs` แล้ว integration จะสร้างไฟล์ manifest และเชื่อมโยงให้อัตโนมัติ
+
+### ประกาศ manifest object ภายใน AstroPWA
+
+ส่ง key ชื่อ `manifest` เข้าไปใน `AstroPWA()` โดยรองรับ manifest fields มาตรฐานทุกตัว:
+
+```ts
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import AstroPWA from '@vite-pwa/astro';
+
+export default defineConfig({
+  integrations: [
+    AstroPWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'My Astro PWA',
+        short_name: 'AstroPWA',
+        description: 'A PWA built with Astro',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          { src: 'pwa-64x64.png',            sizes: '64x64',   type: 'image/png' },
+          { src: 'pwa-192x192.png',           sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png',           sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      pwaAssets: {
+        image: 'public/logo.svg',
+      },
+    }),
+  ],
+});
+```
+
+**อธิบาย properties สำคัญ:**
+
+- `name` — ชื่อเต็มของแอปพลิเคชัน แสดงบน splash screen และ app store
+- `short_name` — ชื่อย่อสำหรับใช้เมื่อพื้นที่จำกัด เช่น ป้ายกำกับใต้ไอคอนบน home screen
+- `description` — ประโยคสั้น ๆ อธิบายแอป บาง app store นำไปใช้แสดงผล
+- `theme_color` — สีที่ใช้แต่งแถบ address bar หรือ title bar ของ OS ให้ตรงกับแบรนด์คุณ
+- `background_color` — สีพื้นหลังของ splash screen ที่แสดงขณะแอปกำลังโหลด
+- `display` — ควบคุมว่าจะแสดง browser UI มากน้อยแค่ไหน (ดูตารางด้านล่าง)
+- `start_url` — URL ที่ OS จะเปิดเมื่อผู้ใช้เปิดแอป PWA ที่ติดตั้งไว้
+- `icons` — อาร์เรย์ของ image descriptors เบราว์เซอร์จะเลือกขนาดที่เหมาะสมที่สุด
+
+### ทำไมต้องมีไอคอน 512 × 512 สองแบบ?
+
+field ชื่อ `purpose` มีความหมายสำคัญ:
+
+- `"any"` — ไอคอนมาตรฐานใช้ในบริบทส่วนใหญ่ (app drawer, home screen บน iOS/macOS)
+- `"maskable"` — ไอคอนที่ subject อยู่ใน "safe zone" เพื่อให้ Android ใช้ adaptive-icon mask (วงกลม, squircle ฯลฯ) ได้โดยไม่ตัดภาพ
+
+การมีทั้งสองแบบทำให้ไอคอนของคุณดูถูกต้องบนทุก platform
+
+### ไฟล์ manifest.webmanifest ที่ integration สร้างให้
+
+ตอน build integration จะเขียนไฟล์ `manifest.webmanifest` ไว้ที่ output root โดยเนื้อหาตรงกับที่คุณประกาศไว้:
+
+```json
+{
+  "name": "My Astro PWA",
+  "short_name": "AstroPWA",
+  "description": "A PWA built with Astro",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    { "src": "pwa-192x192.png",           "sizes": "192x192", "type": "image/png" },
+    { "src": "pwa-512x512.png",           "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+```
+
+นอกจากนี้ integration ยังฉีด tag `<link rel="manifest" href="/manifest.webmanifest">` เข้าใน `<head>` ของทุกหน้าให้อัตโนมัติ — คุณไม่ต้องเพิ่มเองเลย
+
+### สร้างไอคอนอัตโนมัติด้วย pwaAssets
+
+การปรับขนาดไอคอนให้ครบทุก dimension ด้วยมือเป็นเรื่องน่าเบื่อ option ชื่อ `pwaAssets` (ขับเคลื่อนโดย `@vite-pwa/assets-generator`) จะสร้าง icon variants ทั้งหมดจากภาพต้นฉบับเพียงรูปเดียว:
+
+```ts
+pwaAssets: {
+  image: 'public/logo.svg',   // SVG หรือ PNG ความละเอียดสูง
+},
+```
+
+แค่ชี้ไปที่ `logo.svg` ของคุณ แล้ว generator จะสร้าง `pwa-64x64.png`, `pwa-192x192.png`, `pwa-512x512.png`, `maskable-icon-512x512.png` และอื่น ๆ ให้ครบ ไม่ต้องปรับขนาดเอง
+
+### Display modes
+
+field `display` ควบคุมว่า browser chrome จะแสดงมากน้อยแค่ไหนเมื่อเปิด PWA ในฐานะแอปที่ติดตั้งแล้ว:
+
+| `display` | พฤติกรรม |
+|---|---|
+| `standalone` | หน้าต่างแบบแอป ไม่มี browser UI |
+| `minimal-ui` | แสดง browser UI น้อยที่สุด |
+| `fullscreen` | เต็มหน้าจอ ไม่มี UI เลย |
+| `browser` | แท็บเบราว์เซอร์ปกติ |
+
+`"standalone"` เป็นตัวเลือกยอดนิยมสำหรับ PWA เพราะให้ประสบการณ์เหมือนแอป native โดยไม่มี address bar ให้เห็น
+
+<Callout title="Key point">
+Configure the manifest once in `astro.config.mjs`; the integration emits it and links it for you.
+</Callout>
+
+export const quizManifestConfig = [
+  {
+    q: 'คุณตั้งค่า web app manifest ไว้ที่ไหนเมื่อใช้ AstroPWA integration?',
+    options: [
+      'ในไฟล์ manifest.webmanifest แยกต่างหากที่สร้างเอง',
+      'ใน key ชื่อ manifest ของ AstroPWA() ใน astro.config.mjs',
+      'ในไฟล์ manifest.json ที่ root ของ project',
+      'ใน frontmatter ของแต่ละหน้า Astro',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Integration เพิ่ม tag อะไรเข้าไปใน <head> ของทุกหน้าอัตโนมัติ?',
+    options: [
+      'tag <script> สำหรับ register service worker',
+      'tag <meta name="theme-color">',
+      'tag <link rel="manifest" href="/manifest.webmanifest">',
+      'tag <link rel="icon"> ที่ชี้ไปยัง maskable icon',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ทำไมต้องมีไอคอน 512x512 ทั้งแบบ "any" และ "maskable"?',
+    options: [
+      'เพราะ manifest spec กำหนดให้มีไอคอนสองแบบทุกขนาด',
+      'เพื่อให้เบราว์เซอร์เลือกไฟล์ที่เล็กกว่าประหยัด bandwidth',
+      'เพื่อให้ Android ใช้ adaptive-icon mask ได้โดยไม่ตัดภาพ ขณะที่ platform อื่นใช้ไอคอนมาตรฐาน',
+      'เพราะไอคอน "maskable" ใช้บน splash screen เท่านั้น',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'display mode ใดที่ให้หน้าต่างแบบแอปโดยไม่มี browser UI?',
+    options: [
+      'browser',
+      'minimal-ui',
+      'fullscreen',
+      'standalone',
+    ],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/manifest-config" questions={quizManifestConfig} />
+
+<ProgressTracker client:visible id="pwa-with-astro/manifest-config" />

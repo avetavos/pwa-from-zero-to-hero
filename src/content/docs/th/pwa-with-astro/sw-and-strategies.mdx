@@ -1,0 +1,169 @@
+---
+title: 'กลยุทธ์ Service Worker'
+description: 'เลือกระหว่าง generateSW กับ injectManifest ตั้งค่า precaching และ runtime caching และเชื่อมต่อ registerType กับ virtual:pwa-register API'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## กลยุทธ์ service worker
+
+`@vite-pwa/astro` มีสองวิธีในการสร้าง service worker ของคุณ ได้แก่ **generateSW** (ค่าเริ่มต้น) และ **injectManifest** การเลือกวิธีที่เหมาะสมขึ้นอยู่กับว่าคุณต้องการควบคุม fetch handling มากแค่ไหน
+
+### generateSW — ไม่ต้องเขียน SW code เลย แค่ config
+
+ด้วย `generateSW` Vite PWA จะเขียน service worker ทั้งหมดให้คุณ คุณเพียงแค่ระบุ configuration object ใต้ key `workbox` แล้ว Workbox จะ generate `sw.js` ขึ้นมาในขั้นตอน build นี่คือตัวเลือกที่ถูกต้องสำหรับเว็บไซต์ Astro ส่วนใหญ่: การ precaching output ของ static build บวกกับ runtime caching rules สองสามข้อครอบคลุมความต้องการในโลกจริงส่วนใหญ่ โดยไม่ต้องดูแล service worker code เลย
+
+ตั้งค่า `registerType: 'autoUpdate'` เพื่อให้ service worker ใหม่ install และ activate แบบเงียบๆ ทุกครั้งที่คุณ deploy การอัปเดต ผู้ใช้จะได้รับเวอร์ชันล่าสุดเสมอโดยไม่เห็น prompt ใดๆ
+
+```ts
+// astro.config.mjs
+AstroPWA({
+  registerType: 'autoUpdate',
+  workbox: {
+    globPatterns: ['**/*.{css,js,html,svg,png,ico,txt,woff2}'],
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'google-fonts-cache',
+          expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+        },
+      },
+      {
+        urlPattern: /^https:\/\/api\.example\.com\/.*/i,
+        handler: 'NetworkFirst',
+        options: { cacheName: 'api-cache', networkTimeoutSeconds: 5 },
+      },
+    ],
+  },
+})
+```
+
+`globPatterns` กำหนดว่าไฟล์ที่ build แล้วไฟล์ใดบ้างที่จะถูกเพิ่มเข้าไปใน **precache manifest** — ไฟล์เหล่านี้จะถูกดาวน์โหลดตอน install และ serve จาก cache ในทุกครั้งที่เข้าชมครั้งถัดไป แม้จะออฟไลน์ Array `runtimeCaching` เพิ่ม caching rules ที่จะทำงานตอน fetch สำหรับ URL ที่ตรงกับ pattern แต่ละอัน `CacheFirst` เหมาะสำหรับ asset ที่ไม่เปลี่ยนแปลงอย่างฟอนต์ ส่วน `NetworkFirst` เหมาะสำหรับ API endpoint ที่ความใหม่ของข้อมูลมีความสำคัญ
+
+### injectManifest — คุณควบคุม SW เอง
+
+เมื่อคุณต้องการ custom fetch logic — routing ขั้นสูง, background sync, push notifications หรืออะไรก็ตามที่ Workbox ไม่สามารถ generate ให้อัตโนมัติได้ — ให้เปลี่ยนไปใช้ `injectManifest` คุณเขียน `src/sw.ts` เอง; ในขั้นตอน build Vite PWA จะ compile มันแล้วฉีด precache manifest เข้าไปผ่าน placeholder `self.__WB_MANIFEST`
+
+```ts
+// astro.config.mjs
+AstroPWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.ts',
+})
+```
+
+```ts
+// src/sw.ts  (your custom service worker)
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
+
+declare let self: ServiceWorkerGlobalScope
+
+cleanupOutdatedCaches()
+precacheAndRoute(self.__WB_MANIFEST)
+
+self.addEventListener('fetch', (event) => {
+  // your custom fetch logic here
+})
+```
+
+`precacheAndRoute(self.__WB_MANIFEST)` แทนที่ placeholder ด้วย manifest list จริงในขั้นตอน build ทำให้คุณได้ทั้ง automatic precaching และ custom fetch handling ที่คุณเพิ่มเข้าไป
+
+### virtual:pwa-register และ prompt flow
+
+เมื่อ `registerType` เป็น `'prompt'` service worker จะรอให้ code ของคุณ trigger การอัปเดต import `registerSW` จาก virtual module `virtual:pwa-register` เพื่อเชื่อมต่อ UI ยืนยัน:
+
+```ts
+// src/pwa.ts
+import { registerSW } from 'virtual:pwa-register'
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('New content available. Reload?')) {
+      updateSW(true)
+    }
+  },
+  onOfflineReady() {
+    console.log('App ready to work offline')
+  },
+})
+```
+
+```astro
+---
+// src/components/PwaInit.astro
+---
+<script>
+  import './pwa.ts'
+</script>
+```
+
+เพิ่ม `<PwaInit />` ใน root layout ของคุณเพื่อให้ registration logic ทำงานในทุกหน้า หากใช้ `autoUpdate` คุณสามารถข้ามขั้นตอนนี้ได้ทั้งหมด เพราะไม่มีอะไรต้องเรียก `updateSW(true)` เนื่องจากการอัปเดตถูก apply อัตโนมัติ
+
+export const strategyDiagram = `flowchart TD
+  A[Need custom SW logic?] -->|No| B[generateSW]
+  A -->|Yes| C[injectManifest]
+  B --> D[Workbox generates sw.js automatically]
+  C --> E[You write src/sw.ts with workbox-precaching]
+  D --> F[Configure via workbox: options]
+  E --> G[Full control over fetch handling]`;
+
+<Mermaid code={strategyDiagram} title="แผนผังการตัดสินใจ generateSW vs injectManifest" />
+
+<Callout title="ประเด็นสำคัญ">
+ใช้ `generateSW` สำหรับการ caching มาตรฐาน เปลี่ยนไปใช้ `injectManifest` เมื่อคุณต้องการ logic ของ service worker แบบ custom
+</Callout>
+
+export const quizSwAndStrategies = [
+  {
+    q: 'กลยุทธ์ใดที่ให้ Workbox generate ไฟล์ service worker ทั้งหมดอัตโนมัติจาก config object?',
+    options: [
+      'injectManifest',
+      'generateSW',
+      'workboxSW',
+      'customSW',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'registerType: "autoUpdate" ทำอะไรเมื่อมี service worker ใหม่พร้อมใช้งาน?',
+    options: [
+      'แสดง prompt ของเบราว์เซอร์เพื่อขอให้ผู้ใช้ reload',
+      'รอให้ผู้ใช้เรียก updateSW(true) ก่อน activate',
+      'Install และ activate service worker ใหม่แบบเงียบๆ ใน background',
+      'บล็อกหน้าเว็บจนกว่าการอัปเดตจะเสร็จสมบูรณ์',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'virtual:pwa-register module มีจุดประสงค์อะไร?',
+    options: [
+      'มันจะ generate web app manifest ในขั้นตอน build',
+      'มันให้ฟังก์ชัน registerSW สำหรับจัดการ callback การอัปเดตและ offline-ready',
+      'มันแทนที่ self.__WB_MANIFEST ด้วย precache list จริง',
+      'มันติดตั้ง workbox-precaching เป็น dev dependency',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ใน service worker แบบ injectManifest การเรียก precacheAndRoute(self.__WB_MANIFEST) ทำอะไร?',
+    options: [
+      'ดาวน์โหลด asset ทั้งหมดจาก network ในการโหลดครั้งแรก',
+      'ฉีด precache manifest list และลงทะเบียน route เพื่อให้ไฟล์ที่ cache ไว้ถูก serve แบบออฟไลน์',
+      'สร้างไฟล์ manifest.webmanifest ใหม่',
+      'ลบ cache เก่าทั้งหมดก่อนที่ SW จะ activate',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/sw-and-strategies" questions={quizSwAndStrategies} />
+
+<ProgressTracker client:visible id="pwa-with-astro/sw-and-strategies" />

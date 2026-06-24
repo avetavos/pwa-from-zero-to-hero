@@ -1,0 +1,155 @@
+---
+title: SvelteKit PWA Setup
+description: 'Install @vite-pwa/sveltekit, add SvelteKitPWA() to vite.config.ts, and configure registerType, manifest, strategies, and injectManifest.'
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Setting up `@vite-pwa/sveltekit`
+
+The `@vite-pwa/sveltekit` package wraps Workbox inside a Vite plugin that hooks into the SvelteKit build pipeline. It generates the service worker, injects the precache manifest, and creates the web app manifest — all from a single plugin call.
+
+### Installation
+
+```bash
+npm install -D @vite-pwa/sveltekit
+```
+
+### Adding the plugin to `vite.config.ts`
+
+Open (or create) `vite.config.ts` at the project root and add `SvelteKitPWA` after `sveltekit()`:
+
+```ts
+import { sveltekit } from '@sveltejs/kit/vite';
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [
+    sveltekit(),
+    SvelteKitPWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'My SvelteKit App',
+        short_name: 'SK App',
+        description: 'An offline-capable SvelteKit PWA',
+        theme_color: '#ff3e00',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+### Key options
+
+#### `registerType`
+
+Controls how the service worker handles updates:
+
+| Value | Behaviour |
+|---|---|
+| `'autoUpdate'` | New SW activates immediately on install — no user prompt |
+| `'prompt'` | New SW waits; your UI code decides when to apply the update |
+
+For most production apps, `'prompt'` is safer — it prevents a mid-session asset mismatch while the user still has the old page loaded.
+
+#### `manifest`
+
+The plugin injects a `manifest.webmanifest` into the build output and adds the `<link rel="manifest">` tag to every page. The `name`, `icons`, and `theme_color` fields are required for Chrome's installability criteria.
+
+#### `strategies`
+
+The default strategy is `'generateSW'` — the plugin generates a complete Workbox-powered service worker for you. Switch to `'injectManifest'` when you need to write your own SW logic and only want Workbox to inject the precache list:
+
+```ts
+SvelteKitPWA({
+  strategies: 'injectManifest',
+  srcDir: './src',
+  filename: 'my-sw.ts',
+  injectManifest: {
+    injectionPoint: 'self.__WB_MANIFEST',
+    globPatterns: ['client/**/*.{js,css,ico,png,svg,webp}'],
+  },
+})
+```
+
+Your custom SW file must contain the `self.__WB_MANIFEST` injection point — Workbox replaces it with the generated precache list at build time.
+
+#### Static manifest file
+
+If you prefer a static file over the generated one, place `manifest.webmanifest` in the `static/` directory and skip the `manifest` option in the plugin. SvelteKit copies everything in `static/` to the build output verbatim.
+
+```json
+{
+  "name": "My SvelteKit App",
+  "short_name": "SK App",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#ff3e00",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+<Callout title="Key point">
+Add `SvelteKitPWA()` to your Vite plugins — it generates the service worker and manifest for the SvelteKit build. Use `registerType: 'prompt'` in production to give users control over when updates apply.
+</Callout>
+
+export const quizSvelteKitPwaSetup = [
+  {
+    q: 'Where do you add SvelteKitPWA() in a SvelteKit project?',
+    options: [
+      'svelte.config.js plugins array',
+      'vite.config.ts plugins array',
+      'src/app.html head tag',
+      'src/hooks.server.ts',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which registerType value makes the new service worker activate immediately without a user prompt?',
+    options: ['prompt', 'manual', 'autoUpdate', 'skipWaiting'],
+    answer: 2,
+  },
+  {
+    q: 'What does the injectManifest strategy require in your custom service worker file?',
+    options: [
+      'import { manifest } from "workbox-core"',
+      'A self.__WB_MANIFEST injection point that Workbox replaces at build time',
+      'An explicit call to workbox.precacheAndRoute()',
+      'A CACHE_VERSION constant',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the default strategies value when you do not set it explicitly?',
+    options: ['injectManifest', 'networkFirst', 'generateSW', 'staleWhileRevalidate'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/sveltekit-pwa-setup" questions={quizSvelteKitPwaSetup} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/sveltekit-pwa-setup" />

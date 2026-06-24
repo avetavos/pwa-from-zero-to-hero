@@ -1,0 +1,83 @@
+---
+title: 'Web App Manifest: Overview'
+description: 'What the web app manifest is, how to link it, and what this module covers.'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## What is the Web App Manifest?
+
+The **Web App Manifest** is a JSON file that tells the browser how your web application should look and behave when it is installed on a device. It controls the app name, icons, launch URL, display mode, theme colours, and more — everything the operating system needs to treat your site like a native app.
+
+The manifest is the cornerstone of installability. Without it, browsers will not offer users an "Add to Home Screen" prompt, and your app will not appear in the device's app launcher.
+
+### Linking the manifest
+
+Add a single `<link>` tag inside the `<head>` of every HTML page:
+
+```html
+<link rel="manifest" href="/manifest.webmanifest" />
+```
+
+The file extension `.webmanifest` is the official MIME type (`application/manifest+json`). You may also use `.json`, but `.webmanifest` is preferred because it signals intent clearly to browsers and tooling.
+
+### How the browser uses it
+
+export const overviewDiagram = `flowchart LR
+  H["HTML page"] -->|"<link rel=manifest>"| M["manifest.webmanifest"]
+  M -->|"name / icons / start_url"| OS["OS / Browser Install UI"]
+  OS -->|"icon + name"| HS["Home Screen"]
+  OS -->|"start_url + display"| App["Standalone App Window"]`;
+
+<Mermaid code={overviewDiagram} title="How the manifest connects your HTML to the installed app experience" />
+
+### What this module covers
+
+This module walks you through every part of the manifest in five lessons:
+
+1. **Overview** (this page) — what the manifest is and how to link it.
+2. **Manifest basics** — the essential fields every manifest must have.
+3. **Icons and maskable icons** — providing icons for every platform and the safe-zone rule.
+4. **Display and theme** — controlling how the app window looks after installation.
+5. **Install prompt** — intercepting the browser's install event and building your own install button.
+
+<Callout title="Key point">
+The manifest makes your app installable — without it, no "Add to Home Screen" prompt will appear and your PWA cannot enter the device's app launcher.
+</Callout>
+
+export const quizManifestOverview = [
+  {
+    q: 'What is the primary purpose of the Web App Manifest?',
+    options: [
+      'To define CSS variables for the app',
+      'To tell the browser how the app should look and behave when installed',
+      'To register a service worker',
+      'To store offline data',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which HTML element links the manifest to the page?',
+    options: [
+      '<meta name="manifest">',
+      '<script type="manifest">',
+      '<link rel="manifest">',
+      '<link rel="icon">',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the recommended file extension for the manifest?',
+    options: ['.json', '.webmanifest', '.manifest', '.pwa'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/index" questions={quizManifestOverview} />
+
+<ProgressTracker client:visible id="web-app-manifest/index" />

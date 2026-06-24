@@ -1,0 +1,79 @@
+---
+title: 'Push & Advanced: ภาพรวม'
+description: 'ภาพรวมความสามารถขั้นสูงของ PWA สำหรับการสร้าง engagement — Notifications, Push API, App Badging, Web Share และ Periodic Background Sync'
+sidebar:
+  order: 1
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ความสามารถขั้นสูงด้าน engagement
+
+Progressive Web App ไม่ได้จำกัดอยู่แค่การทำงานแบบ offline เท่านั้น แพลตฟอร์มเบราว์เซอร์มี API สำหรับ engagement หลายชุดที่ทำให้ PWA ของคุณทำงานได้เหมือนแอปพลิเคชัน native ชั้นหนึ่ง — ตื่นขึ้นมาส่ง notification, แสดงจำนวน badge ที่ยังไม่ได้อ่าน, รับเนื้อหาที่ผู้ใช้แชร์มา และรีเฟรชข้อมูลใน background
+
+โมดูลนี้ครอบคลุมความสามารถห้าอย่าง:
+
+| ความสามารถ | API | ต้องการ server? | ต้องขอ permission? |
+|---|---|---|---|
+| Local notifications | Notifications API | ไม่ | ใช่ |
+| Push messages | Push API | ใช่ (VAPID) | ใช่ |
+| App badge | Badging API | ไม่ | ไม่ |
+| แชร์เนื้อหา | Web Share + Share Target | ไม่ | ไม่ |
+| รีเฟรชใน background | Periodic Background Sync | ไม่ | ใช่ (ต้อง install) |
+
+### ทำไม API เหล่านี้จึงสำคัญ
+
+ผู้ใช้ใช้เวลาส่วนใหญ่อยู่นอกแอปของคุณ API เหล่านี้คือสะพานที่พาพวกเขากลับมา:
+
+- **Notifications** ดึงผู้ใช้กลับมาด้วยข้อความที่เหมาะสมและทันเวลา — อัปเดตออเดอร์, ข้อความแชท, การแจ้งเตือน
+- **Push** ทำให้ server ของคุณเริ่ม notification ได้แม้ผู้ใช้จะไม่มีแท็บเปิดอยู่
+- **Badging** แสดงจำนวน unread บนไอคอนแอปโดยไม่ต้องให้ผู้ใช้เปิดแอป
+- **Share Target** ผสาน PWA ของคุณเข้าสู่ OS share sheet เพื่อให้ผู้ใช้แชร์รูปภาพ ลิงก์ และข้อความเข้ามาในแอปโดยตรง
+- **Periodic Background Sync** ทำให้เนื้อหาสดใหม่สำหรับครั้งต่อไปที่ผู้ใช้จะเปิดแอป แม้อุปกรณ์จะ offline ก่อนหน้านี้
+
+### สิ่งที่โมดูลนี้ครอบคลุม
+
+1. **ภาพรวม** (หน้านี้) — ตารางความสามารถและภาพรวม permissions
+2. **Notifications** — Notifications API: ขอ permission, แสดง notification จากหน้าเพจและจาก service worker, จัดการ `notificationclick`
+3. **Push API** — push แบบ end-to-end: VAPID keys, การ subscribe, ส่ง subscription ไปยัง server, push event ใน SW
+4. **Badging and Share Target** — `navigator.setAppBadge`, `share_target` ใน manifest และ `navigator.share`
+5. **Periodic Background Sync** — ลงทะเบียน periodic sync, จัดการ `periodicsync` event และข้อจำกัดต่างๆ
+
+### เรื่องของ permissions
+
+API ส่วนใหญ่ต้องการให้ผู้ใช้ **อนุญาตอย่างชัดเจน** กฎทองคือ:
+
+> ขอ permission ในบริบทที่เหมาะสม — หลังจากผู้ใช้สมัครรับ notification, สั่งซื้อเสร็จ, หรือแตะ "เปิดการแจ้งเตือน" อย่าขอตั้งแต่โหลดหน้าเพจครั้งแรก
+
+<Callout title="Key point">
+ขอ permission สำหรับ notification ในบริบทที่เหมาะสม หลังจากผู้ใช้ทำบางอย่างที่ทำให้คำขอรู้สึกเป็นธรรมชาติ — อย่าขอตั้งแต่โหลดหน้าแรก popup ขอ permission ที่ไม่ได้ถูกร้องขอมักถูกปฏิเสธเสมอ และเบราว์เซอร์จะลงโทษเว็บไซต์ที่ spam มัน
+</Callout>
+
+export const quizPushAdvancedIndex = [
+  {
+    q: 'Which of these advanced PWA APIs requires a backend server with VAPID keys?',
+    options: ['Notifications API', 'Push API', 'Badging API', 'Web Share API'],
+    answer: 1,
+  },
+  {
+    q: 'What is the best moment to ask for notification permission?',
+    options: [
+      'Immediately on first page load',
+      'In context, after the user takes an action that makes the request natural',
+      'After 30 seconds on the page',
+      'Only when the user visits the settings page',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which API gives an installed PWA a glanceable unread count on its icon?',
+    options: ['Notifications API', 'Periodic Background Sync', 'Badging API', 'Push API'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="push-advanced/index" questions={quizPushAdvancedIndex} />
+
+<ProgressTracker client:visible id="push-advanced/index" />

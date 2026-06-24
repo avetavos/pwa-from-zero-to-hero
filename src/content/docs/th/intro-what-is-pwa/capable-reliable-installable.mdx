@@ -1,0 +1,154 @@
+---
+title: 'Capable, Reliable และ Installable'
+description: 'สามเสาหลักที่นิยาม Progressive Web App: การเข้าถึง device API, ความเชื่อถือได้แบบ offline ผ่าน service worker และความสามารถในการติดตั้งแบบ native'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## สามเสาหลักของ PWA
+
+คำนิยาม PWA ของ Google ตั้งอยู่บนคุณสมบัติสามประการ ได้แก่ **Capable**, **Reliable** และ **Installable** เว็บแอปที่บรรลุทั้งสามประการนี้แทบแยกไม่ออกจากแอป native สำหรับกรณีการใช้งานส่วนใหญ่ การทำความเข้าใจว่าแต่ละเสาหลักหมายความว่าอะไร — และเทคโนโลยีใดที่รองรับ — จะมอบ checklist ที่เป็นรูปธรรมสำหรับทุก PWA ที่คุณสร้าง
+
+### Capable — การเข้าถึง device API
+
+แพลตฟอร์มเว็บสมัยใหม่เปิดเผยความสามารถของ hardware และ OS ที่เคยเป็นอาณาเขตเฉพาะของแอป native ตัวอย่างสำคัญ ได้แก่:
+
+- **Camera และ microphone** ผ่าน `MediaDevices.getUserMedia()` — รองรับ video call, QR scanner และการสแกนเอกสาร
+- **Geolocation** ผ่าน Geolocation API — ตำแหน่งแบบ real-time, การแสดงแผนที่ และฟีเจอร์ proximity
+- **Push notifications** ผ่าน Push API ร่วมกับ Notifications API — ดึงผู้ใช้กลับมาแม้ browser ปิดอยู่
+- **Payments** ผ่าน Payment Request API — checkout ที่ลื่นไหลโดยไม่ต้องเปลี่ยนหน้าไปยังขั้นตอนภายนอก
+- **Clipboard, file system, contacts และอื่นๆ** — รายการนี้ขยายตัวพร้อมกับทุก browser release
+
+เป้าหมายของเสาหลัก Capable ไม่ใช่การจำลอง native API ทุกตัว (การรองรับ Bluetooth เช่น ยังคงแตกต่างกันตาม browser) แต่เพื่อให้มั่นใจว่าแพลตฟอร์มเว็บเป็นเป้าหมาย deployment ที่น่าเชื่อถือสำหรับฟีเจอร์ที่ผู้ใช้ของคุณต้องการจริงๆ
+
+### Reliable — โหลดทันทีและทนทานต่อ offline
+
+PWA ที่ reliable โหลดได้ทันทีและทำงานต่อไปได้บนเครือข่ายที่ไม่เสถียร ซึ่งทั้งหมดนี้เป็นหน้าที่ของ **service worker** และ **Cache Storage API**
+
+เมื่อ service worker ถูก register และทำงานอยู่ มันจะอยู่ระหว่างหน้าและเครือข่าย คอย intercept ทุก `fetch` event คุณเป็นคนกำหนด caching strategy: serve จาก cache ก่อน แล้ว fallback ไปยังเครือข่าย หรือแข่งทั้งสอง ผลลัพธ์คือแอปที่:
+
+- เปิดได้ทันทีในการเยี่ยมชมซ้ำ เพราะ asset มาจาก cache ในเครื่อง
+- ทำงานได้ในโหมดเครื่องบินหรือบนการเชื่อมต่อ 2G โดย serve cached shell
+- กู้คืนได้อย่างสง่างามเมื่อ request ล้มเหลว แทนที่จะแสดงหน้า error ของ browser
+
+```js
+// A simple cache-first fetch strategy inside sw.js
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached ?? fetch(event.request);
+    })
+  );
+});
+```
+
+### Installable — เพิ่มไปยัง home screen และ desktop
+
+PWA ที่ installable สามารถเพิ่มไปยัง home screen หรือ desktop ของอุปกรณ์ และเปิดจากที่นั่นได้ เหมือนกับแอป native Browser จัดการขั้นตอนการ install โดยอัตโนมัติเมื่อเงื่อนไขสามข้อถูกตอบสนอง:
+
+1. หน้าถูก serve ผ่าน HTTPS (หรือ localhost)
+2. Web App Manifest ที่ถูกต้องถูก link จากหน้า (`<link rel="manifest">`)
+3. Service worker ที่มี `fetch` handler ถูก register
+
+บน Chrome และ Edge browser จะยิง `BeforeInstallPromptEvent` ที่คุณสามารถจับและใช้เพื่อแสดงปุ่ม "Install" ของคุณเองในเวลาที่เหมาะสม เมื่อ install แล้ว แอปจะเปิดในหน้าต่าง standalone — ไม่มี address bar ไม่มี browser chrome — มอบความรู้สึกแบบ native ที่ผู้ใช้คาดหวัง
+
+```js
+// Capture the install prompt and show it on a button click
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredPrompt = event;
+  document.getElementById('install-btn').hidden = false;
+});
+
+document.getElementById('install-btn').addEventListener('click', () => {
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((choice) => {
+    if (choice.outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    }
+    deferredPrompt = null;
+  });
+});
+```
+
+### สามเสาหลักทำงานร่วมกันอย่างไร
+
+export const pillarsDiagram = `flowchart TD
+  PWA["Progressive Web App"]
+
+  PWA --> CAP["Capable"]
+  PWA --> REL["Reliable"]
+  PWA --> INS["Installable"]
+
+  CAP --> CAM["Camera / getUserMedia"]
+  CAP --> GEO["Geolocation API"]
+  CAP --> PUSH["Push API + Notifications"]
+  CAP --> PAY["Payment Request API"]
+
+  REL --> SW["Service Worker"]
+  REL --> CACHE["Cache Storage API"]
+  REL --> OFFLINE["Offline / flaky network support"]
+
+  INS --> MANIFEST["Web App Manifest"]
+  INS --> HTTPS["HTTPS or localhost"]
+  INS --> PROMPT["BeforeInstallPromptEvent"]`;
+
+<Mermaid code={pillarsDiagram} title="สามเสาหลักของ PWA และเทคโนโลยีที่อยู่เบื้องหลังแต่ละเสา" />
+
+<Callout title="ประเด็นสำคัญ">
+"Reliable" หมายความว่าแอปโหลดได้แม้เครือข่ายไม่เสถียร — นั่นคือสิ่งที่ service worker และ cache มอบให้
+</Callout>
+
+export const quizCapableReliableInstallable = [
+  {
+    q: 'API ใดที่ทำให้ PWA เข้าถึง camera ของอุปกรณ์ได้?',
+    options: [
+      'navigator.camera.open()',
+      'MediaDevices.getUserMedia()',
+      'CameraAccess.request()',
+      'HTMLVideoElement.captureStream()',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'เงื่อนไขสามข้อใดที่ต้องตอบสนองก่อนที่ browser จะเสนอการติดตั้ง PWA?',
+    options: [
+      'HTTPS, manifest ที่ถูกต้อง และ service worker ที่มี fetch handler',
+      'HTTPS, manifest ที่ถูกต้อง และ asset ที่ถูก cache อย่างน้อยหนึ่งรายการ',
+      'Service worker, push notifications และสิทธิ์ geolocation',
+      'Manifest, ไอคอนแอป และ splash screen',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'browser event ใดที่คุณสามารถจับเพื่อแสดงปุ่ม "Install" แบบกำหนดเองในเวลาที่เหมาะสม?',
+    options: [
+      'appinstalled',
+      'installready',
+      'beforeinstallprompt',
+      'serviceworkerinstalled',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'เสาหลัก PWA ใดที่รับผิดชอบหลักในการทำให้แอปทำงานได้ในโหมดเครื่องบิน?',
+    options: [
+      'Capable — device API รวมถึง offline storage',
+      'Installable — แอปที่ install แล้วจะ cache ตัวเองโดยอัตโนมัติ',
+      'Reliable — service worker intercept fetch และ serve จาก cache',
+      'Capable — Push API จัดคิว request เมื่อ offline',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/capable-reliable-installable" questions={quizCapableReliableInstallable} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/capable-reliable-installable" />

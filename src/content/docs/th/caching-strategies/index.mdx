@@ -1,0 +1,89 @@
+---
+title: 'Caching Strategies: ภาพรวม'
+description: 'ทำไม caching จึงสำคัญต่อความน่าเชื่อถือและความเร็ว, ความต่างระหว่าง precache กับ runtime cache, และแนวทางการเลือก strategy ที่เหมาะกับ asset แต่ละประเภท'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ทำไม caching จึงสำคัญ
+
+network request ล้มเหลวได้จากหลายสาเหตุ — ผู้ใช้อยู่ออฟไลน์ อยู่บนการเชื่อมต่อที่ช้า หรือเซิร์ฟเวอร์ใช้งานไม่ได้ชั่วคราว หากไม่มี cache สถานการณ์เหล่านี้ล้วนทำให้ประสบการณ์ใช้งานพังลง แต่ด้วย caching strategy ที่เลือกมาอย่างดี เบราว์เซอร์สามารถเสิร์ฟ asset จาก local storage ได้ทันทีและซิงค์กับเซิร์ฟเวอร์ในเบื้องหลัง
+
+caching ยังช่วยตัด round trip ที่ไม่จำเป็นออกไปด้วย ไฟล์ CSS ที่ไม่ได้เปลี่ยนแปลงไม่จำเป็นต้องวิ่งผ่าน network ทุกครั้งที่มีคนโหลดหน้าเพจของคุณ การเสิร์ฟมันจาก local cache ลดเวลาโหลดจากหลายร้อยมิลลิวินาทีให้เหลือเกือบเป็นศูนย์
+
+### Precache กับ runtime cache
+
+**Precaching** เกิดขึ้นตอน service worker install คุณระบุ URL ที่ต้องการแคชอย่างชัดเจน แล้วเบราว์เซอร์จะดึงและเก็บมันก่อนที่ SW จะ activate วิธีนี้เหมาะที่สุดสำหรับ app shell ของคุณ — ไฟล์ HTML, CSS, และ JS ที่ประกอบเป็นโครงสร้างหลักของ UI
+
+**Runtime caching** เกิดขึ้นแบบ on demand ในครั้งแรกที่ผู้ใช้ร้องขอ resource (รูปภาพ, การตอบกลับจาก API, ฟอนต์) service worker จะดักจับ fetch เก็บ response นั้นไว้ และเสิร์ฟ request ครั้งถัดไปจาก cache แนวทางนี้เหมาะกับเนื้อหาแบบไดนามิกหรือเฉพาะผู้ใช้ที่คุณไม่สามารถระบุล่วงหน้าตอน build ได้
+
+## ภาพรวมของ strategy
+
+| Strategy | เหมาะกับ | ข้อแลกเปลี่ยน |
+|---|---|---|
+| Cache-first | Static asset (CSS, JS, รูปภาพ) | อาจเสิร์ฟ asset ที่เก่าได้ |
+| Network-first | ข้อมูล API, HTML | ช้ากว่า; ต้องมี cache fallback |
+| Stale-while-revalidate | avatar, feed, config | consistent ในที่สุด |
+| Cache-only | app shell ที่ pre-cache ไว้ | ไม่มี fallback ไป network |
+| Network-only | การชำระเงิน, analytics | ไม่รองรับออฟไลน์ |
+
+## การเลือก strategy
+
+export const decisionDiagram = `flowchart TD
+  A[Start: incoming request] --> B{Is the asset static?}
+  B -->|Yes| C[Cache-first]
+  B -->|No| D{Does freshness matter?}
+  D -->|Yes, always fresh| E[Network-first]
+  D -->|Mostly fresh is fine| F[Stale-while-revalidate]
+  D -->|No network needed| G[Cache-only]
+  E --> H{Network failed?}
+  H -->|Yes| I[Serve from cache fallback]
+  H -->|No| J[Return fresh response and update cache]`;
+
+<Mermaid code={decisionDiagram} title="การเลือก caching strategy" />
+
+<Callout title="จุดสำคัญ">
+เลือก strategy ตามประเภทของ request — app shell, การตอบกลับจาก API, และรูปภาพ แต่ละอย่างมีข้อกำหนดเรื่องความสดใหม่ที่ต่างกัน การใช้ strategy เดียวเหมารวมทั้งหมดจะทำให้สิ้นเปลือง bandwidth หรือไม่ก็เสิร์ฟข้อมูลเก่าในจังหวะที่ไม่ควร
+</Callout>
+
+export const quizIndex = [
+  {
+    q: 'อะไรคือความแตกต่างระหว่าง precaching กับ runtime caching?',
+    options: [
+      'Precaching เก็บ asset ตอน install time; runtime caching เก็บมันตอน request ครั้งแรก',
+      'Precaching เร็วกว่า runtime caching',
+      'Runtime caching ทำงานได้เฉพาะตอนออนไลน์เท่านั้น',
+      'Precaching แคชได้เฉพาะไฟล์ HTML เท่านั้น',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'strategy ใดเหมาะที่สุดสำหรับ API ฟีดข่าวที่เปลี่ยนแปลงบ่อย?',
+    options: [
+      'Cache-only',
+      'Cache-first',
+      'Network-first',
+      'Network-only',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Stale-while-revalidate เหมาะที่สุดสำหรับ:',
+    options: [
+      'endpoint การชำระเงิน',
+      'asset ที่ต้องการให้โหลดทันทีแต่ยอมรับได้ที่บางครั้งข้อมูลจะเก่า',
+      'ไฟล์ที่ต้องสดใหม่เสมอ',
+      'ไฟล์ที่ไม่เคยเปลี่ยนแปลง',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/index" questions={quizIndex} />
+
+<ProgressTracker client:visible id="caching-strategies/index" />

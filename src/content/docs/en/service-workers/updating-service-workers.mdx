@@ -1,0 +1,180 @@
+---
+title: Updating Service Workers
+description: 'How browsers detect service worker changes, the waiting worker, skipWaiting and clients.claim, and how to prompt users to reload safely.'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Updating service workers
+
+Deploying a new version of your PWA means deploying a new service worker. Understanding how the browser detects and applies that update — and how to communicate it to users — prevents subtle bugs and stale-asset surprises.
+
+### How the browser detects updates
+
+The browser checks your service worker file for changes on every page load (and whenever you call `registration.update()` manually). It compares the new download byte-for-byte against the currently installed SW. Even a **single byte difference** — a changed cache version string, a new comment, a whitespace tweak — triggers the update flow:
+
+1. The new SW is downloaded and parsed.
+2. The new SW enters the `install` phase.
+3. If installation succeeds, the new SW sits in **Waiting** — it cannot activate while the old SW still controls open tabs.
+
+### The waiting worker problem
+
+The most common source of confusion in production PWAs:
+
+- A user opens your app. The old SW activates and controls the tab.
+- You deploy v2. The browser installs the new SW, but it sits in Waiting.
+- The user keeps the tab open all day.
+- The new SW never activates — the user never sees v2.
+
+### skipWaiting() — powerful but dangerous
+
+Calling `self.skipWaiting()` inside the new SW's `install` handler forces it to activate immediately, bypassing the wait:
+
+```js
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('v2').then((cache) => cache.addAll(['/', '/app.js', '/styles.css']))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+```
+
+The danger: the old page is still running. If v2 has a different cache schema or asset URLs, the already-loaded page may request resources the new SW does not serve correctly. The result is a broken mid-session experience.
+
+**Recommendation:** use `skipWaiting()` only when your asset URLs are versioned (e.g., `app.abc123.js`) so old and new assets are compatible, or always prompt the user to reload.
+
+### Prompting the user to reload
+
+The safest pattern: detect the waiting worker from the page and show a non-intrusive banner.
+
+```js
+// main.js — page code
+async function registerSw() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.register('/sw.js');
+
+  registration.addEventListener('updatefound', () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+
+    newWorker.addEventListener('statechange', () => {
+      if (
+        newWorker.state === 'installed' &&
+        navigator.serviceWorker.controller
+      ) {
+        // A new SW is waiting — show update prompt
+        showUpdateBanner(registration);
+      }
+    });
+  });
+}
+
+function showUpdateBanner(registration) {
+  const banner = document.createElement('div');
+  banner.textContent = 'A new version is available. ';
+  const btn = document.createElement('button');
+  btn.textContent = 'Reload';
+  btn.onclick = () => {
+    if (registration.waiting) {
+      // Tell the waiting SW to skip waiting, then reload
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+    window.location.reload();
+  };
+  banner.appendChild(btn);
+  document.body.prepend(banner);
+}
+
+registerSw();
+```
+
+The corresponding SW listens for that message:
+
+```js
+// sw.js — service worker
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+```
+
+This keeps `skipWaiting()` entirely **user-driven** — the new version only activates when the user explicitly clicks Reload, preventing mid-session breakage.
+
+### registration.update() — proactive checking
+
+By default the browser checks for SW updates on navigation. For single-page apps where the user may never trigger a navigation, call `registration.update()` on an interval:
+
+```js
+setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
+```
+
+### Update checklist
+
+| Step | Why |
+|---|---|
+| Change at least one byte in `sw.js` | Triggers the browser's byte-diff check |
+| Version your cache names (`v2`, `v3`) | Allows the activate handler to delete stale caches |
+| Delete old caches in `activate` | Avoids storing stale assets indefinitely |
+| Prompt users to reload instead of force-`skipWaiting()` | Prevents mid-session asset mismatches |
+| Call `clients.claim()` after `skipWaiting()` | Takes control of open pages immediately |
+
+<Callout title="Key point">
+`skipWaiting()` activates a new service worker immediately, which can leave an already-loaded page running against mismatched assets. Prompt the user to reload instead — let the update happen on a clean page load.
+</Callout>
+
+export const quizUpdatingSw = [
+  {
+    q: 'How does the browser determine that a service worker file has changed?',
+    options: [
+      'It checks the Last-Modified HTTP header only',
+      'It compares the new file byte-for-byte against the installed version',
+      'It checks the SW version number in package.json',
+      'It uses a hash embedded in the registration call',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why does a newly installed service worker sit in Waiting?',
+    options: [
+      'It must pass a security check',
+      'The browser is downloading new assets',
+      'The old service worker is still controlling open tabs',
+      'skipWaiting() has not been called yet',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the risk of calling self.skipWaiting() unconditionally in the install handler?',
+    options: [
+      'The service worker will never activate',
+      'The new SW activates while the old page is still open, potentially causing asset mismatches',
+      'The browser ignores the call in production',
+      'Cache Storage is cleared automatically',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which approach keeps skipWaiting() user-driven and avoids mid-session breakage?',
+    options: [
+      'Call self.skipWaiting() immediately inside the install event',
+      'Use registration.update() on a timer',
+      'Show an update banner and only call skipWaiting() when the user clicks Reload',
+      'Reload the page automatically in the activate handler',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="service-workers/updating-service-workers" questions={quizUpdatingSw} />
+
+<ProgressTracker client:visible id="service-workers/updating-service-workers" />

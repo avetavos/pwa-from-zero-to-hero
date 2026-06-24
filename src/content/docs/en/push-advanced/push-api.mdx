@@ -1,0 +1,202 @@
+---
+title: The Push API
+description: 'End-to-end push notifications with VAPID keys: subscribing via pushManager, sending the subscription to your server, and handling the push event in the service worker.'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The Push API
+
+The Push API enables your server to send messages to a user's device even when the user is not actively using your app — no open tab required. Under the hood, the browser maintains a persistent connection to a **push service** (operated by the browser vendor). Your server talks to that push service, and the push service delivers the message to the user's device where your service worker picks it up.
+
+### How push works end-to-end
+
+export const pushFlowDiagram = `sequenceDiagram
+  participant Page as Page (JS)
+  participant SW as Service Worker
+  participant PS as Push Service (browser vendor)
+  participant Srv as Your Server
+
+  Page->>SW: navigator.serviceWorker.ready
+  Page->>PS: pushManager.subscribe({ applicationServerKey })
+  PS-->>Page: PushSubscription (endpoint + keys)
+  Page->>Srv: POST /subscribe (subscription JSON)
+  Note over Srv: Stores subscription in DB
+
+  Srv->>PS: POST endpoint with encrypted payload + VAPID auth
+  PS->>SW: push event with data
+  SW->>SW: event.waitUntil(showNotification(...))`;
+
+<Mermaid code={pushFlowDiagram} title="Push notification flow: subscribe, send, deliver" />
+
+### Step 1 — Generate VAPID keys
+
+VAPID (Voluntary Application Server Identification) keys authenticate your server with the push service. Generate them once and store them securely:
+
+```bash
+# Using the web-push npm package
+npx web-push generate-vapid-keys
+```
+
+This outputs a **public key** (share with the browser) and a **private key** (keep only on your server — never expose it).
+
+### Step 2 — Subscribe from the page
+
+```js
+// main.js — page code
+async function subscribeToPush() {
+  const registration = await navigator.serviceWorker.ready;
+
+  // Convert your VAPID public key (base64url) to a Uint8Array
+  const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,       // required: every push must show a notification
+    applicationServerKey,
+  });
+
+  // Send the subscription object to your backend
+  await fetch('/api/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  });
+
+  console.log('Subscribed:', subscription.endpoint);
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+```
+
+`userVisibleOnly: true` is mandatory — browsers require that every incoming push message results in a visible notification.
+
+### Step 3 — Store the subscription on your server
+
+Your server receives the subscription JSON (containing `endpoint`, `keys.auth`, `keys.p256dh`) and stores it in a database keyed by user.
+
+### Step 4 — Send a push from your server
+
+```js
+// server.js (Node.js with web-push)
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  'mailto:you@example.com',
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY,
+);
+
+async function sendPush(subscription, payload) {
+  await webpush.sendNotification(subscription, JSON.stringify(payload));
+}
+
+// Example
+sendPush(storedSubscription, {
+  title: 'Your order shipped!',
+  body: 'It will arrive by Thursday.',
+});
+```
+
+### Step 5 — Handle the push event in the service worker
+
+```js
+// sw.js — service worker
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : { title: 'Update', body: '' };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/badge-72.png',
+      data,
+    })
+  );
+});
+```
+
+`event.waitUntil()` keeps the SW alive until the notification is shown. If the SW terminates before `showNotification` resolves, the notification may be lost.
+
+### Checking existing subscriptions
+
+Before subscribing, check whether a subscription already exists to avoid duplicates:
+
+```js
+const existing = await registration.pushManager.getSubscription();
+if (existing) {
+  console.log('Already subscribed:', existing.endpoint);
+  return existing;
+}
+```
+
+### Unsubscribing
+
+```js
+const subscription = await registration.pushManager.getSubscription();
+if (subscription) {
+  await subscription.unsubscribe();
+  // Also notify your server to remove the stored subscription
+  await fetch('/api/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint: subscription.endpoint }),
+  });
+}
+```
+
+> **Code-only lesson:** Push requires a backend server with VAPID keys, a database, and a push service. The examples above are complete and accurate but cannot run in the in-browser playground. Copy them into a real project — for example a Node.js server with `web-push` and any frontend framework.
+
+<Callout title="Key point">
+Push notifications need a backend. Your server holds the VAPID private key, stores subscriptions, and pushes messages through the browser vendor's push service. The browser only delivers what your server sends — there is no push without a server.
+</Callout>
+
+export const quizPushApi = [
+  {
+    q: 'What does pushManager.subscribe() return?',
+    options: [
+      'A boolean indicating success',
+      'A PushSubscription object containing the endpoint and encryption keys',
+      'A ServiceWorkerRegistration',
+      'A VAPID key pair',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why is userVisibleOnly: true required in the subscribe options?',
+    options: [
+      'It improves performance',
+      'Browsers require every push message to result in a visible notification',
+      'It enables background sync',
+      'It restricts the subscription to the current tab',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where should the VAPID private key be stored?',
+    options: [
+      'In the manifest.webmanifest',
+      'In the service worker source file',
+      'Only on your backend server, never exposed to the browser',
+      'In localStorage for persistence',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which service worker event fires when your server sends a push message?',
+    options: ['fetch', 'message', 'push', 'sync'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="push-advanced/push-api" questions={quizPushApi} />
+
+<ProgressTracker client:visible id="push-advanced/push-api" />

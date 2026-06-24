@@ -1,0 +1,83 @@
+---
+title: 'Web App Manifest: ภาพรวม'
+description: 'Web App Manifest คืออะไร วิธีเชื่อมโยงไฟล์ และเนื้อหาที่จะเรียนในโมดูลนี้'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Web App Manifest คืออะไร?
+
+**Web App Manifest** คือไฟล์ JSON ที่บอกให้เบราว์เซอร์รู้ว่าเว็บแอปพลิเคชันของคุณควรมีหน้าตาและพฤติกรรมอย่างไรเมื่อถูกติดตั้งบนอุปกรณ์ ไฟล์นี้กำหนดชื่อแอป, icon, URL เริ่มต้น, display mode, สีธีม และอื่น ๆ — ข้อมูลทุกอย่างที่ระบบปฏิบัติการต้องการเพื่อปฏิบัติต่อเว็บไซต์ของคุณเหมือนแอปพลิเคชันแท้จริง
+
+manifest คือรากฐานของการติดตั้งได้ (installability) หากไม่มีไฟล์นี้ เบราว์เซอร์จะไม่แสดงข้อความเชิญให้ผู้ใช้ "เพิ่มไปยังหน้าจอหลัก" และแอปของคุณจะไม่ปรากฏใน app launcher ของอุปกรณ์
+
+### การเชื่อมโยง manifest
+
+เพิ่มแท็ก `<link>` หนึ่งอันใน `<head>` ของทุกหน้า HTML:
+
+```html
+<link rel="manifest" href="/manifest.webmanifest" />
+```
+
+นามสกุล `.webmanifest` คือ MIME type อย่างเป็นทางการ (`application/manifest+json`) คุณอาจใช้ `.json` ได้เช่นกัน แต่ `.webmanifest` เป็นที่นิยมมากกว่าเพราะสื่อความหมายได้ชัดเจนกว่าทั้งต่อเบราว์เซอร์และเครื่องมือต่าง ๆ
+
+### วิธีที่เบราว์เซอร์ใช้ manifest
+
+export const overviewDiagram = `flowchart LR
+  H["HTML page"] -->|"<link rel=manifest>"| M["manifest.webmanifest"]
+  M -->|"name / icons / start_url"| OS["OS / Browser Install UI"]
+  OS -->|"icon + name"| HS["Home Screen"]
+  OS -->|"start_url + display"| App["Standalone App Window"]`;
+
+<Mermaid code={overviewDiagram} title="วิธีที่ manifest เชื่อม HTML กับประสบการณ์แอปที่ติดตั้งแล้ว" />
+
+### เนื้อหาในโมดูลนี้
+
+โมดูลนี้พาคุณผ่านทุกส่วนของ manifest ในห้าบทเรียน:
+
+1. **ภาพรวม** (หน้านี้) — manifest คืออะไรและวิธีเชื่อมโยง
+2. **พื้นฐาน manifest** — ฟิลด์จำเป็นที่ทุก manifest ต้องมี
+3. **Icons และ maskable icons** — การเตรียม icon สำหรับทุกแพลตฟอร์มและกฎ safe zone
+4. **Display และ theme** — การควบคุมหน้าตาหน้าต่างแอปหลังการติดตั้ง
+5. **Install prompt** — การดักจับ install event ของเบราว์เซอร์และสร้างปุ่มติดตั้งของคุณเอง
+
+<Callout title="ประเด็นสำคัญ">
+manifest ทำให้แอปของคุณติดตั้งได้ — หากไม่มี จะไม่มีข้อความ "เพิ่มไปยังหน้าจอหลัก" และ PWA ของคุณจะไม่สามารถเข้า app launcher ของอุปกรณ์ได้
+</Callout>
+
+export const quizManifestOverview = [
+  {
+    q: 'จุดประสงค์หลักของ Web App Manifest คืออะไร?',
+    options: [
+      'กำหนด CSS variables ให้กับแอป',
+      'บอกเบราว์เซอร์ว่าแอปควรมีหน้าตาและพฤติกรรมอย่างไรเมื่อติดตั้ง',
+      'ลงทะเบียน service worker',
+      'จัดเก็บข้อมูลออฟไลน์',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'องค์ประกอบ HTML ใดที่ใช้เชื่อมโยง manifest กับหน้าเว็บ?',
+    options: [
+      '<meta name="manifest">',
+      '<script type="manifest">',
+      '<link rel="manifest">',
+      '<link rel="icon">',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'นามสกุลไฟล์ที่แนะนำสำหรับ manifest คืออะไร?',
+    options: ['.json', '.webmanifest', '.manifest', '.pwa'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/index" questions={quizManifestOverview} />
+
+<ProgressTracker client:visible id="web-app-manifest/index" />

@@ -1,0 +1,156 @@
+---
+title: 'Setting Up @vite-pwa/astro'
+description: 'ติดตั้ง integration @vite-pwa/astro และตั้งค่า AstroPWA ใน astro.config.mjs ด้วย registerType, manifest, workbox, injectManifest และ devOptions'
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ติดตั้งและตั้งค่า @vite-pwa/astro
+
+`@vite-pwa/astro` คือ Astro integration ที่สร้างบน Vite PWA โดยเฉพาะ ทำหน้าที่เชื่อม service worker และ web app manifest เข้ากับกระบวนการ build ของ Astro โดยตรง ทำให้ได้ PWA ที่สมบูรณ์แบบโดยแทบไม่ต้องตั้งค่าด้วยตนเอง เนื่องจาก Astro เป็น SSG framework integration นี้จะ precache ผลลัพธ์ที่ build ออกมาโดยอัตโนมัติ ทั้งหน้าเพจ สคริปต์ stylesheet และ asset ต่าง ๆ ทำให้ใช้งานได้แบบ offline ทันทีหลังเข้าชมครั้งแรก
+
+### การติดตั้ง
+
+ติดตั้งแพ็กเกจด้วย package manager ที่ถนัด:
+
+```bash
+npm install -D @vite-pwa/astro
+# or
+pnpm add -D @vite-pwa/astro
+```
+
+### เพิ่ม integration
+
+เปิด `astro.config.mjs` แล้วเพิ่ม `AstroPWA` เข้าไปใน array ของ `integrations`:
+
+```ts
+import { defineConfig } from 'astro/config'
+import AstroPWA from '@vite-pwa/astro'
+
+export default defineConfig({
+  integrations: [
+    AstroPWA({
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'My Astro PWA',
+        short_name: 'AstroPWA',
+        theme_color: '#ffffff',
+        icons: [
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{css,js,html,svg,png,ico}'],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
+  ],
+})
+```
+
+### registerType
+
+`registerType` ควบคุมวิธีที่ service worker จัดการการอัปเดตเมื่อ deploy เวอร์ชันใหม่
+
+- **`'autoUpdate'`** — service worker ติดตั้งและ activate เงียบ ๆ ในพื้นหลัง ผู้ใช้จะได้รับเวอร์ชันล่าสุดเสมอโดยไม่เห็น prompt ใด ๆ
+- **`'prompt'`** — service worker รอให้โค้ดของคุณยืนยันการอัปเดต ใช้ `virtual:pwa-register` เพื่อแสดงปุ่ม "โหลดใหม่เพื่ออัปเดต" แก่ผู้ใช้
+
+```ts
+// src/pwa.ts
+import { registerSW } from 'virtual:pwa-register'
+registerSW({ immediate: true })
+```
+
+นำเข้า `src/pwa.ts` ใน root layout เพื่อเปิดใช้งาน registration logic บนทุกหน้าเพจ
+
+### manifest option
+
+`manifest` object จะถูก inject เป็น tag `<link rel="manifest">` และ serve ในรูปแบบ `manifest.webmanifest` กรอกอย่างน้อย `name`, `short_name`, `theme_color` และ `icons` integration จะตรวจสอบความถูกต้องของ manifest ในตอน build และแจ้งเตือนหากมีฟิลด์ที่จำเป็นขาดหายไป
+
+### workbox กับ injectManifest
+
+โดยค่าเริ่มต้น `@vite-pwa/astro` ใช้กลยุทธ์ **workbox** ซึ่งสร้าง service worker ให้อัตโนมัติ array `workbox.globPatterns` บอกให้ Workbox รู้ว่าไฟล์ที่ build แล้วชิ้นไหนบ้างที่ต้องเพิ่มเข้า precache manifest — `['**/*.{css,js,html,svg,png,ico}']` ครอบคลุม asset ประเภทหลักทั้งหมด
+
+หากต้องการควบคุม service worker อย่างเต็มที่ ไม่ว่าจะเป็น routing แบบกำหนดเอง background sync หรือการจัดการ push ให้เปลี่ยนเป็นกลยุทธ์ **injectManifest**:
+
+```ts
+AstroPWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.ts',
+  manifest: { /* ... */ },
+})
+```
+
+เมื่อใช้ `injectManifest` คุณเขียน `src/sw.ts` เอง ในตอน build Vite PWA จะ compile ไฟล์นั้นและ inject รายการ precache manifest เข้าไป ทำให้ได้ทั้งความยืดหยุ่นและการ precache อัตโนมัติพร้อมกัน
+
+### devOptions
+
+โดยค่าเริ่มต้น service worker จะถูกปิดใน Vite dev server เนื่องจาก hot-module replacement กับ service worker ที่มีการ cache ไม่เข้ากัน ตั้งค่า `devOptions.enabled: true` เพื่อลงทะเบียน SW ในระหว่าง development เพื่อให้สามารถทดสอบพฤติกรรม offline และ manifest metadata ได้โดยไม่ต้อง build สำหรับ production ก่อน
+
+```ts
+AstroPWA({
+  // ...other options
+  devOptions: {
+    enabled: true,
+  },
+})
+```
+
+<Callout title="Key point">
+Add the integration to `astro.config.mjs` `integrations` — it wires the SW + manifest into Astro's build.
+</Callout>
+
+export const quizVitePwaAstroSetup = [
+  {
+    q: 'คำสั่งใดที่ติดตั้งแพ็กเกจ @vite-pwa/astro เป็น dev dependency ด้วย npm?',
+    options: [
+      'npm install @vite-pwa/astro',
+      'npm install -D @vite-pwa/astro',
+      'npm add @vite-pwa/astro',
+      'npm install -g @vite-pwa/astro',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'registerType: "autoUpdate" ทำงานอย่างไร?',
+    options: [
+      'แสดง prompt ให้ผู้ใช้โหลดหน้าใหม่เมื่อมี SW เวอร์ชันใหม่พร้อมใช้งาน',
+      'ปิดการใช้งาน service worker จนกว่าผู้ใช้จะรีเฟรชเองอย่างชัดเจน',
+      'ติดตั้งและ activate service worker ใหม่เงียบ ๆ โดยไม่ต้องให้ผู้ใช้ดำเนินการใด ๆ',
+      'ลงทะเบียน SW เพียงครั้งเดียวและไม่อัปเดตอีก',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ความแตกต่างหลักระหว่างกลยุทธ์ workbox และ injectManifest คืออะไร?',
+    options: [
+      'workbox ต้องให้คุณเขียนไฟล์ SW เอง ส่วน injectManifest สร้างให้อัตโนมัติ',
+      'workbox สร้าง SW อัตโนมัติ ส่วน injectManifest ให้คุณเขียน SW เองและ inject รายการ precache เข้าไป',
+      'injectManifest ใช้ได้เฉพาะ production build เท่านั้น ส่วน workbox ใช้ได้ทั้ง dev และ production',
+      'ทั้งสองเหมือนกันทุกอย่าง ยกเว้นนามสกุลไฟล์ที่ใช้',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'devOptions: { enabled: true } มีจุดประสงค์เพื่ออะไร?',
+    options: [
+      'เปิดใช้งานการตรวจสอบประเภท TypeScript สำหรับไฟล์ SW',
+      'เผยแพร่ PWA manifest ไปยัง CDN ในระหว่าง development',
+      'ลงทะเบียน service worker ใน Vite dev server เพื่อทดสอบพฤติกรรม offline โดยไม่ต้อง build สำหรับ production',
+      'ปิดการใช้งาน hot-module replacement เพื่อให้ SW สามารถดักจับ request ทั้งหมด',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/vite-pwa-astro-setup" questions={quizVitePwaAstroSetup} />
+
+<ProgressTracker client:visible id="pwa-with-astro/vite-pwa-astro-setup" />

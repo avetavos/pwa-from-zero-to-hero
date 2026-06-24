@@ -1,0 +1,202 @@
+---
+title: Push API
+description: 'Push notification แบบ end-to-end ด้วย VAPID keys: การ subscribe ผ่าน pushManager, ส่ง subscription ไปยัง server และจัดการ push event ใน service worker'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Push API
+
+Push API ช่วยให้ server ของคุณส่งข้อความไปยังอุปกรณ์ของผู้ใช้ได้แม้ผู้ใช้จะไม่ได้ใช้แอปอยู่ — ไม่ต้องมีแท็บเปิดอยู่ เบราว์เซอร์รักษาการเชื่อมต่อถาวรกับ **push service** (ดำเนินการโดย browser vendor) server ของคุณพูดคุยกับ push service นั้น และ push service ส่งข้อความไปยังอุปกรณ์ของผู้ใช้ที่ service worker ของคุณรับมัน
+
+### Push ทำงานอย่างไรแบบ end-to-end
+
+export const pushFlowDiagram = `sequenceDiagram
+  participant Page as Page (JS)
+  participant SW as Service Worker
+  participant PS as Push Service (browser vendor)
+  participant Srv as Your Server
+
+  Page->>SW: navigator.serviceWorker.ready
+  Page->>PS: pushManager.subscribe({ applicationServerKey })
+  PS-->>Page: PushSubscription (endpoint + keys)
+  Page->>Srv: POST /subscribe (subscription JSON)
+  Note over Srv: Stores subscription in DB
+
+  Srv->>PS: POST endpoint with encrypted payload + VAPID auth
+  PS->>SW: push event with data
+  SW->>SW: event.waitUntil(showNotification(...))`;
+
+<Mermaid code={pushFlowDiagram} title="Push notification flow: subscribe, send, deliver" />
+
+### ขั้นตอนที่ 1 — สร้าง VAPID keys
+
+VAPID (Voluntary Application Server Identification) keys ใช้ยืนยันตัวตน server ของคุณกับ push service สร้างครั้งเดียวและเก็บอย่างปลอดภัย:
+
+```bash
+# Using the web-push npm package
+npx web-push generate-vapid-keys
+```
+
+ซึ่งจะให้ **public key** (แชร์กับเบราว์เซอร์) และ **private key** (เก็บไว้บน server เท่านั้น — อย่าเปิดเผย)
+
+### ขั้นตอนที่ 2 — Subscribe จากหน้าเพจ
+
+```js
+// main.js — page code
+async function subscribeToPush() {
+  const registration = await navigator.serviceWorker.ready;
+
+  // Convert your VAPID public key (base64url) to a Uint8Array
+  const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,       // required: every push must show a notification
+    applicationServerKey,
+  });
+
+  // Send the subscription object to your backend
+  await fetch('/api/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription),
+  });
+
+  console.log('Subscribed:', subscription.endpoint);
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+```
+
+`userVisibleOnly: true` เป็นข้อบังคับ — เบราว์เซอร์กำหนดให้ push message ทุกรายการต้องแสดง notification ที่มองเห็นได้
+
+### ขั้นตอนที่ 3 — เก็บ subscription บน server ของคุณ
+
+Server ของคุณรับ subscription JSON (ที่มี `endpoint`, `keys.auth`, `keys.p256dh`) และเก็บไว้ใน database โดยใช้ user เป็น key
+
+### ขั้นตอนที่ 4 — ส่ง push จาก server ของคุณ
+
+```js
+// server.js (Node.js with web-push)
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  'mailto:you@example.com',
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY,
+);
+
+async function sendPush(subscription, payload) {
+  await webpush.sendNotification(subscription, JSON.stringify(payload));
+}
+
+// Example
+sendPush(storedSubscription, {
+  title: 'Your order shipped!',
+  body: 'It will arrive by Thursday.',
+});
+```
+
+### ขั้นตอนที่ 5 — จัดการ push event ใน service worker
+
+```js
+// sw.js — service worker
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : { title: 'Update', body: '' };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/badge-72.png',
+      data,
+    })
+  );
+});
+```
+
+`event.waitUntil()` ทำให้ SW ยังคงทำงานต่อจนกว่า notification จะถูกแสดง ถ้า SW terminate ก่อนที่ `showNotification` จะ resolve notification อาจสูญหายได้
+
+### การตรวจสอบ subscription ที่มีอยู่
+
+ก่อน subscribe ให้ตรวจสอบว่ามี subscription อยู่แล้วหรือไม่เพื่อหลีกเลี่ยงการซ้ำกัน:
+
+```js
+const existing = await registration.pushManager.getSubscription();
+if (existing) {
+  console.log('Already subscribed:', existing.endpoint);
+  return existing;
+}
+```
+
+### การ Unsubscribe
+
+```js
+const subscription = await registration.pushManager.getSubscription();
+if (subscription) {
+  await subscription.unsubscribe();
+  // Also notify your server to remove the stored subscription
+  await fetch('/api/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ endpoint: subscription.endpoint }),
+  });
+}
+```
+
+> **บทเรียนแบบ code-only:** Push ต้องการ backend server ที่มี VAPID keys, database และ push service ตัวอย่างด้านบนสมบูรณ์และถูกต้อง แต่ไม่สามารถรันใน in-browser playground ได้ คัดลอกลงในโปรเจ็กต์จริง เช่น Node.js server ที่มี `web-push` และ frontend framework ใดก็ได้
+
+<Callout title="Key point">
+Push notification ต้องการ backend server ของคุณต้องถือ VAPID private key, เก็บ subscription และส่ง message ผ่าน push service ของ browser vendor เบราว์เซอร์ส่งเฉพาะสิ่งที่ server ของคุณส่ง — ไม่มี push โดยไม่มี server
+</Callout>
+
+export const quizPushApi = [
+  {
+    q: 'What does pushManager.subscribe() return?',
+    options: [
+      'A boolean indicating success',
+      'A PushSubscription object containing the endpoint and encryption keys',
+      'A ServiceWorkerRegistration',
+      'A VAPID key pair',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why is userVisibleOnly: true required in the subscribe options?',
+    options: [
+      'It improves performance',
+      'Browsers require every push message to result in a visible notification',
+      'It enables background sync',
+      'It restricts the subscription to the current tab',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Where should the VAPID private key be stored?',
+    options: [
+      'In the manifest.webmanifest',
+      'In the service worker source file',
+      'Only on your backend server, never exposed to the browser',
+      'In localStorage for persistence',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which service worker event fires when your server sends a push message?',
+    options: ['fetch', 'message', 'push', 'sync'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="push-advanced/push-api" questions={quizPushApi} />
+
+<ProgressTracker client:visible id="push-advanced/push-api" />

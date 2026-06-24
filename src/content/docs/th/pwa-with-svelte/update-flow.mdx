@@ -1,0 +1,210 @@
+---
+title: Update Flow
+description: 'ตรวจจับและ apply การอัปเดต service worker ใน SvelteKit — autoUpdate กับ prompt registerType, virtual:pwa-register store, และรูปแบบ updatefound/statechange แบบ manual'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Service worker update flow ใน SvelteKit
+
+การ deploy build ใหม่หมายความว่าไฟล์ service worker ของคุณเปลี่ยนแปลง — อย่างน้อยที่สุด `version` ใน `$service-worker` จะเปลี่ยน ทำให้ `` `cache-\${version}` `` กลายเป็น string ใหม่ Browser ตรวจจับสิ่งนี้, ดาวน์โหลด SW ใหม่, และเข้าสู่ update lifecycle ที่อธิบายด้านล่าง
+
+### การลงทะเบียน
+
+**SW ในตัว (`src/service-worker.js`):** SvelteKit ลงทะเบียนโดยอัตโนมัติระหว่าง build ใน development type จะเป็น `'module'`; ใน production จะเป็น `'classic'` คุณไม่จำเป็นต้องเรียก `navigator.serviceWorker.register()` เอง
+
+**`@vite-pwa/sveltekit`:** Plugin จัดการการลงทะเบียนผ่านตัวเลือก `registerType` Module `virtual:pwa-register` (และ variant เฉพาะ Svelte `virtual:pwa-register/svelte`) เปิดเผย Svelte store ที่คุณใช้ใน component ใดก็ได้
+
+### Timeline ของการอัปเดต
+
+export const updateDiagram = `sequenceDiagram
+  participant B as Browser
+  participant OSW as Old SW (active)
+  participant NSW as New SW (waiting)
+  participant P as Page
+
+  B->>NSW: Download + parse new sw.js
+  NSW->>NSW: install event (precache new assets)
+  NSW-->>OSW: waiting — old SW still controls tabs
+  P->>P: updatefound event fires
+  note over P: show reload banner
+  P->>NSW: postMessage SKIP_WAITING
+  NSW->>NSW: skipWaiting() — activates immediately
+  NSW->>B: clients.claim() — takes over open tabs
+  P->>P: reload`;
+
+<Mermaid code={updateDiagram} title="Service worker update sequence" />
+
+### ตัวเลือก A: `autoUpdate` กับ `@vite-pwa/sveltekit`
+
+```ts
+// vite.config.ts
+SvelteKitPWA({
+  registerType: 'autoUpdate',
+})
+```
+
+SW ใหม่ activate ทันทีที่ขั้นตอน `install` เสร็จสมบูรณ์ — ไม่มี prompt ดีที่สุดสำหรับแอปที่ URL ของ asset มี fingerprint (hash) เพื่อให้ asset เก่าและใหม่ไม่ชนกัน
+
+### ตัวเลือก B: `prompt` กับ `virtual:pwa-register/svelte`
+
+```ts
+// vite.config.ts
+SvelteKitPWA({
+  registerType: 'prompt',
+})
+```
+
+SW ใหม่รอ Component Svelte ของคุณใช้ `useRegisterSW` จาก `virtual:pwa-register/svelte` เพื่อแสดง banner เมื่อมีการอัปเดตพร้อมใช้งาน:
+
+```svelte
+<!-- src/lib/ReloadPrompt.svelte -->
+<script lang="ts">
+  import { useRegisterSW } from 'virtual:pwa-register/svelte';
+
+  const { needRefresh, offlineReady, updateServiceWorker } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW registered:', r);
+    },
+    onRegisterError(error) {
+      console.error('SW registration error', error);
+    },
+  });
+
+  function close() {
+    offlineReady.set(false);
+    needRefresh.set(false);
+  }
+
+  $: toast = $offlineReady || $needRefresh;
+</script>
+
+{#if toast}
+  <div class="pwa-toast" role="alert">
+    {#if $offlineReady}
+      <span>App ready to work offline.</span>
+    {:else}
+      <span>New version available.</span>
+    {/if}
+    {#if $needRefresh}
+      <button on:click={() => updateServiceWorker(true)}>Reload</button>
+    {/if}
+    <button on:click={close}>Close</button>
+  </div>
+{/if}
+```
+
+`updateServiceWorker(true)` ส่ง `SKIP_WAITING` ไปยัง SW ที่รออยู่ และ reload หน้าเมื่อมันถูก activate
+
+### ตัวเลือก C: manual `updatefound` / `statechange` (SW ในตัว)
+
+เมื่อคุณใช้ `src/service-worker.js` โดยไม่มี `@vite-pwa/sveltekit` ให้เชื่อมต่อการตรวจจับการอัปเดตเอง:
+
+```js
+// src/app.ts (หรือ module ใดก็ตามที่รันในทุกหน้า)
+async function registerAndWatch() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.register(
+    '/service-worker.js',
+    { type: import.meta.env.DEV ? 'module' : 'classic' }
+  );
+
+  registration.addEventListener('updatefound', () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+
+    newWorker.addEventListener('statechange', () => {
+      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        showUpdateBanner(registration);
+      }
+    });
+  });
+}
+
+function showUpdateBanner(registration) {
+  const banner = document.createElement('div');
+  banner.textContent = 'New version available. ';
+  const btn = document.createElement('button');
+  btn.textContent = 'Reload';
+  btn.onclick = () => {
+    registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+    window.location.reload();
+  };
+  banner.appendChild(btn);
+  document.body.prepend(banner);
+}
+
+registerAndWatch();
+```
+
+Service worker ของคุณต้องรับฟัง message นั้น:
+
+```js
+// src/service-worker.js
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+```
+
+### การตรวจสอบการอัปเดตแบบ periodic สำหรับ SPA
+
+แอป SvelteKit มักเป็น SPA — ผู้ใช้อาจอยู่ในหน้าเดิมหลายชั่วโมง ให้เรียก manual update check ทุกระยะเวลา:
+
+```js
+registration.addEventListener('updatefound', () => { /* … */ });
+setInterval(() => registration.update(), 60 * 60 * 1000); // ทุกชั่วโมง
+```
+
+<Callout title="Key point">
+ด้วย `@vite-pwa/sveltekit` ใช้ API `virtual:pwa-register/svelte` — มันให้ store `needRefresh` และ `offlineReady` รวมถึง `updateServiceWorker()` สำหรับ SW ในตัว ให้เชื่อมต่อ `updatefound` และ `statechange` เองและใช้ `postMessage` เพื่อให้ `skipWaiting()` ขึ้นอยู่กับการกระทำของผู้ใช้
+</Callout>
+
+export const quizUpdateFlow = [
+  {
+    q: 'registerType: "autoUpdate" ทำอะไรเมื่อ SW ใหม่ถูกติดตั้ง?',
+    options: [
+      'แสดง prompt ของ browser ในตัวเพื่อขอให้ผู้ใช้ reload',
+      'SW ใหม่ activate ทันทีโดยไม่มี prompt',
+      'SW ใหม่รอจนกว่า tab ทั้งหมดจะถูกปิด',
+      'SW ใหม่ถูกดาวน์โหลดแต่ไม่ถูก activate',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'virtual module ใดที่เปิดเผย needRefresh และ updateServiceWorker เป็น Svelte store?',
+    options: [
+      'virtual:pwa-register',
+      'virtual:pwa-register/svelte',
+      '$service-worker',
+      'virtual:workbox/svelte',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ในรูปแบบ manual update หน้าส่ง message type ใดไปยัง SW ที่รออยู่?',
+    options: ['ACTIVATE_NOW', 'SKIP_WAITING', 'CLAIM_CLIENTS', 'UPDATE_READY'],
+    answer: 1,
+  },
+  {
+    q: 'ทำไมการให้ skipWaiting() ขึ้นอยู่กับผู้ใช้จึงสำคัญ แทนที่จะเรียกโดยไม่มีเงื่อนไขใน install?',
+    options: [
+      'เพราะ skipWaiting() ไม่สามารถใช้ใน install event ได้',
+      'เพื่อป้องกันไม่ให้ SW ใหม่ทำงานบน server',
+      'การเรียกโดยไม่มีเงื่อนไขอาจทำให้หน้าที่โหลดอยู่แล้วพัง เพราะยังใช้ SW asset เก่าอยู่',
+      'เพราะ SvelteKit ไม่รองรับ skipWaiting()',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/update-flow" questions={quizUpdateFlow} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/update-flow" />

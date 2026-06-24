@@ -1,0 +1,142 @@
+---
+title: พื้นฐาน Manifest
+description: 'ฟิลด์จำเป็นและสำคัญที่สุดใน manifest: name, short_name, start_url, scope, id, description, lang และ dir พร้อมตัวอย่างครบถ้วน'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ฟิลด์จำเป็นใน manifest
+
+manifest ขั้นต่ำต้องมีข้อมูลเพียงพอสำหรับเบราว์เซอร์เพื่อติดตั้งแอปและแสดงผลได้อย่างถูกต้อง ตารางด้านล่างแสดงฟิลด์ที่สำคัญที่สุด:
+
+| ฟิลด์ | จำเป็น | วัตถุประสงค์ |
+|---|---|---|
+| `name` | ใช่ | ชื่อแอปแบบเต็มที่แสดงใน install prompt และ app launcher |
+| `short_name` | แนะนำ | ชื่อย่อสำหรับหน้าจอที่มีพื้นที่จำกัด |
+| `start_url` | ใช่ | URL ที่แอปเปิดเมื่อเปิดจากหน้าจอหลัก |
+| `scope` | แนะนำ | prefix URL ที่กำหนดว่าหน้าใดอยู่ "ภายใน" แอป |
+| `id` | แนะนำ | identifier ที่คงที่ ป้องกันการติดตั้งซ้ำเมื่อ URL เปลี่ยน |
+| `description` | แนะนำ | คำอธิบายสั้น ๆ ที่แสดงใน app store และ install UI |
+| `lang` | แนะนำ | ภาษาหลักของเนื้อหา manifest เช่น `"en"`, `"th"` |
+| `dir` | แนะนำ | ทิศทางข้อความ: `"ltr"`, `"rtl"` หรือ `"auto"` |
+
+### ตัวอย่างครบถ้วน
+
+```json
+{
+  "name": "My Awesome PWA",
+  "short_name": "AwesomePWA",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "description": "A fast, offline-capable progressive web app.",
+  "lang": "en",
+  "dir": "ltr",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+### รายละเอียดแต่ละฟิลด์
+
+**`name` vs `short_name`** — `name` แสดงในกล่องโต้ตอบการติดตั้งและ splash screen ส่วน `short_name` ใช้บนหน้าจอหลักที่พื้นที่จำกัด (Android มักตัดที่ประมาณ 12 ตัวอักษร) หากไม่ระบุ `short_name` เบราว์เซอร์จะใช้ `name` แทน
+
+**`start_url`** — นี่คือที่ที่แอปไปเมื่อผู้ใช้แตะ icon คุณอาจเพิ่ม query param เพื่อติดตามการติดตั้งได้ เช่น `"/?source=pwa"`
+
+**`scope`** — หากผู้ใช้ไปยัง URL ที่อยู่นอก scope เบราว์เซอร์จะเปิดแท็บปกติแทนที่จะอยู่ในหน้าต่าง standalone ตั้งค่าเป็น `"/"` สำหรับแอปที่ใช้ origin เดียว
+
+**`id`** — สตริงที่ระบุแอปได้อย่างไม่ซ้ำ หาก `start_url` เปลี่ยนในภายหลัง เบราว์เซอร์จะไม่สร้างการติดตั้งซ้ำตราบใดที่ `id` ยังเหมือนเดิม
+
+**`lang` และ `dir`** — บอก assistive technology และระบบปฏิบัติการถึงภาษาและทิศทางข้อความสำหรับชื่อและคำอธิบายของแอป
+
+### ลองใช้งานจริง
+
+playground ด้านล่างให้บริการ manifest ขั้นต่ำ เปิดใน StackBlitz และตรวจสอบแผง DevTools **Application → Manifest** เพื่อยืนยันว่าทุกฟิลด์ถูกอ่านอย่างถูกต้อง
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Manifest Basics Demo</title>
+  </head>
+  <body>
+    <h1>Manifest Basics</h1>
+    <p>Open DevTools &rarr; Application &rarr; Manifest to inspect the parsed fields.</p>
+  </body>
+</html>`,
+  'manifest.webmanifest': `{
+  "name": "My Awesome PWA",
+  "short_name": "AwesomePWA",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "description": "A fast, offline-capable progressive web app.",
+  "lang": "en",
+  "dir": "ltr",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}`,
+  'sw.js': `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));`,
+};
+
+<PwaPlayground files={proj} openFile="manifest.webmanifest" />
+
+<Callout title="ประเด็นสำคัญ">
+`start_url` คือ URL ที่แอปจะเปิดเมื่อเปิดจากหน้าจอหลัก ตั้งค่าให้เป็น URL ที่เซิร์ฟเวอร์ของคุณให้บริการจริง — `start_url` ที่ไม่ถูกต้องจะทำให้การติดตั้งล้มเหลว
+</Callout>
+
+export const quizManifestBasics = [
+  {
+    q: 'ฟิลด์ใดใช้เพื่อระบุตัวตนของแอปอย่างคงที่แม้ start_url จะเปลี่ยน?',
+    options: ['name', 'scope', 'id', 'short_name'],
+    answer: 2,
+  },
+  {
+    q: 'เกิดอะไรขึ้นเมื่อผู้ใช้ไปยัง URL ที่อยู่นอก manifest scope ใน standalone PWA?',
+    options: [
+      'แอปจะขัดข้อง',
+      'service worker บล็อกคำขอ',
+      'เบราว์เซอร์เปิดแท็บปกติแทนที่จะอยู่ในหน้าต่างแอป',
+      'แอปเปลี่ยนเส้นทางไปยัง start_url โดยอัตโนมัติ',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'short_name ใช้สำหรับอะไร?',
+    options: [
+      'แถบชื่อหน้าต่าง',
+      'คำอธิบาย icon',
+      'ป้ายกำกับบนหน้าจอหลักที่พื้นที่จำกัด',
+      'ชื่อแท็บเบราว์เซอร์',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ฟิลด์ใดที่บอก assistive technology และระบบปฏิบัติการเกี่ยวกับภาษาและทิศทางข้อความของแอป?',
+    options: ['name และ description', 'lang และ dir', 'scope และ id', 'start_url และ display'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/manifest-basics" questions={quizManifestBasics} />
+
+<ProgressTracker client:visible id="web-app-manifest/manifest-basics" />

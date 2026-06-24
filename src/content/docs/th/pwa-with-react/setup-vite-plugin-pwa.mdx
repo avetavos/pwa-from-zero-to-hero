@@ -1,0 +1,120 @@
+---
+title: 'การติดตั้ง vite-plugin-pwa'
+description: 'ติดตั้ง vite-plugin-pwa และเพิ่ม VitePWA() เข้าไปใน vite.config.ts พร้อม registerType, manifest, devOptions และข้อแลกเปลี่ยนระหว่าง autoUpdate กับ prompt'
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## บทนำ
+
+`vite-plugin-pwa` คือวิธีมาตรฐานในการเพิ่ม PWA support ให้กับแอป React ที่ใช้ Vite เพียง plugin call เดียวใน `vite.config.ts` ก็จัดการ service worker generation, manifest injection และ asset precaching ได้ครบ คุณกำหนดค่าทุกอย่างในที่เดียว แล้ว Workbox จะทำหนักให้คุณตอน build time
+
+## ติดตั้ง
+
+```bash
+npm install -D vite-plugin-pwa
+```
+
+## การกำหนดค่าเบื้องต้น
+
+เพิ่ม `VitePWA` เข้าไปใน Vite plugins array ของคุณใน `vite.config.ts`:
+
+```ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+      manifest: {
+        name: 'My React PWA',
+        short_name: 'ReactPWA',
+        description: 'A React PWA powered by vite-plugin-pwa',
+        theme_color: '#ffffff',
+        icons: [
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
+  ],
+})
+```
+
+## registerType
+
+option `registerType` ควบคุมว่า service worker จัดการ update อย่างไรเมื่อ deploy version ใหม่
+
+- `'autoUpdate'` — SW ใหม่เรียก `skipWaiting` และ `clients.claim` โดยอัตโนมัติ หน้าเว็บจะอัปเดตเงียบ ๆ ในพื้นหลังโดยไม่ต้องมีการโต้ตอบจากผู้ใช้ เหมาะเมื่อยอมรับได้ที่ content จะ stale ช่วงสั้น ๆ
+- `'prompt'` — SW ใหม่ติดตั้งแต่รอ code ในแอปของคุณต้องรับผิดชอบตรวจจับ waiting SW และแสดง UI element (เช่น ปุ่ม Reload) ให้ผู้ใช้ตัดสินใจว่าจะ refresh เมื่อใด
+
+| ค่า registerType | พฤติกรรม | เมื่อใดควรใช้ |
+|---|---|---|
+| autoUpdate | อัปเดตแบบเงียบในพื้นหลัง | แอปที่ยอมรับ staleness ได้ |
+| prompt | SW ใหม่รอ; ผู้ใช้เห็นปุ่ม Reload | แอปที่ต้องการให้ผู้ใช้เห็นการอัปเดต |
+
+## devOptions
+
+`devOptions: { enabled: true }` เปิดใช้ service worker ใน Vite development server เพื่อให้คุณทดสอบ caching และ offline behavior ในเครื่องได้ กำหนดเป็น `false` หรือละเว้น field นี้ทั้งหมดใน production CI pipeline ที่คุณไม่ต้องการให้ SW ไปรบกวนการตรวจสอบ build output
+
+<Callout title="ประเด็นสำคัญ">
+`registerType: "autoUpdate"` ส่งอัปเดตเงียบ ๆ; `"prompt"` ให้คุณแสดงปุ่ม refresh ได้
+</Callout>
+
+export const quizSetupVitePluginPwa = [
+  {
+    q: 'devDependency ใดที่ใช้ติดตั้ง vite-plugin-pwa?',
+    options: [
+      'npm install vite-plugin-pwa',
+      'npm install -D vite-plugin-pwa',
+      'npm install @vitejs/plugin-pwa',
+      'npm install workbox-webpack-plugin',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'registerType: "autoUpdate" ทำอะไรโดยอัตโนมัติ?',
+    options: [
+      'แสดง reload banner',
+      'เรียก skipWaiting และ clients.claim เพื่อให้ SW ใหม่ activate เงียบ ๆ',
+      'ต้องการการยืนยันจากผู้ใช้',
+      'ปิดใช้ caching',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'จุดประสงค์ของ devOptions: { enabled: true } คืออะไร?',
+    options: [
+      'เปิดใช้ HMR สำหรับ SW',
+      'อนุญาตให้ทดสอบ service worker ในโหมด development',
+      'ปิดใช้ manifest ใน dev',
+      'สร้าง production assets เท่านั้น',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'option ใดใน VitePWA() ที่เก็บ web app manifest?',
+    options: [
+      'webManifest',
+      'manifest',
+      'appManifest',
+      'pwaManifest',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/setup-vite-plugin-pwa" questions={quizSetupVitePluginPwa} />
+
+<ProgressTracker client:visible id="pwa-with-react/setup-vite-plugin-pwa" />

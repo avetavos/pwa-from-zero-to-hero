@@ -1,0 +1,290 @@
+---
+title: App Shell Architecture
+description: 'วิธีจัดโครงสร้าง PWA ด้วย precached app shell และ dynamically loaded content เพื่อให้การเข้าชมซ้ำโหลดได้ทันที'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## App-shell architecture
+
+App-shell architecture คือ design pattern ที่แบ่ง PWA ออกเป็นสองชั้นที่แตกต่างกัน:
+
+- **Shell** — HTML, CSS, และ JavaScript ขั้นต่ำที่ render โครงของแอปพลิเคชัน (navigation, layout, header, footer) มันเปลี่ยนแปลงเฉพาะเมื่อคุณ deploy version ใหม่
+- **Content** — ข้อมูลและ markup เฉพาะสำหรับแต่ละ view (บทความ, สินค้า, โปรไฟล์ผู้ใช้) มันเปลี่ยนแปลงบ่อยและถูก fetch ที่ runtime
+
+โดยการแยกสองชั้นนี้ คุณสามารถ precache shell อย่างจริงจังและใช้กลยุทธ์ที่เบากว่าสำหรับ content ผลลัพธ์คือการเข้าชมซ้ำโหลด UI frame จาก local storage ในมิลลิวินาที และ content จะ fill in แบบ asynchronous
+
+### อะไรที่ควรอยู่ใน shell
+
+Shell ควรมีทุกอย่างที่จำเป็นในการ render skeleton ที่มีความหมายโดยไม่มี network request:
+
+```
+index.html          — application entry point
+app.css             — layout, typography, navigation styles
+app.js              — client-side router และ bootstrap code
+icons/logo.svg      — brand assets ที่ใช้ในทุกหน้า
+offline.html        — fallback page สำหรับ navigation ที่ล้มเหลว
+```
+
+ไม่ควรมี per-page data, user-specific content, หรือ assets ที่เปลี่ยนแปลงระหว่าง page views
+
+### Precaching shell ใน install
+
+```js
+const SHELL_CACHE = 'shell-v2';
+const SHELL_ASSETS = [
+  '/',
+  '/app.css',
+  '/app.js',
+  '/icons/logo.svg',
+  '/offline.html',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS))
+  );
+  self.skipWaiting();
+});
+```
+
+`cache.addAll()` เป็น atomic — หาก asset ใดหนึ่งดาวน์โหลดล้มเหลว การ install ทั้งหมดจะล้มเหลวและ SW เก่ายังคงทำงาน ควรให้ precache list มีขนาดเล็กและเชื่อถือได้
+
+### Cache shell, network content
+
+ใน fetch handler ให้แยกแยะ shell requests จาก content requests และใช้กลยุทธ์ที่แตกต่างกันกับแต่ละอัน
+
+```js
+const CONTENT_CACHE = 'content-v1';
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Shell assets: cache-first (เร็ว, offline-safe)
+  if (SHELL_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  // API / content: network-first, fall back to cache
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CONTENT_CACHE).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Navigation: serve shell, ให้ SPA router จัดการ route
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/').then((cached) => cached || fetch(event.request))
+    );
+  }
+});
+```
+
+### ทำไม SPA pattern ถึงสำคัญที่นี่
+
+ใน Single Page Application เซิร์ฟเวอร์มี HTML file เพียงหนึ่งไฟล์ (`index.html` / `/`) การ routing ทั้งหมดเกิดขึ้นใน JavaScript เมื่อ service worker ดักจับ navigation ไปยัง `/profile` หรือ `/settings` ควรให้บริการ `index.html` shell เดิม — SPA router จะอ่าน URL และ render view ที่ถูกต้อง
+
+### Load sequence diagram
+
+export const appShellDiagram = `sequenceDiagram
+  participant U as User
+  participant SW as Service Worker
+  participant CS as Cache Storage
+  participant NET as Network
+
+  U->>SW: navigate to /dashboard
+  SW->>CS: match('/')
+  CS-->>SW: shell (index.html) — instant
+  SW-->>U: Shell renders in <100ms
+  U->>SW: fetch /api/dashboard-data
+  SW->>NET: fetch (network-first)
+  NET-->>SW: JSON response
+  SW->>CS: cache.put (content-v1)
+  SW-->>U: Data fills in`;
+
+<Mermaid code={appShellDiagram} title="App shell load vs content load sequence" />
+
+### การอัปเดต shell
+
+เพราะ shell assets ถูก cache อย่างจริงจัง คุณต้องมีกลยุทธ์ในการ push การอัปเดต แนวทางมาตรฐานคือการเปลี่ยน cache name (เช่น `shell-v2` → `shell-v3`) และ clean up old caches ใน activate event
+
+```js
+self.addEventListener('activate', (event) => {
+  const keepCaches = [SHELL_CACHE, CONTENT_CACHE];
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(
+        names
+          .filter((name) => !keepCaches.includes(name))
+          .map((name) => caches.delete(name))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+```
+
+### ลองใช้งานจริง
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>App Shell Demo</title>
+  </head>
+  <body>
+    <nav class="shell-nav">
+      <span class="logo">MyPWA</span>
+      <a href="/">Home</a>
+      <a href="/about">About</a>
+    </nav>
+    <main id="content">
+      <p class="loading">Loading content...</p>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>`,
+  'app.css': `* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; }
+.shell-nav { background: #5A0FC8; color: white; display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.5rem; }
+.shell-nav .logo { font-weight: 700; margin-right: auto; }
+.shell-nav a { color: white; text-decoration: none; }
+main { padding: 2rem 1.5rem; max-width: 800px; margin: 0 auto; }
+.loading { color: #888; }
+.card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }`,
+  'app.js': `if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then((r) => console.log('[App] SW registered, scope:', r.scope))
+    .catch((e) => console.error('[App] SW registration failed:', e));
+}
+
+// Simulate loading dynamic content after shell renders
+const content = document.getElementById('content');
+setTimeout(() => {
+  content.innerHTML = '<div class="card"><h2>Dashboard</h2><p>Dynamic content loaded from the network (simulated).</p></div>';
+}, 800);`,
+  'sw.js': `const SHELL_CACHE = 'shell-v1';
+const SHELL_ASSETS = ['/', '/app.css', '/app.js'];
+
+self.addEventListener('install', (event) => {
+  console.log('[SW] Installing — precaching shell');
+  event.waitUntil(
+    caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating');
+  event.waitUntil(
+    caches.keys()
+      .then((names) => Promise.all(
+        names.filter((n) => n !== SHELL_CACHE).map((n) => caches.delete(n))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Shell assets: cache-first
+  if (SHELL_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        console.log('[SW] Shell asset from cache:', url.pathname);
+        return cached || fetch(event.request);
+      })
+    );
+    return;
+  }
+
+  // Navigation: serve shell for SPA routing
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/').then((cached) => cached || fetch(event.request))
+    );
+  }
+});`,
+  'manifest.webmanifest': `{
+  "name": "App Shell Demo",
+  "short_name": "AppShell",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8"
+}`,
+};
+
+<PwaPlayground files={proj} openFile="sw.js" />
+
+<Callout title="ประเด็นสำคัญ">
+แยก shell (เปลี่ยนแปลงน้อย) ออกจาก content (เปลี่ยนแปลงบ่อย) และ cache ด้วยกลยุทธ์ที่แตกต่างกัน Cache shell อย่างจริงจังด้วย cache-first; ใช้ network-first สำหรับ dynamic data เพื่อให้ผู้ใช้เห็น content ใหม่เมื่อ online และ content ที่ cache ไว้เมื่อ offline
+</Callout>
+
+export const quizAppShell = [
+  {
+    q: 'Which assets belong in the precached app shell?',
+    options: [
+      'Blog posts, product listings, and user comments',
+      'Navigation HTML, global CSS, bootstrap JS, and brand icons',
+      'Only the service worker file itself',
+      'API responses cached at runtime',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why should you serve the shell (index.html) for all navigation requests in a SPA?',
+    options: [
+      'Because the server returns a 404 for deep links',
+      'Because the SPA JavaScript router needs the shell to render any view, even when navigating to /profile or /settings',
+      'Because the cache only stores the root URL',
+      'Because navigation requests bypass the fetch event',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the consequence of including a large or unreliable asset in cache.addAll() during install?',
+    options: [
+      'Only the failing asset is skipped; all others are cached',
+      'The install completes but that asset will not be available offline',
+      'If any asset fails, the entire install fails and the SW goes Redundant',
+      'The SW retries the failed asset in the background',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'How do you push a shell update to users who have the old version cached?',
+    options: [
+      'Call cache.clear() from the page',
+      'Change the SW cache name (e.g. shell-v2 to shell-v3) and delete old caches in the activate event',
+      'Service worker updates are automatic — no action needed',
+      'Set an Expires header on the shell HTML',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="offline-app-shell/app-shell" questions={quizAppShell} />
+
+<ProgressTracker client:visible id="offline-app-shell/app-shell" />

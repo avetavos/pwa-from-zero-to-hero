@@ -1,0 +1,81 @@
+---
+title: 'PWA with React'
+description: 'How vite-plugin-pwa integrates with a React app: the modern Vite path, what this module covers, and a diagram of the build → SW → update flow.'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The modern React PWA path
+
+With Vite and React, the recommended way to add PWA support is `vite-plugin-pwa`. It wraps Workbox under the hood, generates your service worker at build time, injects the web app manifest into your HTML, and exposes a small registration API you can call from your app code. Create React App, the older alternative, is now deprecated and should not be used for new projects.
+
+This module covers five lessons that take you from an empty Vite + React project to a fully working PWA with an update prompt and React-specific integration patterns.
+
+## Module coverage
+
+| Lesson | Topic |
+|---|---|
+| 1 | PWA with React — Overview (this page) |
+| 2 | Setting Up vite-plugin-pwa |
+| 3 | Manifest and Icons |
+| 4 | Update Prompt UI |
+| 5 | React Patterns for PWAs |
+
+## Build, service worker, and update flow
+
+export const buildSwFlow = `flowchart LR
+  A["Vite Build"] --> B["dist/"]
+  B --> C["SW registered"]
+  C --> D["SW activated"]
+  D --> E["Update check"]
+  E --> F["New SW waiting"]
+  F --> G["User prompted"]
+  G --> H["Reload"]`;
+
+<Mermaid code={buildSwFlow} title="Vite build, service worker, and update flow" />
+
+<Callout title="Key point">
+With Vite + React, `vite-plugin-pwa` generates the SW, injects the manifest, and gives you a tiny register API.
+</Callout>
+
+export const quizPwaWithReactIndex = [
+  {
+    q: 'Which tool generates the service worker when using Vite + React?',
+    options: [
+      'Create React App',
+      'vite-plugin-pwa',
+      'Webpack PWA Plugin',
+      'next-pwa',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the build tool underlying vite-plugin-pwa?',
+    options: [
+      'Rollup only',
+      'Webpack',
+      'Workbox',
+      'Parcel',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which project type is explicitly marked deprecated for new React PWAs?',
+    options: [
+      'Vite',
+      'Next.js',
+      'Create React App',
+      'SvelteKit',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/index" questions={quizPwaWithReactIndex} />
+
+<ProgressTracker client:visible id="pwa-with-react/index" />

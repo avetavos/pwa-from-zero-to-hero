@@ -1,0 +1,206 @@
+---
+title: 'การ Audit PWA ด้วย Lighthouse'
+description: 'วิธีรัน Lighthouse PWA audit ใน Chrome DevTools, นำทาง Application tab, ตีความการตรวจสอบ installability และแก้ไขความล้มเหลวที่พบบ่อยที่สุด'
+sidebar:
+  order: 5
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การ Audit PWA ด้วย Lighthouse
+
+Lighthouse คือเครื่องมือคุณภาพที่ built-in มากับ Chrome มันรัน automated check กับหน้าของคุณและสร้าง report แบบแยกหมวดหมู่ — หนึ่งในนั้นคือหมวด **Progressive Web App** หมวด PWA ไม่ได้ให้คะแนนตัวเลข แต่ให้ผลลัพธ์ pass/fail สำหรับเกณฑ์ installability แต่ละข้อ หากเกณฑ์ใดล้มเหลว browser จะปฏิเสธการแสดง install prompt
+
+การสร้างนิสัยในการรัน Lighthouse audit แต่เนิ่นๆ — ก่อนที่คุณจะเชื่อมต่อ caching strategy หรือ push notification — หมายความว่าคุณจับส่วนที่ขาดหายไปได้ในขณะที่ codebase ยังเล็กอยู่
+
+### วิธีรัน Lighthouse PWA audit
+
+1. เปิด Chrome และนำทางไปยังแอปของคุณ (ต้อง serve ผ่าน HTTPS หรือ `localhost`)
+2. เปิด DevTools ด้วย `F12` หรือ `Cmd+Option+I`
+3. คลิก tab **Lighthouse** (คุณอาจต้องคลิกลูกศร overflow `»` เพื่อค้นหา)
+4. ภายใต้ **Categories** ติ๊ก **Progressive Web App** (ยกเลิกติ๊กอื่นๆ เพื่อเร่งความเร็ว)
+5. คลิก **Analyze page load**
+
+Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล และแสดง report ส่วน PWA จะแสดงการตรวจสอบ installability แต่ละรายการด้วยเครื่องหมายถูกสีเขียวหรือกากบาทสีแดง
+
+### ทัวร์ Application tab
+
+ในขณะที่ Lighthouse มอบ report แบบเป็นลายลักษณ์อักษร tab **Application** ใน DevTools ให้คุณตรวจสอบ state สดของ PWA ได้ตลอดเวลาโดยไม่ต้องโหลดซ้ำ
+
+| Panel | สิ่งที่แสดง |
+|---|---|
+| **Manifest** | `manifest.webmanifest` ที่ถูก parse — name, icons (พร้อม preview), `start_url`, `display`, สี banner คำเตือนจะปรากฏหาก field ที่จำเป็นขาดหายไป |
+| **Service Workers** | SW ที่ register แล้วทุกตัวสำหรับ origin นี้: URL ของ script, status (`activated and is running`, `waiting to activate`, `stopped`) และปุ่ม **skipWaiting** เพื่อ force-activate SW ที่รอ |
+| **Storage** | รายการ Cache Storage ที่สร้างโดย SW ของคุณ มีประโยชน์สำหรับการตรวจสอบ pre-cache list |
+| **Background Services** | Log สำหรับ Background Fetch, Background Sync, Push Messaging — มีประโยชน์เมื่อคุณเพิ่ม API เหล่านั้น |
+
+เปิด panel **Manifest** ก่อนเป็นอันดับแรกสำหรับ PWA ที่ไม่คุ้นเคย มันบอกได้ทันทีว่า browser ได้ parse manifest ที่ถูกต้องหรือไม่ และพบ icon อะไรบ้าง
+
+### สิ่งที่ Lighthouse ตรวจสอบสำหรับ installability
+
+เกณฑ์การ install ของ Chrome (ณ Chrome 2023+) แมปตรงกับการตรวจสอบ PWA ของ Lighthouse:
+
+| เกณฑ์ | สิ่งที่ต้องเป็นจริง |
+|---|---|
+| **Web app manifest** | มี tag `<link rel="manifest">` อยู่และไฟล์เข้าถึงได้ |
+| **`name` หรือ `short_name`** | มีอย่างน้อยหนึ่งอยู่ใน manifest |
+| **`start_url`** | มีอยู่และตอบกลับด้วย 200 เมื่อถูก fetch |
+| **`display`** | ตั้งค่าเป็น `standalone`, `fullscreen` หรือ `minimal-ui` |
+| **Icons** | มี icon อย่างน้อยหนึ่งที่ขนาด **192 × 192** และหนึ่งที่ **512 × 512** (หรือใหญ่กว่า) Icon ต้องประกาศ `src`, `sizes` และ `type` |
+| **Service worker** | SW ถูก register และควบคุมหน้า |
+| **HTTPS** | หน้าอยู่บน secure origin (`https://` หรือ `localhost`) |
+
+### ความล้มเหลวที่พบบ่อยและวิธีแก้ไข
+
+| ข้อความความล้มเหลว | สาเหตุ | วิธีแก้ไข |
+|---|---|---|
+| `No manifest detected` | ขาด `<link rel="manifest">` หรือไฟล์ return 404 | เพิ่ม `<link rel="manifest" href="/manifest.webmanifest">` ใน `<head>` และตรวจสอบว่าไฟล์ถูก serve |
+| `Manifest does not contain a 192px icon` | array icons ว่างเปล่าหรือ icon ทั้งหมดเล็กกว่า 192 px | เพิ่ม entry ที่มี `"sizes": "192x192"` และอีกอันที่มี `"sizes": "512x512"` |
+| `Page controlled by a service worker` ล้มเหลว | ไม่มี SW register, SW throw ระหว่าง install หรือ scope ของ SW ไม่ครอบคลุมหน้า | Register SW จาก root (`/sw.js`) และยืนยันว่า console ไม่แสดง registration error |
+| `Does not redirect HTTP to HTTPS` | Production server ไม่ enforce HTTPS | กำหนดค่า host หรือ CDN ของคุณให้ออก 301 redirect จาก `http://` ไปยัง `https://` |
+| `start_url does not respond with a 200` | `start_url` ชี้ไปยัง path ที่ return 404 หรือ SW ไม่จัดการ request นั้น | ตรวจสอบว่า `start_url` เป็น route จริงและ fetch handler ของ SW return บางอย่างสำหรับมัน |
+| `display is not one of standalone, fullscreen, minimal-ui` | `"display": "browser"` หรือ field ขาดหายไป | เปลี่ยนเป็น `"display": "standalone"` |
+
+### ทดลองแบบ live
+
+demo ด้านล่างเป็น PWA ขั้นต่ำที่ผ่านการตรวจสอบ installability ทั้งหมดของ Lighthouse เปิดใน StackBlitz และรัน Lighthouse audit ภายใน preview เพื่อดูทุกเกณฑ์ผ่าน
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#5A0FC8" />
+    <title>Lighthouse PWA Demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+      h1 { color: #5A0FC8; }
+      #status { margin-top: 1rem; padding: .75rem 1rem; border-radius: 6px; background: #f3f0ff; }
+    </style>
+  </head>
+  <body>
+    <h1>Lighthouse PWA Demo</h1>
+    <p>This app passes every Lighthouse installability check.</p>
+    <div id="status">Checking service worker…</div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  'manifest.webmanifest': `{
+  "name": "Lighthouse PWA Demo",
+  "short_name": "LH Demo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%235A0FC8'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='white'%3E%F0%9F%94%A6%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%235A0FC8'/%3E%3Ctext x='256' y='350' font-size='280' text-anchor='middle' fill='white'%3E%F0%9F%94%A6%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}`,
+  'sw.js': `const CACHE = 'lh-demo-v1';
+const PRECACHE = ['/', '/index.html', '/main.js', '/manifest.webmanifest'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((names) => Promise.all(names.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached ?? fetch(event.request))
+  );
+});`,
+  'main.js': `const status = document.getElementById('status');
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then((reg) => {
+      status.textContent = 'Service worker registered. Scope: ' + reg.scope;
+      status.style.background = '#e8f5e9';
+    })
+    .catch((err) => {
+      status.textContent = 'Registration failed: ' + err;
+      status.style.background = '#fce4ec';
+    });
+} else {
+  status.textContent = 'Service workers are not supported in this browser.';
+}`,
+};
+
+<PwaPlayground files={proj} openFile="manifest.webmanifest" />
+
+<Callout title="ประเด็นสำคัญ">
+รัน Lighthouse PWA audit แต่เนิ่นๆ — มันบอกคุณว่ายังขาดเกณฑ์ installability ข้อใด
+</Callout>
+
+export const quizLighthouseAudit = [
+  {
+    q: 'คุณจะพบ Lighthouse PWA audit ใน Chrome DevTools ได้ที่ไหน?',
+    options: [
+      'Application tab > Manifest panel',
+      'Lighthouse tab > Progressive Web App category',
+      'Network tab > PWA filter',
+      'Sources tab > Service Workers panel',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ขนาด icon สองขนาดใดที่ manifest ต้องประกาศเพื่อผ่านการตรวจสอบ installability ของ Lighthouse?',
+    options: [
+      '48x48 และ 96x96',
+      '128x128 และ 256x256',
+      '192x192 และ 512x512',
+      '64x64 และ 512x512',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Lighthouse audit รายงานว่า "Page controlled by a service worker" ล้มเหลวแม้ว่า sw.js จะมีอยู่ สาเหตุที่น่าจะเป็นมากที่สุดคืออะไร?',
+    options: [
+      'Manifest ขาด field theme_color',
+      'ไฟล์ service worker ถูก serve จาก subdirectory ดังนั้น scope จึงไม่ครอบคลุมหน้า',
+      'แอปใช้ display: standalone แทน display: browser',
+      'start_url ถูกตั้งค่าเป็น / แทน index.html',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Application tab > Service Workers panel ให้คุณทำอะไรระหว่างการพัฒนา?',
+    options: [
+      'แก้ไข field ของ manifest โดยตรงใน browser',
+      'Force service worker ที่รอให้ activate ทันทีผ่านปุ่ม skipWaiting',
+      'ดูคะแนน Lighthouse audit โดยไม่ต้องรัน report เต็มรูปแบบ',
+      'เปลี่ยนใบรับรอง HTTPS สำหรับ localhost',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/lighthouse-audit" questions={quizLighthouseAudit} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/lighthouse-audit" />

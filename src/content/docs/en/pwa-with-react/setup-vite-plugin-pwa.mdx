@@ -1,0 +1,128 @@
+---
+title: 'Setting Up vite-plugin-pwa'
+description: "Install vite-plugin-pwa and add VitePWA() to vite.config.ts with registerType, manifest, devOptions, and the autoUpdate vs prompt trade-off."
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Introduction
+
+`vite-plugin-pwa` is the standard way to add PWA support to a Vite-based React app. One plugin call in `vite.config.ts` handles service worker generation, manifest injection, and asset precaching. You configure everything in one place and Workbox does the heavy lifting at build time.
+
+## Install
+
+```bash
+npm install -D vite-plugin-pwa
+```
+
+## Basic configuration
+
+Add `VitePWA` to your Vite plugins array in `vite.config.ts`:
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      manifest: {
+        name: 'My React PWA',
+        short_name: 'ReactPWA',
+        description: 'A progressive web app built with Vite and React',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+        ],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
+  ],
+});
+```
+
+## registerType
+
+The `registerType` option controls how the service worker handles updates when a new version is deployed.
+
+- `'autoUpdate'` — the new SW calls `skipWaiting` and `clients.claim` automatically. The page is updated silently in the background without any user interaction. This is appropriate when stale content for a short period is acceptable.
+- `'prompt'` — the new SW installs but waits. Your app code is responsible for detecting the waiting SW and showing a UI element (such as a Reload button) that lets the user decide when to refresh.
+
+| registerType value | Behavior | When to use |
+|---|---|---|
+| autoUpdate | Silent background update | Apps where staleness is acceptable |
+| prompt | New SW waits; user sees a Reload button | Apps where users must see the update |
+
+## devOptions
+
+`devOptions: { enabled: true }` activates the service worker in Vite's development server so you can test caching and offline behavior locally. Set it to `false` or omit the field entirely in production CI pipelines where you do not want a SW interfering with the build output checks.
+
+<Callout title="Key point">
+`registerType: "autoUpdate"` ships updates silently; `"prompt"` lets you show a refresh button.
+</Callout>
+
+export const quizSetupVitePluginPwa = [
+  {
+    q: 'Which devDependency installs vite-plugin-pwa?',
+    options: [
+      'npm install vite-plugin-pwa',
+      'npm install -D vite-plugin-pwa',
+      'npm install @vitejs/plugin-pwa',
+      'npm install workbox-webpack-plugin',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does registerType: "autoUpdate" do automatically?',
+    options: [
+      'Shows a reload banner',
+      'Calls skipWaiting and clients.claim so the new SW activates silently',
+      'Requires user confirmation',
+      'Disables caching',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What is the purpose of devOptions: { enabled: true }?',
+    options: [
+      'Enables HMR for the SW',
+      'Allows testing the service worker in development mode',
+      'Disables the manifest in dev',
+      'Generates production assets only',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which option in VitePWA() holds the web app manifest?',
+    options: [
+      'webManifest',
+      'manifest',
+      'appManifest',
+      'pwaManifest',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/setup-vite-plugin-pwa" questions={quizSetupVitePluginPwa} />
+
+<ProgressTracker client:visible id="pwa-with-react/setup-vite-plugin-pwa" />

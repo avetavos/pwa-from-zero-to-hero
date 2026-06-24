@@ -1,0 +1,153 @@
+---
+title: โมดูล $service-worker
+description: 'ใช้ virtual module $service-worker เพื่อเข้าถึง build, files, version, และ prerendered — แล้ว precache ใน SvelteKit service worker แบบ vanilla'
+sidebar:
+  order: 3
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Vanilla SvelteKit service workers
+
+SvelteKit จะ bundle และลงทะเบียนไฟล์ใดก็ตามที่คุณวางไว้ที่ `src/service-worker.js` (หรือ `.ts`) โดยอัตโนมัติ ภายในไฟล์นั้น virtual module `$service-worker` จะให้ทุกอย่างที่คุณต้องการในการเขียน service worker สำหรับ precache ที่แข็งแกร่งโดยไม่ต้องใช้ไลบรารี third-party ใดๆ
+
+### สิ่งที่ `$service-worker` export ออกมา
+
+| Export | ประเภท | เนื้อหา |
+|---|---|---|
+| `build` | `string[]` | Client-side asset ที่มี hash (`_app/immutable/…`) |
+| `files` | `string[]` | ทุกอย่างที่คัดลอกมาจาก `static/` |
+| `version` | `string` | String เฉพาะตัวที่เปลี่ยนในทุก build |
+| `prerendered` | `string[]` | Path ของ HTML page ที่ prerender แล้ว |
+
+`build` และ `files` รวมกันครอบคลุม asset ทั้งหมดที่แอปของคุณต้องการเพื่อทำงาน offline `version` สร้างชื่อ cache เฉพาะตัว เพื่อให้ cache เก่าถูกล้างออกอย่างน่าเชื่อถือหลังจาก deploy ใหม่แต่ละครั้ง
+
+### สร้าง `src/service-worker.js`
+
+```js
+/// <reference types="@sveltejs/kit" />
+import { build, files, version, prerendered } from '$service-worker';
+
+const CACHE = `cache-\${version}`;
+
+const ASSETS = [
+  ...build,       // hashed JS/CSS bundles
+  ...files,       // static/ assets (icons, fonts, …)
+  ...prerendered, // prerendered HTML pages
+];
+
+// ── Install: precache all assets ──────────────────────────────────────────────
+self.addEventListener('install', (event) => {
+  async function addFilesToCache() {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+  }
+  event.waitUntil(addFilesToCache());
+});
+
+// ── Activate: delete old caches ───────────────────────────────────────────────
+self.addEventListener('activate', (event) => {
+  async function deleteOldCaches() {
+    for (const key of await caches.keys()) {
+      if (key !== CACHE) await caches.delete(key);
+    }
+  }
+  event.waitUntil(deleteOldCaches());
+});
+
+// ── Fetch: serve from cache, fall back to network ─────────────────────────────
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  async function respond() {
+    const url = new URL(event.request.url);
+    const cache = await caches.open(CACHE);
+
+    // Always serve build/files assets from cache (they are hashed)
+    if (ASSETS.includes(url.pathname)) {
+      const cached = await cache.match(url.pathname);
+      if (cached) return cached;
+    }
+
+    // For everything else: network first, cache as fallback
+    try {
+      const response = await fetch(event.request);
+      if (response.status === 200) {
+        cache.put(event.request, response.clone());
+      }
+      return response;
+    } catch {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      throw new Error('No cached response and network unavailable');
+    }
+  }
+
+  event.respondWith(respond());
+});
+```
+
+### ทำไมชื่อ cache ถึงใช้ `version`
+
+ทุก SvelteKit build สร้าง `version` string ใหม่ที่ได้มาจาก build timestamp และ content hash รูปแบบ `` `cache-\${version}` `` หมายความว่าแต่ละ deployment จะมี cache ของตัวเองแบบ isolated handler `activate` จะลบ cache ทุกอันที่ชื่อไม่ตรงกับ version ปัจจุบัน — ล้าง storage จาก deploy ก่อนหน้าทั้งหมดโดยอัตโนมัติ
+
+### เวอร์ชัน TypeScript
+
+สำหรับโปรเจกต์ TypeScript ให้เปลี่ยนชื่อไฟล์เป็น `src/service-worker.ts` และเพิ่ม reference directive เพื่อให้ SW global มี type ที่ถูกต้อง:
+
+```ts
+/// <reference types="@sveltejs/kit" />
+import { build, files, version, prerendered } from '$service-worker';
+
+declare const self: ServiceWorkerGlobalScope;
+
+const CACHE = `cache-\${version}`;
+// … ส่วนที่เหลือของไฟล์เหมือนกัน
+```
+
+### แล้ว `prerendered` ล่ะ?
+
+หากแอปของคุณ prerender หน้าต่างๆ (ผ่าน `export const prerender = true` ในไฟล์ route หรือ adapter-static) SvelteKit จะเติม `prerendered` ด้วย path ของหน้าเหล่านั้น การรวมไว้ใน `ASSETS` หมายความว่าหน้าเหล่านั้นจะโหลดทันทีแม้ offline โดยไม่ต้องเชื่อมต่อเครือข่าย
+
+<Callout title="Key point">
+`$service-worker` ให้รายการ built asset ที่แน่นอนพร้อม version string — precache `build` และ `files` ใน `install` และลบทุก cache ที่ชื่อไม่ตรงกับ version ปัจจุบันใน `activate` โดยไม่ต้องใช้ Workbox
+</Callout>
+
+export const quizServiceWorkerModule = [
+  {
+    q: 'export ชื่อ build จาก $service-worker มีเนื้อหาอะไร?',
+    options: [
+      'ไฟล์ source ดิบจาก src/',
+      'Hashed client-side JS และ CSS bundle ที่ผลิตโดย SvelteKit build',
+      'เนื้อหาของไดเรกทอรี static/',
+      'การตั้งค่า SvelteKit adapter',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไมถึงตั้งชื่อ cache โดยใช้ export version?',
+    options: [
+      'เพื่อให้ผู้ใช้หลายคนแชร์ cache เดียวกันได้',
+      'เพราะ caches.open() ต้องการ key ที่เป็นตัวเลข',
+      'เพื่อให้แต่ละ deployment มี cache เฉพาะตัว และล้าง cache เก่าใน activate ได้',
+      'เพื่อให้ browser serve SW ผ่าน HTTP ได้',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'event ใดเป็นสถานที่ที่เหมาะสมในการลบ stale cache จาก deployment ก่อนหน้า?',
+    options: ['install', 'fetch', 'activate', 'message'],
+    answer: 2,
+  },
+  {
+    q: 'export ใดจาก $service-worker ที่แสดง path ของ HTML page ที่ prerender แล้ว?',
+    options: ['build', 'files', 'version', 'prerendered'],
+    answer: 3,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/service-worker-module" questions={quizServiceWorkerModule} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/service-worker-module" />

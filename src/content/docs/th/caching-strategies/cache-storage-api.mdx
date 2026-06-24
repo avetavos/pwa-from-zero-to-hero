@@ -1,0 +1,285 @@
+---
+title: 'Cache Storage API'
+description: 'การใช้ caches.open, cache.addAll สำหรับ precaching ตอน install, cache.put และ cache.match, response.clone(), และการลบ cache เก่าตอน activate'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## การเปิด cache
+
+Cache Storage API ถูกเปิดให้ใช้ผ่าน global ชื่อ `caches` ภายในบริบทของ service worker ในการเปิด (หรือสร้าง) cache ที่มีชื่อ ให้เรียก `caches.open('cache-v1')` ซึ่งจะคืนค่าเป็น `Promise<Cache>` cache ถูกระบุด้วยชื่อที่เป็น string ล้วน ๆ — ไม่มี schema ไม่มี expiry และไม่มีการ evict อัตโนมัติ คุณเป็นเจ้าของ lifecycle ทั้งหมด
+
+```js
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('cache-v1').then((cache) => {
+      console.log('Cache opened:', cache);
+    })
+  );
+});
+```
+
+cache หลายตัวสามารถอยู่ร่วมกันได้ รูปแบบที่นิยมคือเก็บ cache หนึ่งตัวต่อหนึ่งเวอร์ชันของแอป เพื่อให้ SW ตัวเก่ากับ SW ตัวใหม่ไม่ใช้ cache namespace เดียวกัน
+
+## Precaching ตอน install
+
+`cache.addAll(urls)` รับ array ของ URL string เข้ามา แล้วดึงและเก็บมันทั้งหมดแบบ atomic หาก request ใดเพียงตัวเดียวล้มเหลว — network error, 404, หรืออะไรก็ตาม — การเรียก `addAll` ทั้งหมดจะ reject และ install event จะล้มเหลว นี่เป็นพฤติกรรมที่ตั้งใจ มันรับประกันว่า app shell ของคุณจะถูกแคชครบทั้งหมดหรือไม่ก็ไม่ถูกแคชเลย
+
+```js
+const CACHE_NAME = 'cache-v1';
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/app.js',
+  '/style.css',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+  );
+});
+```
+
+รักษ list ของ precache ให้สั้นเข้าไว้ ทุก URL ใน list คือ network request ที่บังคับว่าต้องสำเร็จตอน install — เพียง 404 ตัวเดียวก็จะทำให้ SW activate ไม่ได้
+
+## cache.put และ caches.match
+
+สำหรับ runtime caching คุณเพิ่ม response แต่ละตัวด้วย `cache.put(request, response)` คุณดึงมันออกมาได้ด้วย `cache.match(request)` (ค้นเฉพาะ cache ตัวนั้น ๆ) หรือ `caches.match(request)` (ค้นทุก cache แล้วคืนค่าตัวที่ตรงตัวแรก)
+
+```js
+// Runtime cache: intercept a fetch, cache the response, return it
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(event.request).then((response) => {
+        // Store a clone; return the original
+        caches.open('cache-v1').then((cache) => {
+          cache.put(event.request, response.clone());
+        });
+        return response;
+      });
+    })
+  );
+});
+```
+
+```js
+// Searching a specific named cache vs. all caches
+caches.open('cache-v1').then((cache) => {
+  cache.match('/app.js').then((res) => {
+    console.log('From named cache:', res);
+  });
+});
+
+caches.match('/app.js').then((res) => {
+  console.log('From any cache:', res);
+});
+```
+
+## response.clone()
+
+ออบเจ็กต์ `Response` ห่อหุ้ม body ที่เป็น readable stream แบบใช้ได้ครั้งเดียว เมื่อคุณ consume มัน — ด้วยการเรียก `.json()`, `.text()`, หรือส่งมันให้ `cache.put()` — stream นั้นจะถูกดึงจนหมดและ body ก็หายไป การอ่านครั้งถัดไปจะได้ผลลัพธ์ว่างเปล่า
+
+เมื่อคุณต้องการทั้งแคช response และคืนค่ามันกลับไปให้ผู้เรียก คุณต้อง clone มันก่อน `response.clone()` สร้าง `Response` ตัวที่สองที่แชร์ข้อมูล body เดียวกันแต่มี read cursor เป็นอิสระต่อกัน
+
+```js
+fetch(event.request).then((response) => {
+  const clone = response.clone();       // independent copy
+  cache.put(event.request, clone);      // cache the clone
+  return response;                      // return the original to the page
+});
+```
+
+<Callout title="จุดสำคัญ">
+clone Response ก่อนแคชเสมอ — body ของมันคือ stream ที่ใช้ได้ครั้งเดียว ส่ง clone ให้ `cache.put()` แล้วคืน original กลับไปให้หน้าเพจ หรือสลับกันก็ได้ ไม่ว่าจะทางไหน คุณต้องมีออบเจ็กต์ Response ที่เป็นอิสระต่อกันสองตัว
+</Callout>
+
+## การลบ cache เก่าตอน activate
+
+เมื่อคุณ deploy SW เวอร์ชันใหม่ที่ใช้ชื่อ cache ใหม่ cache เก่าจะยังคงอยู่บนดิสก์จนกว่าคุณจะลบมันออกอย่างชัดเจน activate event คือที่ที่เหมาะสำหรับการทำสิ่งนี้ เพราะ SW ตัวใหม่ได้เข้าควบคุมแล้ว จึงปลอดภัยที่จะลบ cache ที่ SW ตัวเก่าเคยพึ่งพา
+
+```js
+const CACHE_VERSION = 'v1';
+const CURRENT_CACHES = new Set(['cache-v1', 'images-v1']);
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => !CURRENT_CACHES.has(name))
+          .map((name) => {
+            console.log('Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+    })
+  );
+});
+```
+
+หลังจากเคลียร์เสร็จ ให้เรียก `self.clients.claim()` หากคุณต้องการให้ SW ที่เพิ่ง activate เข้าควบคุมหน้าเพจที่เปิดอยู่ทันที แทนที่จะรอให้มีการ reload หน้าเต็ม ๆ
+
+## เดโมแบบโต้ตอบ
+
+export const proj = {
+  'index.html': `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <title>Cache Storage API Demo</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 4px; white-space: pre-wrap; min-height: 80px; }
+  </style>
+</head>
+<body>
+  <h1>Cache Storage API demo</h1>
+  <p>Open DevTools → Application → Cache Storage to inspect what gets cached.</p>
+  <button id="btn">Cache Assets</button>
+  <pre id="log">Waiting for action...</pre>
+  <script src="/main.js"></script>
+</body>
+</html>`,
+  'main.js': `const log = document.getElementById('log');
+const btn = document.getElementById('btn');
+
+function append(msg) {
+  log.textContent += msg + '\\n';
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then((reg) => append('SW registered: ' + reg.scope))
+    .catch((err) => append('SW registration failed: ' + err));
+}
+
+btn.addEventListener('click', () => {
+  log.textContent = '';
+  append('Opening cache...');
+  caches.open('cache-v1').then((cache) => {
+    return cache.addAll(['/', '/index.html', '/main.js']).then(() => {
+      append('Assets cached successfully via cache.addAll!');
+      return caches.keys();
+    }).then((keys) => {
+      append('Current caches: ' + keys.join(', '));
+    });
+  }).catch((err) => append('Error: ' + err));
+});`,
+  'sw.js': `var CACHE_NAME = 'cache-v1';
+var CURRENT_CACHES = ['cache-v1'];
+
+self.addEventListener('install', function(event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(['/', '/index.html']);
+    })
+  );
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      return Promise.all(
+        cacheNames.filter(function(name) {
+          return CURRENT_CACHES.indexOf(name) === -1;
+        }).map(function(name) {
+          return caches.delete(name);
+        })
+      );
+    }).then(function() {
+      return self.clients.claim();
+    })
+  );
+});
+
+self.addEventListener('fetch', function(event) {
+  event.respondWith(
+    caches.match(event.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(event.request).then(function(response) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(event.request, clone);
+        });
+        return response;
+      });
+    })
+  );
+});`,
+  'manifest.webmanifest': `{
+  "name": "Cache Storage API Demo",
+  "short_name": "CacheDemo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0066cc",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/0066cc/ffffff?text=C",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}`,
+};
+
+<PwaPlayground client:visible files={proj} openFile="sw.js" />
+
+export const quizCacheStorageApi = [
+  {
+    q: 'เมธอดใดของ Cache Storage ที่เก็บ array ของ URL แบบ atomic ตอน install time?',
+    options: [
+      'cache.put',
+      'caches.open',
+      'cache.addAll',
+      'caches.match',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'ทำไมคุณจึงต้อง clone Response ก่อนส่งให้ cache.put()?',
+    options: [
+      'API กำหนดไว้ตาม spec ว่าต้องทำ',
+      'body ของ Response เป็น readable stream แบบใช้ได้ครั้งเดียว',
+      'การ clone ช่วยเพิ่ม performance',
+      'cache.put() แก้ไขตัว response',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'caches.match() ทำงานต่างจาก cache.match() อย่างไร?',
+    options: [
+      'caches.match() ค้นทุก cache; cache.match() ค้นเฉพาะ cache ที่มีชื่อตัวเดียว',
+      'ทั้งสองตัวเหมือนกัน',
+      'cache.match() เร็วกว่า',
+      'caches.match() ทำงานได้เฉพาะใน install event เท่านั้น',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'ควรลบ cache เก่าเมื่อใด?',
+    options: [
+      'ระหว่าง install event',
+      'ระหว่าง fetch event',
+      'ระหว่าง activate event',
+      'เมื่อผู้ใช้ปิดแท็บ',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/cache-storage-api" questions={quizCacheStorageApi} />
+
+<ProgressTracker client:visible id="caching-strategies/cache-storage-api" />

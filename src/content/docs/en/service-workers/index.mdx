@@ -1,5 +1,79 @@
 ---
-title: Service Workers
-description: Register a service worker and master its lifecycle and fetch handling.
+title: 'Service Workers: Overview'
+description: 'What a service worker is, what this module covers, and how it fits into a PWA.'
+sidebar:
+  order: 1
 ---
-Coming soon.
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## What is a service worker?
+
+A **service worker** is a JavaScript file that runs in the background — separate from your web page — in its own worker thread. Because it lives outside the page, it has no access to the DOM, `document`, or `window`. What it _does_ have is the power to intercept and respond to every network request your page makes.
+
+Think of a service worker as a **programmable network proxy** sitting between your page and the internet. You decide what happens to each request: pass it straight to the network, serve it from a local cache, or construct a response entirely from scratch.
+
+This capability is the foundation of every offline-first PWA feature you will build in this course:
+
+| Capability | How the service worker enables it |
+|---|---|
+| Offline support | Intercepts requests and serves from cache |
+| Push notifications | Receives push events even while the page is closed |
+| Background sync | Queues failed requests and retries when online |
+| Instant load | Serves pre-cached assets without a network round-trip |
+
+export const overviewDiagram = `flowchart LR
+  P["Page / App"] -->|"fetch()"| SW["Service Worker"]
+  SW -->|"cache hit"| C[("Cache Storage")]
+  SW -->|"cache miss"| N["Network"]
+  N -->|response| SW
+  C -->|response| SW
+  SW -->|response| P`;
+
+<Mermaid code={overviewDiagram} title="Page, service worker, cache, and network" />
+
+## What this module covers
+
+This module takes you from zero to confident with service workers in five lessons:
+
+1. **Overview** (this page) — what a service worker is and how it interacts with the page.
+2. **Registering a service worker** — how the page loads and activates a service worker.
+3. **Lifecycle** — the install → waiting → activate → active state machine every SW goes through.
+4. **The fetch event** — intercepting requests and deciding how to respond.
+5. **Updating service workers** — how browsers detect changes and how to push updates safely.
+
+Each lesson is standalone: come back to any of them at any time.
+
+<Callout title="Key point">
+A service worker runs in the background with no DOM access — it intercepts network requests within its scope. Everything a PWA does offline flows through this single programmable layer.
+</Callout>
+
+export const quizSwOverview = [
+  {
+    q: 'Which global object is NOT available inside a service worker?',
+    options: ['self', 'fetch', 'document', 'caches'],
+    answer: 2,
+  },
+  {
+    q: 'What makes a service worker a "network proxy"?',
+    options: [
+      'It runs on the server',
+      'It intercepts and can respond to every network request',
+      'It stores data in localStorage',
+      'It reads and writes to the DOM',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which Web API does a service worker use to store responses for offline use?',
+    options: ['localStorage', 'IndexedDB', 'Cache Storage', 'sessionStorage'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="service-workers/index" questions={quizSwOverview} />
+
+<ProgressTracker client:visible id="service-workers/index" />

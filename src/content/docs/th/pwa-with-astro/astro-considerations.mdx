@@ -1,0 +1,151 @@
+---
+title: 'ข้อควรพิจารณาเฉพาะของ Astro'
+description: 'SSG vs SSR/hybrid rendering, islands hydration และพฤติกรรม offline, การจัดแนว base path กับ scope, และการทดสอบ PWA ด้วย astro preview'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## ข้อควรพิจารณาเฉพาะของ Astro สำหรับ PWA
+
+ความยืดหยุ่นของ Astro ที่รองรับทั้ง static, SSR และ hybrid rendering นำมาซึ่งการตัดสินใจสำคัญหลายข้อที่ส่งผลโดยตรงต่อพฤติกรรมของ service worker การทำความเข้าใจเรื่องเหล่านี้จะช่วยให้ผู้ใช้ได้รับประสบการณ์ offline ที่รวดเร็วและเชื่อถือได้
+
+### SSG vs SSR/hybrid: อะไรถูก precache บ้าง
+
+โหมด output เริ่มต้นของ Astro คือ `static` ซึ่งจะ render ทุกหน้าเป็นไฟล์ `.html` ในช่วง build time ทำให้ `@vite-pwa/astro` สามารถสแกนโฟลเดอร์ `dist/` และนำทุกไฟล์ HTML เข้า **precache manifest** ได้โดยอัตโนมัติ
+
+เมื่อเปลี่ยนเป็น `output: 'server'` หรือ `output: 'hybrid'` สถานการณ์จะเปลี่ยนไป เนื่องจาก SSR routes ถูก generate บน server เมื่อมีการร้องขอ จึงไม่มีไฟล์ `.html` ให้ Workbox hash และ precache ได้ routes เหล่านั้นต้องใช้ **runtime caching** แทน
+
+```ts
+// astro.config.mjs — SSG (default), all pages precached
+AstroPWA({
+  registerType: 'autoUpdate',
+  workbox: {
+    globPatterns: ['**/*.{css,js,html,svg,png,ico}'],
+    // Every /blog/*, /about, / etc. is a static file — precached
+  },
+})
+```
+
+```ts
+// astro.config.mjs — hybrid SSR
+// output: 'hybrid' or 'server'
+AstroPWA({
+  registerType: 'autoUpdate',
+  workbox: {
+    globPatterns: ['**/*.{css,js,svg,png,ico}'], // assets only — no .html for SSR routes
+    runtimeCaching: [
+      {
+        urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+        handler: 'NetworkFirst',
+        options: { cacheName: 'api-cache', networkTimeoutSeconds: 3 },
+      },
+    ],
+  },
+})
+```
+
+#### ตารางอ้างอิงเร็ว
+
+| สถานการณ์ | Precache | Runtime cache |
+|---|---|---|
+| SSG page (`output: 'static'`) | ใช่ (อัตโนมัติ) | ไม่จำเป็น |
+| SSR page (`output: 'server'`) | ไม่ | จำเป็น |
+| Static asset (CSS/JS/images) | ใช่ | ไม่ |
+| External API | ไม่ | จำเป็น |
+
+### การจัดแนว base path กับ scope
+
+เมื่อ deploy Astro ไปยัง sub-path เช่น GitHub Pages ที่ `/my-app/` scope ของ service worker จะต้องตรงกับ base นั้น หาก scope เป็น `/` แต่แอปอยู่ที่ `/my-app/` SW จะไม่สามารถควบคุมหน้าของคุณได้
+
+ตั้งค่า `base`, `scope`, `manifest.start_url` และ root ของ Workbox `globPatterns` ให้สอดคล้องกัน:
+
+```ts
+// astro.config.mjs — deployed at /my-app/
+export default defineConfig({
+  base: '/my-app/',
+  integrations: [
+    AstroPWA({
+      scope: '/my-app/',
+      base: '/my-app/',
+      manifest: { start_url: '/my-app/' },
+      workbox: { globPatterns: ['**/*.{css,js,html,svg,png,ico}'] },
+    }),
+  ],
+})
+```
+
+ค่าเริ่มต้น `trailingSlash` ของ Astro คือ `'ignore'` หมายความว่าทั้ง `/about` และ `/about/` ใช้ได้ ให้แน่ใจว่า `scope` ลงท้ายด้วย slash (`/my-app/`) เพื่อให้ SW ควบคุม path ทั้งหมดภายใต้ prefix นั้น
+
+### islands hydration และพฤติกรรม offline
+
+Astro islands จะส่ง JavaScript ของแต่ละ component เป็น chunk แยกต่างหากใน `dist/` เนื่องจาก `@vite-pwa/astro` precache ทุกไฟล์ที่ตรงกับ `globPatterns` bundle JS ของ island ทั้งหมดจึงถูก cache โดยอัตโนมัติ island ที่ใช้ `client:visible` หรือ `client:idle` จะ hydrate ได้ถูกต้องแม้ offline ตราบที่ chunk ของมันอยู่ใน precache manifest ซึ่งจะเป็นเช่นนั้นหาก `globPatterns` ครอบคลุม `**/*.js`
+
+ไม่จำเป็นต้องกำหนดค่าพิเศษสำหรับ islands offline support ข้อจำกัดสำคัญคือข้อมูลของ island ต้องพร้อมใช้งาน offline ด้วย: หาก component นั้น fetch จาก API ที่ไม่ได้ cache ไว้ขณะ runtime ข้อมูลนั้นจะหายไปเมื่อ offline
+
+<Callout title="ข้อควรจำ">
+สำหรับ SSR routes ให้พึ่งพา runtime caching (ไม่ใช่ precache) — เฉพาะ static, hashed assets เท่านั้นที่ควรอยู่ใน precache manifest
+</Callout>
+
+### การทดสอบด้วย astro preview
+
+Service worker จะถูก generate เฉพาะระหว่าง `astro build` เท่านั้น การรัน `astro dev` **ไม่** สร้าง SW ดังนั้น DevTools จะไม่แสดง service worker ที่ register ไว้ ให้ทดสอบ PWA กับ production build เสมอ:
+
+```bash
+# Build first, then preview — the SW only works in the built output
+npm run build
+npm run preview
+# Open http://localhost:4321 in DevTools > Application > Service Workers
+```
+
+หลังเปิด preview URL ไปที่ **DevTools → Application → Service Workers** เพื่อยืนยันว่า SW registered และ active แล้ว ใช้ **Cache Storage** เพื่อตรวจสอบว่า precache manifest entries มีอยู่ครบถ้วน หากต้องการจำลองพฤติกรรม offline ให้ติ๊ก **Offline** ใน Network panel แล้ว reload
+
+export const quizAstroConsiderations = [
+  {
+    q: 'ในโหมด SSG ทำไมหน้า HTML ถึงถูกนำเข้า precache manifest โดยอัตโนมัติ?',
+    options: [
+      'Astro inject plugin พิเศษที่บังคับให้ precache',
+      'ไฟล์ HTML มีอยู่เป็น static files ใน dist/ ตั้งแต่ build time ทำให้ Workbox สามารถ hash และ list ได้',
+      'Service worker ดึงทุกหน้าเมื่อ activate ครั้งแรก',
+      'Precaching ต้องกำหนดค่าเองสำหรับแต่ละหน้า',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'คุณ deploy Astro site ที่ /docs/ สิ่งที่ต้องตั้งค่าใน AstroPWA เพื่อให้ SW ควบคุมทุกหน้าภายใต้ path นั้นคืออะไร?',
+    options: [
+      'ตั้ง registerType เป็น "autoUpdate"',
+      'ตั้ง scope: "/docs/" และ base: "/docs/" ใน AstroPWA options',
+      'ตั้ง globPatterns เป็น ["**/*.html"]',
+      'ไม่ต้องเปลี่ยนอะไร — SW ตรวจจับ base path โดยอัตโนมัติ',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'ทำไมต้องรัน npm run build ก่อนทดสอบ service worker ด้วย astro preview?',
+    options: [
+      'astro dev register development service worker ที่ขัดแย้งกับ production',
+      'ไฟล์ service worker ถูกสร้างเฉพาะระหว่าง astro build เท่านั้น — ไม่มีในโหมด dev',
+      'astro preview ต้องการ TypeScript output ที่ compiled แล้ว',
+      'npm run build ล้าง browser cache ก่อนทดสอบ',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Astro island ที่ใช้ client:visible ดึงข้อมูลจาก external API ขณะ runtime จะทำงานได้ offline ไหม?',
+    options: [
+      'ได้ — AstroPWA precache network requests ทั้งหมดโดยอัตโนมัติ',
+      'ได้ — islands เป็น static อย่างสมบูรณ์และไม่ต้องการ network',
+      'ไม่ได้ — ยกเว้นมี runtimeCaching rule ครอบคลุม API endpoint นั้น การ fetch จะล้มเหลว offline',
+      'ไม่ได้ — islands ที่ใช้ client:visible ไม่ถูก precache เลย',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/astro-considerations" questions={quizAstroConsiderations} />
+
+<ProgressTracker client:visible id="pwa-with-astro/astro-considerations" />

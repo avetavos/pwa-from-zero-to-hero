@@ -1,0 +1,142 @@
+---
+title: Manifest Basics
+description: 'The required and most important manifest fields: name, short_name, start_url, scope, id, description, lang, and dir — with a full working example.'
+sidebar:
+  order: 2
+---
+
+import PwaPlayground from '../../../../components/PwaPlayground.tsx';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The essential manifest fields
+
+A minimal manifest must have enough information for the browser to install the app and display it correctly. The table below lists the most important fields:
+
+| Field | Required | Purpose |
+|---|---|---|
+| `name` | Yes | Full app name shown in install prompts and the app launcher |
+| `short_name` | Recommended | Truncated name for home screens with limited space |
+| `start_url` | Yes | URL the app opens when launched from the home screen |
+| `scope` | Recommended | URL prefix that defines which pages are "inside" the app |
+| `id` | Recommended | Stable identifier; prevents duplicate installs across URL changes |
+| `description` | Recommended | Short blurb shown in app stores and install UI |
+| `lang` | Recommended | Primary language of the manifest content (e.g. `"en"`) |
+| `dir` | Recommended | Text direction: `"ltr"`, `"rtl"`, or `"auto"` |
+
+### A full example
+
+```json
+{
+  "name": "My Awesome PWA",
+  "short_name": "AwesomePWA",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "description": "A fast, offline-capable progressive web app.",
+  "lang": "en",
+  "dir": "ltr",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+### Field details
+
+**`name` vs `short_name`** — `name` is displayed in the install dialog and splash screen. `short_name` is used on the home screen where space is tight (Android typically truncates at around 12 characters). If `short_name` is omitted, the browser falls back to `name`.
+
+**`start_url`** — This is where the app navigates to when a user taps its icon. Use `"/"` to start at the root. You can also append query params to track installs: `"/?source=pwa"`.
+
+**`scope`** — Any navigation outside the scope forces the browser to open a regular browser tab instead of staying in the standalone window. Keep `scope` equal to `"/"` for single-origin apps, or narrow it to a sub-path like `"/app/"` if your marketing pages should stay outside the PWA shell.
+
+**`id`** — A stable string that uniquely identifies the app. If you later change `start_url`, the browser will not create a duplicate install as long as `id` stays the same. Set it to `"/"` or a permanent URL path.
+
+**`lang` and `dir`** — These tell assistive technology and the OS which language and text direction to use for the app's name and description.
+
+### Try it live
+
+The playground below serves a minimal manifest. Open it in StackBlitz and check the DevTools **Application → Manifest** panel to verify every field is parsed correctly.
+
+export const proj = {
+  'index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Manifest Basics Demo</title>
+  </head>
+  <body>
+    <h1>Manifest Basics</h1>
+    <p>Open DevTools &rarr; Application &rarr; Manifest to inspect the parsed fields.</p>
+  </body>
+</html>`,
+  'manifest.webmanifest': `{
+  "name": "My Awesome PWA",
+  "short_name": "AwesomePWA",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "description": "A fast, offline-capable progressive web app.",
+  "lang": "en",
+  "dir": "ltr",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}`,
+  'sw.js': `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));`,
+};
+
+<PwaPlayground files={proj} openFile="manifest.webmanifest" />
+
+<Callout title="Key point">
+`start_url` is where the app launches from when opened from the home screen. Always set it to a URL your server actually serves — an invalid `start_url` will cause the install to fail.
+</Callout>
+
+export const quizManifestBasics = [
+  {
+    q: 'Which field is used to identify the app stably across start_url changes?',
+    options: ['name', 'scope', 'id', 'short_name'],
+    answer: 2,
+  },
+  {
+    q: 'What happens when a user navigates to a URL outside the manifest scope in a standalone PWA?',
+    options: [
+      'The app crashes',
+      'The service worker blocks the request',
+      'A regular browser tab opens instead of staying in the app window',
+      'The app redirects to start_url automatically',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is short_name used for?',
+    options: [
+      'The window title bar',
+      'The app icon tooltip',
+      'The home screen label where space is limited',
+      'The browser tab title',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which fields tell assistive technology and the OS about the app language and text direction?',
+    options: ['name and description', 'lang and dir', 'scope and id', 'start_url and display'],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="web-app-manifest/manifest-basics" questions={quizManifestBasics} />
+
+<ProgressTracker client:visible id="web-app-manifest/manifest-basics" />

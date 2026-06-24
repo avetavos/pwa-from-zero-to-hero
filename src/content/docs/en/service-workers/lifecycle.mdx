@@ -1,0 +1,141 @@
+---
+title: Service Worker Lifecycle
+description: 'How a service worker moves through install, waiting, activating, activated, and redundant states — and how to control that flow.'
+sidebar:
+  order: 3
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The service worker lifecycle
+
+Every service worker goes through a strictly defined state machine managed by the browser. Understanding this lifecycle is essential — skip it and your updates silently fail to activate, or you break pages that are still running the old worker.
+
+### State machine
+
+export const lifecycleDiagram = `stateDiagram-v2
+  [*] --> Parsed : browser parses sw.js
+  Parsed --> Installing : install event fires
+  Installing --> Installed : installEvent.waitUntil() resolves
+  Installing --> Redundant : waitUntil() rejects
+  Installed --> Activating : no old SW active, or skipWaiting()
+  Installed --> Waiting : old SW still controlling pages
+  Waiting --> Activating : all old-SW tabs closed, or skipWaiting()
+  Activating --> Activated : activateEvent.waitUntil() resolves
+  Activating --> Redundant : waitUntil() rejects
+  Activated --> Redundant : replaced by a newer SW
+  Waiting --> Redundant : replaced by a newer SW`;
+
+<Mermaid code={lifecycleDiagram} title="Service worker lifecycle state machine" />
+
+### The install event
+
+The `install` event fires the moment the browser has parsed and downloaded your service worker file. This is the ideal time to **pre-cache** the resources your app needs for offline use.
+
+```js
+const CACHE_NAME = 'v1';
+const PRECACHE_URLS = ['/', '/styles.css', '/app.js'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+  );
+});
+```
+
+`event.waitUntil()` accepts a Promise. If the Promise **resolves**, the SW moves to the `Installed` state. If it **rejects** (e.g., a network error while pre-caching), the SW moves to `Redundant` and is discarded — nothing breaks for the user; the old SW keeps running.
+
+### The waiting state
+
+After installation, the new SW sits in **Waiting** if any tab is still controlled by the previous version. The browser will not activate the new SW until every tab running the old one is closed (or navigated away from).
+
+To skip the waiting period programmatically, call `self.skipWaiting()` inside the `install` handler:
+
+```js
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('v1').then((cache) => cache.addAll(['/'])).then(() => self.skipWaiting())
+  );
+});
+```
+
+### The activate event
+
+Once the old SW is gone (or `skipWaiting()` was called), the new SW fires its `activate` event. This is the right time to **clean up old caches** so stale assets do not consume storage indefinitely.
+
+```js
+const CURRENT_CACHES = ['v2'];
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(
+        names
+          .filter((name) => !CURRENT_CACHES.includes(name))
+          .map((name) => caches.delete(name))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+```
+
+`self.clients.claim()` makes the newly activated SW take control of all open pages immediately, without waiting for the next navigation.
+
+### Lifecycle summary
+
+| State | What happens | What you do |
+|---|---|---|
+| **Installing** | SW is being set up | Pre-cache assets in `install` |
+| **Waiting** | New SW is ready but held back | Optionally call `skipWaiting()` |
+| **Activating** | New SW is taking over | Delete old caches in `activate` |
+| **Activated** | SW is in full control | Serve requests via `fetch` event |
+| **Redundant** | SW was replaced or failed | Nothing — browser disposes of it |
+
+<Callout title="Key point">
+A newly installed service worker waits until every tab using the old one closes — unless it calls `self.skipWaiting()`. Use `skipWaiting()` cautiously: if the old and new SW use different cache schemas, pages already loaded may request assets the new cache does not yet have.
+</Callout>
+
+export const quizLifecycle = [
+  {
+    q: 'What happens if the Promise passed to event.waitUntil() in the install handler rejects?',
+    options: [
+      'The SW moves to Activated anyway',
+      'The SW moves to Redundant and is discarded',
+      'The browser retries installation automatically',
+      'The SW enters the Waiting state',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why does a new service worker sit in the Waiting state?',
+    options: [
+      'It is waiting for the network to become available',
+      'It waits for the browser to download assets',
+      'It waits until no tabs are still controlled by the old service worker',
+      'It waits for the activate event to be dispatched',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What is the purpose of self.clients.claim() in the activate handler?',
+    options: [
+      'It deletes all old caches',
+      'It skips the waiting state',
+      'It makes the activated SW take control of open pages immediately',
+      'It registers the SW for push notifications',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which lifecycle state is the right time to delete stale caches from previous SW versions?',
+    options: ['install', 'fetch', 'activate', 'waiting'],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="service-workers/lifecycle" questions={quizLifecycle} />
+
+<ProgressTracker client:visible id="service-workers/lifecycle" />

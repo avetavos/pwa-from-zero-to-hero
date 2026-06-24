@@ -1,0 +1,143 @@
+---
+title: 'Stale-While-Revalidate'
+description: 'Serve the cached response immediately and update the cache in the background with a fresh network fetch — giving instant loads with eventual freshness.'
+sidebar:
+  order: 4
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Stale-while-revalidate
+
+Stale-while-revalidate (SWR) is the best of both worlds: the service worker returns a cached response **instantly** — so the user never waits for the network — and simultaneously kicks off a background network fetch to update the cache for next time.
+
+On the very first request for a resource, there is nothing in the cache, so the SW waits for the network response, caches it, and returns it. From the second request onwards, the cached (possibly stale) copy is returned immediately while a fresh copy is silently fetched in the background. The user sees content right away and will be on the latest version on their very next visit.
+
+This pattern is a natural fit for resources that update occasionally but where instant load time matters more than pixel-perfect freshness: user avatars, news feeds, config JSON, CSS files, and web fonts are all good candidates. It is a poor fit for real-time data — stock prices, live scores, or anything where being one version behind is unacceptable.
+
+## How SWR works
+
+1. The service worker receives the `fetch` event.
+2. It opens the cache and checks for an existing response.
+3. It kicks off a network fetch **regardless** of whether the cache has a response (background revalidation).
+4. If there is a cached response it is returned immediately to the page; if there is no cached response the handler waits for the network and returns that instead.
+5. When the network response arrives, the cache entry is silently updated so the next request gets the freshest copy.
+
+```js
+const CACHE = 'swr-v1';
+
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.open(CACHE).then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const networkFetch = fetch(event.request).then((response) => {
+          cache.put(event.request, response.clone());
+          return response;
+        });
+        // Serve cache instantly; fall back to network on miss
+        return cached || networkFetch;
+      })
+    )
+  );
+});
+```
+
+export const swrDiagram = `sequenceDiagram
+  participant P as Page
+  participant SW as Service Worker
+  participant C as Cache Storage
+  participant N as Network
+
+  P->>SW: fetch(request)
+  SW->>C: cache.match(request)
+  SW->>N: fetch(request) [background]
+  C-->>SW: cached Response (may be stale)
+  SW-->>P: Response (instant)
+  N-->>SW: fresh Response
+  SW->>C: cache.put(request, fresh.clone())
+  Note over SW,C: Cache updated for next request`;
+
+<Mermaid code={swrDiagram} title="Stale-while-revalidate flow" />
+
+## Cache-then-network (page-side SWR)
+
+There is also a page-side variant of this pattern. The page fires both a cache lookup and a network fetch at the same time, renders the cached result immediately, and then updates the UI when the network response arrives — no service worker required.
+
+```js
+async function fetchWithCacheThenNetwork(url) {
+  const cache = await caches.open('swr-v1');
+  const cached = await cache.match(url);
+
+  // Start the network request immediately, don't await yet
+  const networkPromise = fetch(url).then((response) => {
+    cache.put(url, response.clone());
+    return response.json();
+  });
+
+  // Render the stale cached version right away if available
+  if (cached) {
+    const staleData = await cached.json();
+    renderUI(staleData); // show immediately
+  }
+
+  // Update the UI when the fresh data lands
+  const freshData = await networkPromise;
+  renderUI(freshData);
+}
+```
+
+This is useful in frameworks where the component can re-render when fresh data arrives, giving a progressively improving experience without any visible loading spinner.
+
+<Callout title="Key point">
+Stale-while-revalidate gives instant loads with eventual freshness — great for avatars, feeds, and CSS. The user never waits for the network, but will always be at most one version behind.
+</Callout>
+
+export const quizStaleWhileRevalidate = [
+  {
+    q: 'In stale-while-revalidate, when is the cache updated?',
+    options: [
+      'Before the response is returned to the page',
+      'After the cached response is returned, in the background',
+      'Only when the cache is empty',
+      'During the SW install event',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which asset type is stale-while-revalidate least suitable for?',
+    options: [
+      'User avatars',
+      'CSS files',
+      'A real-time stock ticker feed',
+      'A news feed that updates hourly',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What does the SWR fetch handler return on the very first request for a resource?',
+    options: [
+      'undefined',
+      'The cached response',
+      'The network response (cache miss, so it waits)',
+      'An error',
+    ],
+    answer: 2,
+  },
+  {
+    q: "SWR is described as 'serve stale, revalidate in the background.' What does revalidate mean here?",
+    options: [
+      'Checking if the SW is still registered',
+      'Fetching a fresh copy from the network and updating the cache',
+      'Deleting and re-adding the cache entry',
+      'Re-running the install event',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="caching-strategies/stale-while-revalidate" questions={quizStaleWhileRevalidate} />
+
+<ProgressTracker client:visible id="caching-strategies/stale-while-revalidate" />

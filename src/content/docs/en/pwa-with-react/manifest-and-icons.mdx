@@ -1,0 +1,145 @@
+---
+title: 'Manifest and Icons'
+description: "Define the web app manifest inside VitePWA()'s manifest option, generate icons with pwa-assets, and configure includeAssets for favicon and apple-touch-icon."
+sidebar:
+  order: 3
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## The manifest option
+
+Instead of a separate `manifest.json` file, `vite-plugin-pwa` lets you define the manifest directly in `vite.config.ts`. The plugin injects it into every HTML page and adds the necessary `<link rel="manifest">` tag automatically. This keeps your PWA configuration in one place alongside the rest of your Vite setup.
+
+### Defining the manifest in vite.config.ts
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'prompt',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+      manifest: {
+        name: 'My PWA App',
+        short_name: 'MyApp',
+        description: 'A Progressive Web App built with Vite and React',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
+        start_url: '/',
+        icons: [
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+## includeAssets
+
+The `includeAssets` option tells Workbox to precache static files that are NOT automatically part of the build output. Without it, files like `favicon.ico` and `apple-touch-icon.png` — which you place manually in `public/` — would not be included in the service worker's precache manifest.
+
+```ts
+includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+```
+
+Adding these here ensures they are cached on the first service worker install, so the browser and iOS home screen always serve them from cache even when the user is offline.
+
+## Icon generation with @vite-pwa/assets-generator
+
+Instead of manually exporting every icon size from a design tool, you can generate all required sizes from a single SVG source using the `@vite-pwa/assets-generator` package.
+
+```bash
+npx @vite-pwa/assets-generator --preset minimal logo.svg
+```
+
+This command reads `logo.svg` from the current directory and writes all the generated PNG icons into `public/`. The `minimal` preset produces the sizes that cover the icons array shown above.
+
+## apple-touch-icon and favicon
+
+The 180x180 `apple-touch-icon.png` file must be placed in `public/` so Vite copies it into `dist/` during the build. iOS uses this image when a user adds your app to their home screen. Reference it in `includeAssets` so Workbox precaches it.
+
+The `favicon.ico` file follows the same rule — it lives in `public/` and should be listed in `includeAssets`.
+
+### Icon size reference
+
+| Icon size | Purpose |
+|---|---|
+| 192x192 | Standard Android home screen |
+| 512x512 | Splash screen / install prompt |
+| 512x512 maskable | Adaptive icon on Android |
+| 180x180 | Apple Touch Icon (iOS home screen) |
+
+<Callout title="Key point">
+Let the plugin own the manifest and precache so your `dist/` is install-ready with no manual SW.
+</Callout>
+
+export const quizManifestAndIcons = [
+  {
+    q: 'Where do you define the manifest when using vite-plugin-pwa?',
+    options: [
+      'In a separate manifest.json file',
+      'In the manifest option inside VitePWA()',
+      'In index.html manually',
+      'In package.json',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'What does includeAssets do?',
+    options: [
+      'It compresses image assets',
+      'It tells Workbox to precache static files like favicon.ico',
+      'It adds a <link rel="manifest"> tag',
+      'It generates icons automatically',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which tool generates all PWA icon sizes from a single SVG?',
+    options: [
+      'sharp',
+      'imagemin',
+      '@vite-pwa/assets-generator',
+      'pngquant',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'What icon purpose value allows Android to apply an adaptive mask to your icon?',
+    options: [
+      'any',
+      'standalone',
+      'maskable',
+      'adaptive',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-react/manifest-and-icons" questions={quizManifestAndIcons} />
+
+<ProgressTracker client:visible id="pwa-with-react/manifest-and-icons" />

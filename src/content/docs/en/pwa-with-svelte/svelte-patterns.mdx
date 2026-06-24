@@ -1,0 +1,216 @@
+---
+title: Svelte-Specific PWA Patterns
+description: 'Online/offline stores, a beforeinstallprompt install-prompt component, reactive update-available state, and SSR/adapter notes for SvelteKit PWAs.'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Svelte stores for PWA state
+
+Svelte's store contract — any object with a `subscribe` method — is the perfect home for PWA lifecycle events. Events like going offline, a new SW becoming available, or a user dismissing an install prompt happen asynchronously and at unpredictable times. Stores make that state reactive and available anywhere in the component tree without prop drilling.
+
+### Online / offline store
+
+```ts
+// src/lib/stores/network.ts
+import { readable } from 'svelte/store';
+
+export const online = readable(
+  typeof navigator !== 'undefined' ? navigator.onLine : true,
+  (set) => {
+    const handleOnline = () => set(true);
+    const handleOffline = () => set(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }
+);
+```
+
+Use it in any component with the `$` auto-subscribe shorthand:
+
+```svelte
+<script>
+  import { online } from '$lib/stores/network';
+</script>
+
+{#if !$online}
+  <div class="offline-banner">You are offline — showing cached content.</div>
+{/if}
+```
+
+The `typeof navigator !== 'undefined'` guard is required because SvelteKit runs components on the server during SSR, where `navigator` does not exist.
+
+### Install-prompt store and component
+
+The `beforeinstallprompt` event fires when the browser decides your PWA is installable. You must capture the event object — it is ephemeral — and call `.prompt()` on it later when the user interacts with your install button.
+
+```ts
+// src/lib/stores/install-prompt.ts
+import { writable } from 'svelte/store';
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+
+export const installPromptEvent = writable<BeforeInstallPromptEvent | null>(null);
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); // Prevent the mini-infobar
+    installPromptEvent.set(e as BeforeInstallPromptEvent);
+  });
+}
+```
+
+A component that uses the store to show an install button:
+
+```svelte
+<!-- src/lib/InstallButton.svelte -->
+<script lang="ts">
+  import { installPromptEvent } from '$lib/stores/install-prompt';
+
+  async function install() {
+    if (!$installPromptEvent) return;
+    await $installPromptEvent.prompt();
+    const { outcome } = await $installPromptEvent.userChoice;
+    if (outcome === 'accepted') {
+      installPromptEvent.set(null); // hide the button after install
+    }
+  }
+</script>
+
+{#if $installPromptEvent}
+  <button on:click={install}>Install App</button>
+{/if}
+```
+
+### Reactive "update available" state
+
+You can keep update state in a plain writable store so any part of your UI can react to it:
+
+```ts
+// src/lib/stores/sw-update.ts
+import { writable } from 'svelte/store';
+
+export const updateAvailable = writable(false);
+export let swRegistration: ServiceWorkerRegistration | null = null;
+
+export async function initSW() {
+  if (!('serviceWorker' in navigator)) return;
+
+  const registration = await navigator.serviceWorker.register(
+    '/service-worker.js',
+    { type: import.meta.env.DEV ? 'module' : 'classic' }
+  );
+  swRegistration = registration;
+
+  registration.addEventListener('updatefound', () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+    newWorker.addEventListener('statechange', () => {
+      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        updateAvailable.set(true);
+      }
+    });
+  });
+}
+
+export function applyUpdate() {
+  swRegistration?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+  window.location.reload();
+}
+```
+
+Wire the stores in `src/routes/+layout.svelte`:
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { initSW, updateAvailable, applyUpdate } from '$lib/stores/sw-update';
+
+  onMount(() => {
+    initSW();
+  });
+</script>
+
+<slot />
+
+{#if $updateAvailable}
+  <div class="update-banner">
+    A new version is available.
+    <button on:click={applyUpdate}>Update now</button>
+  </div>
+{/if}
+```
+
+### SSR and adapter notes
+
+Service workers only run in the browser. Two common SvelteKit pitfalls:
+
+1. **`navigator` / `window` in store initializers.** Always guard with `typeof window !== 'undefined'` or run the code inside `onMount`.
+2. **`adapter-static` for fully offline apps.** If you want users to open every page while offline, every route must be prerendered. Set `export const prerender = true` in your root `+layout.js` (or use `adapter-static` which forces prerendering). The SW then precaches all prerendered pages via the `prerendered` export from `$service-worker`.
+
+```ts
+// src/routes/+layout.js — opt entire app into prerendering
+export const prerender = true;
+```
+
+With `adapter-node` or `adapter-vercel`, only routes you explicitly prerender are available offline. Dynamic server-rendered routes require a network connection.
+
+<Callout title="Key point">
+Keep PWA state — offline status, update availability, and install prompt — in Svelte stores so any component can react to it. Always guard browser-only APIs (`navigator`, `window`) with `typeof window !== 'undefined'` to prevent SSR crashes. Use `adapter-static` with `prerendered` assets for fully offline-capable apps.
+</Callout>
+
+export const quizSveltePatterns = [
+  {
+    q: 'Why must you call e.preventDefault() on the beforeinstallprompt event?',
+    options: [
+      'To prevent the default fetch handler from intercepting the event',
+      'To suppress the browser mini-infobar and control when to show your own install UI',
+      'Because the event does not bubble otherwise',
+      'To register the service worker before the prompt fires',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why guard navigator.onLine with typeof navigator !== "undefined" in a store initializer?',
+    options: [
+      'SvelteKit runs components on the server during SSR where navigator does not exist',
+      'The Svelte store API does not support browser globals',
+      'navigator.onLine is deprecated in modern browsers',
+      'To prevent the store from updating more than once',
+    ],
+    answer: 0,
+  },
+  {
+    q: 'Which SvelteKit adapter ensures every page is prerendered so the SW can precache it for offline use?',
+    options: ['adapter-node', 'adapter-vercel', 'adapter-static', 'adapter-netlify'],
+    answer: 2,
+  },
+  {
+    q: 'Where is the correct place to call initSW() in a SvelteKit app?',
+    options: [
+      'At the top level of a store file (outside any function)',
+      'Inside onMount in +layout.svelte',
+      'In the $service-worker module',
+      'In vite.config.ts',
+    ],
+    answer: 1,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/svelte-patterns" questions={quizSveltePatterns} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/svelte-patterns" />

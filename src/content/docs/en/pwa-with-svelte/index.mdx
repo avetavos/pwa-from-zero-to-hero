@@ -1,0 +1,100 @@
+---
+title: 'PWA with Svelte: Overview'
+description: 'Two paths to building a SvelteKit PWA — the built-in service-worker module ($service-worker) or @vite-pwa/sveltekit with Workbox — and what this module covers.'
+sidebar:
+  order: 1
+---
+
+import Mermaid from '../../../../components/Mermaid.astro';
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Two paths to a SvelteKit PWA
+
+SvelteKit ships with **first-class service-worker support** out of the box — no extra package required. Place a file at `src/service-worker.js` and SvelteKit automatically bundles and registers it at build time. Inside that file you get the `$service-worker` virtual module, which exposes the exact list of built assets, static files, and a version string — everything you need to precache your app.
+
+For teams that want **Workbox** (Google's caching strategy library) plus automatic manifest generation and a richer update API, the `@vite-pwa/sveltekit` package wraps Workbox in a Vite plugin that integrates cleanly with SvelteKit's build pipeline.
+
+### Which path should you take?
+
+| | Built-in SW (`$service-worker`) | `@vite-pwa/sveltekit` |
+|---|---|---|
+| Extra install | None | `npm i -D @vite-pwa/sveltekit` |
+| Caching strategies | Manual (Cache API) | Workbox (stale-while-revalidate, cache-first, …) |
+| Manifest | Write your own | Generated from plugin config |
+| Update API | Manual `updatefound` / `statechange` | `virtual:pwa-register` with stores |
+| Best for | Learning, small apps | Production apps needing fine-grained control |
+
+This module covers **both paths** in five lessons so you can choose the approach that fits your project.
+
+### How the build wires everything together
+
+export const buildFlowDiagram = `flowchart LR
+  subgraph Build
+    SK["SvelteKit build"] --> BF["build/ assets (hashed)"]
+    SK --> ST["static/ files"]
+    BF --> VER["version string"]
+  end
+  subgraph ServiceWorker["Service Worker (either path)"]
+    VER --> CACHE["CACHE = cache-version"]
+    BF --> ASSETS["ASSETS = [...build, ...files]"]
+    ASSETS --> PRE["precache on install"]
+  end
+  subgraph Page
+    REG["navigator.serviceWorker.register()"] --> SW["sw.js activated"]
+    SW --> INT["intercepts fetch()"]
+  end
+  Build --> ServiceWorker
+  ServiceWorker --> Page`;
+
+<Mermaid code={buildFlowDiagram} title="SvelteKit build pipeline → service worker → page" />
+
+## What this module covers
+
+1. **Overview** (this page) — the two PWA paths in SvelteKit and when to choose each.
+2. **SvelteKit PWA setup** — install `@vite-pwa/sveltekit`, configure `SvelteKitPWA()` in `vite.config.ts`, and understand `registerType`, `manifest`, and `strategies`.
+3. **The `$service-worker` module** — create `src/service-worker.js` using only SvelteKit built-ins: `build`, `files`, `version`, and `prerendered`.
+4. **Update flow** — detecting a new service worker, prompting the user to reload, and the difference between `autoUpdate` and `prompt` registration types.
+5. **Svelte-specific patterns** — online/offline stores, install-prompt components, and SSR/adapter notes.
+
+<Callout title="Key point">
+SvelteKit has first-class service-worker support out of the box — just create `src/service-worker.js` and import from `$service-worker`. Adding `@vite-pwa/sveltekit` layers Workbox and manifest generation on top for production-grade caching strategies.
+</Callout>
+
+export const quizPwaWithSvelteIndex = [
+  {
+    q: 'What does the $service-worker module expose?',
+    options: [
+      'React hooks for PWA state',
+      'The list of built assets, static files, and a version string',
+      'A Workbox instance pre-configured for SvelteKit',
+      'The SvelteKit router internals',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which package adds Workbox and automatic manifest generation to a SvelteKit PWA?',
+    options: [
+      'workbox-sveltekit',
+      '@sveltejs/pwa',
+      '@vite-pwa/sveltekit',
+      'vite-plugin-workbox',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Where does SvelteKit look for your custom service worker file by default?',
+    options: [
+      'public/sw.js',
+      'static/service-worker.js',
+      'src/service-worker.js',
+      'src/routes/sw.js',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-svelte/index" questions={quizPwaWithSvelteIndex} />
+
+<ProgressTracker client:visible id="pwa-with-svelte/index" />

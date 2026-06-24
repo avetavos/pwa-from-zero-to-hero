@@ -1,0 +1,149 @@
+---
+title: What Is a PWA? (Deep Dive)
+description: 'The history of PWAs, real-world examples, the three hard requirements, and how PWA capabilities compare to native apps.'
+sidebar:
+  order: 2
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## A brief history
+
+The web has always been installable in spirit — bookmark it and it is always there. But for years a gap remained between what websites could do and what native apps could do: offline access, push notifications, home screen presence, fast launch times.
+
+In 2015, Alex Russell and Frances Berriman coined the term **Progressive Web App** to describe a set of techniques — not a new technology — that closed that gap. The key insight was that browsers had quietly shipped the necessary primitives (service workers, the Cache API, the Web App Manifest) and developers just needed to combine them intentionally.
+
+Since then, every major browser has added PWA support, and the capabilities have expanded far beyond the original spec. Today a PWA can access the camera, microphone, clipboard, file system, Bluetooth (on supported platforms), and payment APIs — capabilities that were exclusive to native apps just a few years ago.
+
+## Real-world examples
+
+The proof is in production. Several high-traffic apps shipped PWAs and measured meaningful improvements:
+
+**Twitter Lite**
+Twitter rebuilt its mobile web experience as a PWA. The result: 65% increase in pages per session, 75% more tweets sent, and a 20% drop in bounce rate — all from a 600 KB download versus the multi-megabyte native app.
+
+**Starbucks**
+The Starbucks PWA is 99.84% smaller than the equivalent iOS app. It works offline, allowing customers to browse the menu and customize orders without a connection. Order data syncs when connectivity returns.
+
+**Pinterest**
+Pinterest rebuilt its mobile web site as a PWA and saw a 60% increase in core engagements, a 44% increase in user-generated ad revenue, and a 40% increase in time spent.
+
+These gains came without publishing to an app store, without requiring a download, and without a separate development team for each platform.
+
+## The three hard requirements
+
+A site is a PWA when it satisfies all three of the following. Miss any one and browsers will not offer the install prompt, and offline capabilities will not work.
+
+### 1. Served over HTTPS
+
+Service workers can read and modify every network request the page makes. Browsers enforce that they only run on secure origins. In practice this means:
+
+- `https://` in production — full stop.
+- `http://localhost` and `http://127.0.0.1` are explicitly exempted for local development.
+- Any other plain `http://` origin will fail silently or throw a `SecurityError` on registration.
+
+### 2. A Web App Manifest
+
+A JSON file linked from `<head>` that describes how the app should appear when installed:
+
+```html
+<link rel="manifest" href="/manifest.webmanifest" />
+```
+
+The manifest must include at minimum a `name` (or `short_name`), a `start_url`, a `display` mode of `standalone` or `fullscreen`, and at least one icon sized 192×192 or larger. Without a valid manifest the browser install prompt will not appear.
+
+### 3. A Registered Service Worker
+
+The page must successfully register a service worker that controls its scope. At minimum it must handle `fetch` events (even if the handler just passes requests through). A service worker that only handles `install` and `activate` satisfies the registration requirement but gives you no offline capability.
+
+```js
+// Minimum viable service worker
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
+```
+
+<Callout title="Key point">
+The three hard requirements: served over HTTPS, a web app manifest, and a registered service worker.
+</Callout>
+
+## PWA capabilities vs. native
+
+PWAs cover a surprisingly large portion of what native apps can do. The table below reflects the state of browser APIs as of 2025. "Limited" means the API exists but has platform gaps (typically iOS/Safari lags behind Chrome/Android).
+
+| Capability | PWA | Native | Notes |
+|---|---|---|---|
+| **Offline access** | Yes | Yes | Via Cache API and service worker |
+| **Home screen install** | Yes | Yes | No app store review needed for PWAs |
+| **Push notifications** | Yes | Yes | Limited on iOS Safari prior to 16.4 |
+| **Camera / microphone** | Yes | Yes | Via `getUserMedia` — requires permission |
+| **Background sync** | Yes | Yes | `BackgroundSyncManager`; limited on iOS |
+| **File system access** | Yes | Yes | File System Access API; not on Firefox |
+| **Payments** | Yes | Yes | Payment Request API |
+| **Bluetooth** | Limited | Yes | Web Bluetooth API; not on Firefox or iOS |
+| **NFC** | Limited | Yes | Web NFC; Chrome on Android only |
+| **SMS / phone calls** | No | Yes | No web API equivalent |
+| **App store listing** | Optional | Required | PWA Builder can wrap a PWA for stores |
+| **Auto-update** | Yes | Manual | New SW version activates silently |
+| **Deep OS integration** | Limited | Yes | Shortcuts, share targets, protocol handlers available; lock-screen widgets not yet |
+
+The most significant remaining gap is deep OS integration — lock-screen widgets, always-on background processes, and low-level hardware access (NFC on iOS, Bluetooth on Firefox). For most consumer-facing use cases — content, commerce, productivity — a PWA covers everything users need.
+
+## Installability criteria in practice
+
+"Installable" is not a single universal bar. Each browser engine applies its own heuristics on top of the three hard requirements:
+
+- **Chromium (Chrome, Edge, Samsung Internet)** — shows an install prompt once the three requirements are met and the user has interacted with the page. The exact engagement threshold is intentionally vague and changes over time.
+- **Safari (iOS and macOS)** — does not show an ambient install prompt. Users must tap the share sheet and choose "Add to Home Screen" manually.
+- **Firefox** — dropped its own install UI but still supports service workers and manifests; users can install via extensions.
+
+This means your PWA must always work well as a plain website. Enhanced installability is progressive — hence the name.
+
+export const quizWhatIsAPwa = [
+  {
+    q: 'Who coined the term "Progressive Web App" and in what year?',
+    options: [
+      'Google Chrome team, 2012',
+      'Alex Russell and Frances Berriman, 2015',
+      'Mozilla, 2014',
+      'Tim Berners-Lee, 2010',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Which of the following is NOT one of the three hard requirements for a PWA?',
+    options: [
+      'Served over HTTPS',
+      'A web app manifest',
+      'A registered service worker',
+      'A responsive layout that passes Lighthouse audits',
+    ],
+    answer: 3,
+  },
+  {
+    q: 'Why does Safari on iOS not show an ambient install prompt for PWAs?',
+    options: [
+      'Safari does not support web app manifests',
+      'iOS requires all installs to go through the App Store',
+      "Safari applies its own heuristics and requires users to use the share sheet manually",
+      'PWAs cannot be installed on iOS at all',
+    ],
+    answer: 2,
+  },
+  {
+    q: 'Which PWA capability has the most significant platform gap as of 2025?',
+    options: [
+      'Camera and microphone access',
+      'Offline caching via the Cache API',
+      'Web Bluetooth — not supported on Firefox or iOS',
+      'Payment Request API',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="intro-what-is-pwa/what-is-a-pwa" questions={quizWhatIsAPwa} />
+
+<ProgressTracker client:visible id="intro-what-is-pwa/what-is-a-pwa" />

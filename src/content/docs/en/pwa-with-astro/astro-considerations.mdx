@@ -1,0 +1,151 @@
+---
+title: 'Astro-Specific Considerations'
+description: 'SSG vs SSR/hybrid rendering, islands hydration and offline behavior, base path and scope alignment, and testing your PWA with astro preview.'
+sidebar:
+  order: 5
+---
+
+import Callout from '../../../../components/Callout.astro';
+import Quiz from '../../../../components/Quiz.tsx';
+import ProgressTracker from '../../../../components/ProgressTracker.tsx';
+
+## Astro-specific considerations for PWAs
+
+Astro's flexibility — static, SSR, or hybrid rendering — introduces a handful of decisions that directly affect how your service worker behaves. Getting these right means your users enjoy a fast, reliable offline experience without stale or missing responses.
+
+### SSG vs SSR/hybrid: what gets precached
+
+Astro's default output mode is `static`. Every page is rendered to an `.html` file at build time, so `@vite-pwa/astro` can walk the `dist/` folder and include every HTML file in the **precache manifest** automatically.
+
+Switch to `output: 'server'` or `output: 'hybrid'` and the picture changes: SSR routes are generated on the server at request time, so there is no `.html` file for Workbox to hash and precache. Those routes must be handled by **runtime caching** instead.
+
+```ts
+// astro.config.mjs — SSG (default), all pages precached
+AstroPWA({
+  registerType: 'autoUpdate',
+  workbox: {
+    globPatterns: ['**/*.{css,js,html,svg,png,ico}'],
+    // Every /blog/*, /about, / etc. is a static file — precached
+  },
+})
+```
+
+```ts
+// astro.config.mjs — hybrid SSR
+// output: 'hybrid' or 'server'
+AstroPWA({
+  registerType: 'autoUpdate',
+  workbox: {
+    globPatterns: ['**/*.{css,js,svg,png,ico}'], // assets only — no .html for SSR routes
+    runtimeCaching: [
+      {
+        urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+        handler: 'NetworkFirst',
+        options: { cacheName: 'api-cache', networkTimeoutSeconds: 3 },
+      },
+    ],
+  },
+})
+```
+
+#### Quick reference
+
+| Scenario | Precache | Runtime cache |
+|---|---|---|
+| SSG page (`output: 'static'`) | Yes (auto) | Optional |
+| SSR page (`output: 'server'`) | No | Required |
+| Static asset (CSS/JS/images) | Yes | No |
+| External API | No | Required |
+
+### Base path and scope alignment
+
+When you deploy Astro to a sub-path (for example, GitHub Pages at `/my-app/`), the service worker scope must match that base. If the scope is `/` but your app lives at `/my-app/`, the SW will fail to control your pages.
+
+Set `base`, `scope`, `manifest.start_url`, and the Workbox `globPatterns` root together:
+
+```ts
+// astro.config.mjs — deployed at /my-app/
+export default defineConfig({
+  base: '/my-app/',
+  integrations: [
+    AstroPWA({
+      scope: '/my-app/',
+      base: '/my-app/',
+      manifest: { start_url: '/my-app/' },
+      workbox: { globPatterns: ['**/*.{css,js,html,svg,png,ico}'] },
+    }),
+  ],
+})
+```
+
+Astro's default `trailingSlash` is `'ignore'`, which means both `/about` and `/about/` are valid. Make sure your `scope` ends with a slash (`/my-app/`) so the SW controls all paths under that prefix.
+
+### Islands hydration and offline behavior
+
+Astro islands ship each component's JavaScript as a separate chunk in `dist/`. Because `@vite-pwa/astro` precaches every file matching `globPatterns`, all island JS bundles are cached automatically. An island using `client:visible` or `client:idle` will hydrate correctly offline as long as its chunk is in the precache manifest — which it will be if your `globPatterns` includes `**/*.js`.
+
+No extra configuration is needed for islands offline support. The key constraint is that the island's data must also be available offline: if the component fetches from an uncached API at runtime, that data will be missing.
+
+<Callout title="Key point">
+For SSR routes, rely on runtime caching (not precache) — only static, hashed assets belong in the precache manifest.
+</Callout>
+
+### Testing with astro preview
+
+The service worker is only generated during `astro build`. Running `astro dev` does **not** produce a SW, so DevTools will show no service worker registered. Always test your PWA against the production build:
+
+```bash
+# Build first, then preview — the SW only works in the built output
+npm run build
+npm run preview
+# Open http://localhost:4321 in DevTools > Application > Service Workers
+```
+
+After opening the preview URL, navigate to **DevTools → Application → Service Workers** to confirm the SW is registered and active. Use **Cache Storage** to verify that your precache manifest entries are present. To simulate offline behavior, check the **Offline** checkbox in the Network panel and reload.
+
+export const quizAstroConsiderations = [
+  {
+    q: 'In SSG mode, why are HTML pages included in the precache manifest automatically?',
+    options: [
+      'Astro injects a special plugin that forces precaching',
+      'HTML files exist as static files in dist/ at build time, so Workbox can hash and list them',
+      'The service worker fetches all pages on first activation',
+      'Precaching is opt-in and must be configured manually for each page',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'You deploy your Astro site at /docs/. What must you set in AstroPWA to ensure the service worker controls all pages under that path?',
+    options: [
+      'Set registerType to "autoUpdate"',
+      'Set scope: "/docs/" and base: "/docs/" in the AstroPWA options',
+      'Set globPatterns to ["**/*.html"]',
+      'No changes are needed — the SW detects the base path automatically',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'Why should you run npm run build before testing the service worker with astro preview?',
+    options: [
+      'astro dev registers a development service worker that conflicts with the production one',
+      'The service worker file is only generated during astro build — it does not exist in dev mode',
+      'astro preview requires a compiled TypeScript output',
+      'npm run build clears the browser cache before testing',
+    ],
+    answer: 1,
+  },
+  {
+    q: 'An Astro island using client:visible fetches data from an external API at runtime. Will it work offline?',
+    options: [
+      'Yes — AstroPWA precaches all network requests automatically',
+      'Yes — islands are fully static and never need network access',
+      'No — unless a runtimeCaching rule covers that API endpoint, the fetch will fail offline',
+      'No — client:visible islands are never precached',
+    ],
+    answer: 2,
+  },
+];
+
+<Quiz client:visible id="pwa-with-astro/astro-considerations" questions={quizAstroConsiderations} />
+
+<ProgressTracker client:visible id="pwa-with-astro/astro-considerations" />
