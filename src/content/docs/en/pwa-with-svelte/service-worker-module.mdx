@@ -38,7 +38,7 @@ const ASSETS = [
   ...prerendered, // prerendered HTML pages
 ];
 
-// ── Install: precache all assets ──────────────────────────────────────────────
+// -- Install: precache all assets ----------------------------------------------
 self.addEventListener('install', (event) => {
   async function addFilesToCache() {
     const cache = await caches.open(CACHE);
@@ -47,7 +47,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(addFilesToCache());
 });
 
-// ── Activate: delete old caches ───────────────────────────────────────────────
+// -- Activate: delete old caches -----------------------------------------------
 self.addEventListener('activate', (event) => {
   async function deleteOldCaches() {
     for (const key of await caches.keys()) {
@@ -57,7 +57,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(deleteOldCaches());
 });
 
-// ── Fetch: serve from cache, fall back to network ─────────────────────────────
+// -- Fetch: serve from cache, fall back to network -----------------------------
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
