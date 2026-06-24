@@ -1,6 +1,66 @@
 ---
 title: PWA — From Zero to Hero
-description: Learn Progressive Web Apps — manifest, service workers, offline, and framework integration.
+description: Learn Progressive Web Apps from first principles — manifest, service workers, caching, offline, push — then ship them with React, Astro, and Svelte.
 template: splash
+hero:
+  tagline: A standalone, beginner→advanced course on Progressive Web Apps. Learn the manifest, service workers, caching, and offline — with runnable examples in StackBlitz — then apply PWAs in React, Astro, and Svelte.
+  actions:
+    - text: Start here
+      link: /pwa-from-zero-to-hero/en/intro-what-is-pwa/
+      icon: right-arrow
+      variant: primary
+    - text: Jump to Service Workers
+      link: /pwa-from-zero-to-hero/en/service-workers/
+      icon: open-book
 ---
-Coming soon.
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What you'll learn
+
+<CardGrid>
+  <Card title="Intro: What is a PWA?" icon="rocket">
+    The three pillars (capable, reliable, installable), HTTPS, and Lighthouse. [Start →](/pwa-from-zero-to-hero/en/intro-what-is-pwa/)
+  </Card>
+  <Card title="Web App Manifest" icon="seti:json">
+    manifest.webmanifest, icons &amp; maskable, display/theme, the install prompt. [Learn →](/pwa-from-zero-to-hero/en/web-app-manifest/)
+  </Card>
+  <Card title="Service Workers" icon="setting">
+    Registration, lifecycle, the fetch event, and updates. [Dive in →](/pwa-from-zero-to-hero/en/service-workers/)
+  </Card>
+  <Card title="Caching Strategies" icon="random">
+    Cache Storage API, cache-first/network-first, SWR, Workbox. [Cache →](/pwa-from-zero-to-hero/en/caching-strategies/)
+  </Card>
+  <Card title="Offline & App Shell" icon="document">
+    Offline fallback, the app-shell model, IndexedDB, background sync. [Go offline →](/pwa-from-zero-to-hero/en/offline-app-shell/)
+  </Card>
+  <Card title="Push & Advanced" icon="bell">
+    Notifications, the Push API, badging, share target, periodic sync. [Engage →](/pwa-from-zero-to-hero/en/push-advanced/)
+  </Card>
+  <Card title="PWA with React" icon="seti:react">
+    vite-plugin-pwa, registerSW, an update-prompt UI. [React →](/pwa-from-zero-to-hero/en/pwa-with-react/)
+  </Card>
+  <Card title="PWA with Astro" icon="astro">
+    @vite-pwa/astro, manifest config, SSG/SSR strategies. [Astro →](/pwa-from-zero-to-hero/en/pwa-with-astro/)
+  </Card>
+  <Card title="PWA with Svelte" icon="seti:svelte">
+    @vite-pwa/sveltekit, the $service-worker module, update flow. [Svelte →](/pwa-from-zero-to-hero/en/pwa-with-svelte/)
+  </Card>
+</CardGrid>
+
+## How this course works
+
+<CardGrid>
+  <Card title="Runnable in StackBlitz" icon="rocket">
+    "Open in StackBlitz" launches a real PWA — service worker + manifest, installable — no local setup.
+  </Card>
+  <Card title="Diagrams that explain" icon="puzzle">
+    Service-worker lifecycle, caching flows, and push sequences as Mermaid diagrams.
+  </Card>
+  <Card title="Framework sessions" icon="approve-check">
+    Apply everything in React, Astro, and Svelte with the current PWA plugins.
+  </Card>
+  <Card title="Bilingual + read mode" icon="translate">
+    English and ไทย, quizzes with saved progress, and a distraction-free read mode.
+  </Card>
+</CardGrid>

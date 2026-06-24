@@ -1,6 +1,66 @@
 ---
 title: PWA — From Zero to Hero
-description: Learn Progressive Web Apps — manifest, service workers, offline, and framework integration.
+description: เรียน Progressive Web App ตั้งแต่พื้นฐาน — manifest, service worker, caching, offline, push — แล้วนำไปใช้กับ React, Astro และ Svelte
 template: splash
+hero:
+  tagline: คอร์ส Progressive Web App แบบ standalone ตั้งแต่ผู้เริ่มต้นจนถึงขั้นสูง เรียน manifest, service worker, caching และ offline พร้อมตัวอย่างรันได้จริงใน StackBlitz แล้วนำ PWA ไปใช้กับ React, Astro และ Svelte
+  actions:
+    - text: เริ่มที่นี่
+      link: /pwa-from-zero-to-hero/th/intro-what-is-pwa/
+      icon: right-arrow
+      variant: primary
+    - text: ข้ามไปที่ Service Workers
+      link: /pwa-from-zero-to-hero/th/service-workers/
+      icon: open-book
 ---
-Coming soon.
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## สิ่งที่คุณจะได้เรียน
+
+<CardGrid>
+  <Card title="Intro: What is a PWA?" icon="rocket">
+    สามเสาหลัก (capable, reliable, installable), HTTPS และ Lighthouse [เริ่ม →](/pwa-from-zero-to-hero/th/intro-what-is-pwa/)
+  </Card>
+  <Card title="Web App Manifest" icon="seti:json">
+    manifest.webmanifest, icon &amp; maskable, display/theme, install prompt [เรียน →](/pwa-from-zero-to-hero/th/web-app-manifest/)
+  </Card>
+  <Card title="Service Workers" icon="setting">
+    การ register, lifecycle, fetch event และการอัปเดต [เจาะลึก →](/pwa-from-zero-to-hero/th/service-workers/)
+  </Card>
+  <Card title="Caching Strategies" icon="random">
+    Cache Storage API, cache-first/network-first, SWR, Workbox [แคช →](/pwa-from-zero-to-hero/th/caching-strategies/)
+  </Card>
+  <Card title="Offline & App Shell" icon="document">
+    offline fallback, app-shell model, IndexedDB, background sync [ออฟไลน์ →](/pwa-from-zero-to-hero/th/offline-app-shell/)
+  </Card>
+  <Card title="Push & Advanced" icon="bell">
+    Notifications, Push API, badging, share target, periodic sync [เพิ่ม engagement →](/pwa-from-zero-to-hero/th/push-advanced/)
+  </Card>
+  <Card title="PWA with React" icon="seti:react">
+    vite-plugin-pwa, registerSW, update-prompt UI [React →](/pwa-from-zero-to-hero/th/pwa-with-react/)
+  </Card>
+  <Card title="PWA with Astro" icon="astro">
+    @vite-pwa/astro, การตั้งค่า manifest, กลยุทธ์ SSG/SSR [Astro →](/pwa-from-zero-to-hero/th/pwa-with-astro/)
+  </Card>
+  <Card title="PWA with Svelte" icon="seti:svelte">
+    @vite-pwa/sveltekit, โมดูล $service-worker, update flow [Svelte →](/pwa-from-zero-to-hero/th/pwa-with-svelte/)
+  </Card>
+</CardGrid>
+
+## คอร์สนี้ทำงานยังไง
+
+<CardGrid>
+  <Card title="รันได้ใน StackBlitz" icon="rocket">
+    "Open in StackBlitz" เปิด PWA จริง — service worker + manifest ติดตั้งได้ ไม่ต้องตั้งค่าในเครื่อง
+  </Card>
+  <Card title="ไดอะแกรมที่อธิบายชัด" icon="puzzle">
+    lifecycle ของ service worker, flow ของ caching และลำดับของ push เป็นไดอะแกรม Mermaid
+  </Card>
+  <Card title="เซสชันรายเฟรมเวิร์ก" icon="approve-check">
+    นำทุกอย่างไปใช้จริงใน React, Astro และ Svelte ด้วยปลั๊กอิน PWA ปัจจุบัน
+  </Card>
+  <Card title="สองภาษา + read mode" icon="translate">
+    ภาษาอังกฤษและไทย, แบบทดสอบที่บันทึกความคืบหน้า และโหมดอ่านแบบไร้สิ่งรบกวน
+  </Card>
+</CardGrid>
