@@ -137,7 +137,7 @@ notifyBtn.onclick = async () => {
   const reg = await navigator.serviceWorker.ready;
   reg.showNotification('Hello from the SW!', {
     body: 'This notification came from your service worker.',
-    icon: '/pwa-from-zero-to-hero/placeholder-icon.png',
+    icon: '/pwa/placeholder-icon.png',
     data: { ts: Date.now() },
   });
   log('Notification sent via SW');
