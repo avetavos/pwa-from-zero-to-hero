@@ -173,6 +173,25 @@ export const prerender = true;
 เก็บสถานะ PWA — สถานะ offline, ความพร้อมในการอัปเดต, และ install prompt — ใน Svelte store เพื่อให้ component ใดก็ตาม react ต่อมันได้ ป้องกัน browser-only API (`navigator`, `window`) ด้วย `typeof window !== 'undefined'` เสมอเพื่อป้องกัน SSR crash ใช้ `adapter-static` พร้อม `prerendered` asset สำหรับแอปที่ offline ได้ทั้งหมด
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ผูก PWA state เข้ากับ Svelte store | UI reactive ต่อ install/update state ทันทีทั่วทั้งแอปผ่าน store เดียว | ต้องออกแบบ store structure ให้ดีไม่งั้น state กระจัดกระจาย |
+| จัดการ PWA state แบบแยกเป็น local component variable | เขียนง่ายในเคสเล็กๆ ไม่ต้องตั้ง store | ไม่ sync กันข้าม component ทำให้ UI ส่วนต่างๆ เห็น state ไม่ตรงกัน |
+
+## Common Mistakes
+
+- subscribe store ใน component โดยไม่ unsubscribe (ไม่ใช้ `$` auto-subscription หรือ onDestroy) ทำให้เกิด memory leak
+- เขียน logic ของ service worker ปนอยู่ใน component โดยตรงแทนที่จะแยกเป็น store/module ทำให้ reuse ข้ามหน้าไม่ได้
+- ไม่เช็คว่าโค้ดรันฝั่ง client จริง (SvelteKit SSR) ก่อนเข้าถึง `navigator.serviceWorker` ทำให้ build พังตอน SSR
+
+> 💡 Real World Example
+>
+> **Vite PWA ecosystem (SvelteKit)** — ใช้ store pattern ครอบ `virtual:pwa-register/svelte` ให้ UI reactive ต่อ update state ได้ทันที
+>
+> **เครื่องมือแบบ Squoosh ที่พอร์ตมาเป็น SvelteKit** — ใช้ Svelte store เก็บสถานะ installable/offline ให้ทุก component อ่านค่าเดียวกัน
+
 export const quizSveltePatterns = [
   {
     q: 'ทำไมต้องเรียก e.preventDefault() บน event beforeinstallprompt?',

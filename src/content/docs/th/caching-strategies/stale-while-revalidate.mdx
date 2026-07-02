@@ -95,6 +95,25 @@ async function fetchWithCacheThenNetwork(url) {
 Stale-while-revalidate ให้การโหลดทันทีพร้อมความสดใหม่ในที่สุด — เยี่ยมสำหรับ avatar, feed, และ CSS ผู้ใช้ไม่ต้องรอ network เลย แต่จะช้ากว่าเวอร์ชันล่าสุดอย่างมากที่สุดหนึ่งเวอร์ชันเสมอ
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| Stale-while-revalidate | ตอบกลับเร็วจาก cache ทันทีพร้อมอัปเดตเบื้องหลัง ได้ทั้งความเร็วและความสด (รอบถัดไป) | ผู้ใช้เห็นข้อมูลเก่าไปก่อน 1 รอบเสมอ ไม่เหมาะกับข้อมูลที่ต้อง real-time |
+| Cache-first ล้วนๆ | ง่ายกว่า ไม่ต้องจัดการ background fetch | ไม่มีกลไก auto-refresh ข้อมูลจะเก่าค้างจนกว่าจะ invalidate cache เอง |
+
+## Common Mistakes
+
+- ไม่ await การ update cache เบื้องหลัง (fire-and-forget ผิดจังหวะ) ทำให้ browser อาจ terminate service worker ก่อน fetch เสร็จ ต้องใช้ `event.waitUntil()`
+- ใช้ SWR กับข้อมูลที่ต้องถูกต้อง 100% เสมอ (เช่นยอดเงินคงเหลือ) ทำให้ผู้ใช้เห็นตัวเลขเก่าโดยไม่รู้ตัว
+- ไม่ trim cache entry เก่าออก ทำให้ storage โตเรื่อยๆ เพราะทุก revalidate จะเขียนทับแต่ไม่เคย cleanup entry ที่ไม่ใช้แล้ว
+
+> 💡 Real World Example
+>
+> **HTTP Cache-Control: stale-while-revalidate** — เป็น pattern มาตรฐานที่ CDN อย่าง Cloudflare และ Fastly ใช้ก่อนที่ service worker จะยืมแนวคิดนี้มาใช้ฝั่ง client
+>
+> **Workbox StaleWhileRevalidate strategy** — ใช้กันแพร่หลายในเว็บข่าวและ e-commerce ที่ต้องการทั้งความเร็วของหน้า listing และข้อมูลที่ไม่เก่าเกินไป
+
 export const quizStaleWhileRevalidate = [
   {
     q: 'ใน stale-while-revalidate cache ถูกอัปเดตเมื่อใด?',

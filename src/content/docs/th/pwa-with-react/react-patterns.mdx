@@ -137,6 +137,25 @@ Create React App ไม่ได้รับการดูแลรักษา
 แนะนำให้ใช้ Vite + `vite-plugin-pwa` สำหรับ React PWA ใหม่ สำหรับ Next.js ให้ใช้ Workbox/serwist-based setup แทน
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ผูก PWA state (installable, update available) เข้ากับ React state/hook | UI ตอบสนอง lifecycle ของ service worker ได้ทันที เขียนแบบ declarative | ต้องระวัง re-render ที่ไม่จำเป็นถ้า hook ออกแบบไม่ดี |
+| จัดการ service worker แบบแยกจาก React tree (vanilla JS listener) | ไม่ผูกกับ re-render cycle ของ React เลย เขียนง่ายกว่าในเคสง่ายๆ | ต้อง sync state กลับเข้า React เองด้วยมือ เพิ่มจุดที่ bug ได้ |
+
+## Common Mistakes
+
+- เรียก logic ของ service worker (register, event listener) ใน render function ตรงๆ แทนที่จะอยู่ใน useEffect ทำให้ทำงานซ้ำทุก re-render
+- ไม่ cleanup event listener ใน useEffect cleanup function ทำให้เกิด listener ซ้อนหลายตัวเมื่อ component mount ใหม่
+- ผูก PWA install prompt state ไว้ใน local component state แทน global store ทำให้ปุ่มติดตั้งไม่ sync กันข้ามหลาย component
+
+> 💡 Real World Example
+>
+> **Vite PWA ecosystem (Elk)** — ใช้ hook ครอบ virtual:pwa-register เพื่อให้ UI แจ้งเตือน update ได้แบบ declarative
+>
+> **Squoosh** — ผูก service worker lifecycle เข้ากับ UI state เพื่อแจ้งผู้ใช้เมื่อมีเวอร์ชันใหม่พร้อมใช้
+
 export const quizReactPatterns = [
   {
     q: 'Browser event ใดที่ยิงขึ้นก่อนที่ install prompt จะแสดงให้ผู้ใช้เห็น?',

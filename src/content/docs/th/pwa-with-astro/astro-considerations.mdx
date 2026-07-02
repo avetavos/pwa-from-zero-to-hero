@@ -103,6 +103,25 @@ npm run preview
 
 หลังเปิด preview URL ไปที่ **DevTools → Application → Service Workers** เพื่อยืนยันว่า SW registered และ active แล้ว ใช้ **Cache Storage** เพื่อตรวจสอบว่า precache manifest entries มีอยู่ครบถ้วน หากต้องการจำลองพฤติกรรม offline ให้ติ๊ก **Offline** ใน Network panel แล้ว reload
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| Astro SSG (precache ผลลัพธ์ build ทั้งหมด) | offline ทำงานได้ทันทีหลัง build เพราะทุกหน้าเป็น static file อยู่แล้ว | เนื้อหาที่เปลี่ยนบ่อยต้อง rebuild+redeploy ใหม่ทุกครั้งถึงจะ cache ตัวใหม่ |
+| Astro + island architecture (partial hydration) | ส่ง JS ลง client น้อยกว่ามาก เหมาะกับ PWA ที่เน้นความเร็ว | ต้องระวัง service worker cache แยก JS ของแต่ละ island ให้ถูก scope |
+
+## Common Mistakes
+
+- ลืมว่า Astro เป็น multi-page app โดย default ทำให้ navigation ระหว่างหน้าเป็น full page load ที่ service worker ต้อง handle ต่างจาก SPA
+- ไม่เผื่อ cache สำหรับหน้าที่ render แบบ SSR (ถ้าใช้ hybrid mode) ทำให้ offline fallback ใช้ไม่ได้กับหน้าที่ไม่ใช่ static
+- Precache ทุกหน้ารวมถึงหน้าที่แทบไม่มีคนเข้า ทำให้ storage โตเกินจำเป็นโดยไม่ได้ประโยชน์เพิ่ม
+
+> 💡 Real World Example
+>
+> **VitePress / Astro documentation sites** — ใช้ SSG ร่วมกับ service worker precache ทำให้ documentation เปิดอ่านได้แบบ offline ทันทีหลังเข้าชมครั้งแรก
+>
+> **Astro blog starter ecosystem** — หลายเว็บบล็อกที่ build ด้วย Astro ใช้แนวทาง precache ทั้งเว็บเพราะขนาดไฟล์เล็กพอจะทำได้จริง
+
 export const quizAstroConsiderations = [
   {
     q: 'ในโหมด SSG ทำไมหน้า HTML ถึงถูกนำเข้า precache manifest โดยอัตโนมัติ?',

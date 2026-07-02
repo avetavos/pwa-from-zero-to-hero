@@ -41,9 +41,9 @@ export const overviewDiagram = `flowchart LR
 
 1. **ภาพรวม** (หน้านี้) — service worker คืออะไร และมันโต้ตอบกับหน้าเว็บอย่างไร
 2. **การ register service worker** — หน้าเว็บโหลดและ activate service worker ได้อย่างไร
-3. **Lifecycle** — สเตตแมชชีน install → waiting → activate → active ที่ทุก SW ต้องผ่าน
+3. **Lifecycle** — state machine install → waiting → activate → active ที่ทุก SW ต้องผ่าน
 4. **fetch event** — การดักจับ request และตัดสินใจว่าจะตอบสนองอย่างไร
-5. **การอัปเดต service worker** — เบราว์เซอร์ตรวจจับการเปลี่ยนแปลงได้อย่างไร และจะ push อัปเดตอย่างปลอดภัยได้อย่างไร
+5. **การอัปเดต service worker** — browser ตรวจจับการเปลี่ยนแปลงได้อย่างไร และจะ push อัปเดตอย่างปลอดภัยได้อย่างไร
 
 แต่ละบทเรียนเป็นอิสระต่อกัน: กลับมาที่บทไหนก็ได้เมื่อไหร่ก็ได้
 
@@ -60,7 +60,7 @@ export const quizSwOverview = [
   {
     q: 'อะไรที่ทำให้ service worker เป็น "network proxy"?',
     options: [
-      'มันทำงานอยู่บนเซิร์ฟเวอร์',
+      'มันทำงานอยู่บน server',
       'มันดักจับและสามารถตอบสนองต่อทุก network request ได้',
       'มันเก็บข้อมูลไว้ใน localStorage',
       'มันอ่านและเขียนไปยัง DOM',

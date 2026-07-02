@@ -237,6 +237,25 @@ self.addEventListener('fetch', function(event) {
 
 <PwaPlayground client:visible files={proj} openFile="sw.js" />
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| จัดการ Cache Storage API ตรงๆ ด้วยมือ | ควบคุม logic ได้ทุกรายละเอียด ไม่ผูกกับ library | ต้องเขียนและ maintain boilerplate เยอะ เสี่ยง bug จากการ handle edge case เอง |
+| ใช้ library ครอบ (เช่น Workbox) | โค้ดสั้นลง ลด boilerplate จัดการ cache versioning ให้ | เพิ่ม dependency และเรียนรู้ API ของ library เพิ่ม |
+
+## Common Mistakes
+
+- ไม่ตั้งชื่อ cache แบบ versioned (เช่น `app-v1`) ทำให้ลบ cache เก่าตอน activate ไม่ได้อย่างปลอดภัย
+- ลืม cache.delete() cache เก่าตอน activate event ทำให้ storage โตขึ้นเรื่อยๆ ไม่มีที่สิ้นสุด
+- cache response ที่เป็น opaque (cross-origin แบบไม่มี CORS) โดยไม่รู้ตัวว่ากิน quota เท่ากับไฟล์เต็มแม้จะอ่าน body ไม่ได้
+
+> 💡 Real World Example
+>
+> **Wikipedia** — ใช้ Cache Storage API เก็บบทความที่เคยอ่านไว้ ทำให้เปิดซ้ำได้แบบ offline โดยไม่ต้องโหลดใหม่
+>
+> **Squoosh** — cache ทุก asset ของแอปไว้ตั้งแต่ install ทำให้ใช้งานได้แบบ offline-first ตั้งแต่ครั้งแรกที่เปิด
+
 export const quizCacheStorageApi = [
   {
     q: 'เมธอดใดของ Cache Storage ที่เก็บ array ของ URL แบบ atomic ตอน install time?',

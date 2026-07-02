@@ -17,16 +17,16 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ### วิธีทำงาน
 
-ขั้นตอนมีสามฝ่าย: **หน้าเว็บ**, **service worker**, และ **โครงสร้างพื้นฐาน sync ของเบราว์เซอร์**
+ขั้นตอนมีสามฝ่าย: **หน้าเว็บ**, **service worker**, และ **โครงสร้างพื้นฐาน sync ของ browser**
 
 1. หน้าเว็บตรวจพบการเขียนที่ล้มเหลว (หรืออาจ offline)
 2. หน้าเว็บเรียก `registration.sync.register('tag-name')` เพื่อตั้งเวลา sync event
-3. เบราว์เซอร์ fire `sync` event บน service worker เมื่อมีการเชื่อมต่อที่เสถียร SW retry operation และเรียก `event.waitUntil()` เพื่อให้เบราว์เซอร์ทำงานต่อจนงานเสร็จ
-4. ถ้าการ sync ล้มเหลว เบราว์เซอร์จะ retry ด้วย exponential back-off
+3. browser fire `sync` event บน service worker เมื่อมีการเชื่อมต่อที่เสถียร SW retry operation และเรียก `event.waitUntil()` เพื่อให้ browser ทำงานต่อจนงานเสร็จ
+4. ถ้าการ sync ล้มเหลว browser จะ retry ด้วย exponential back-off
 
-### รองรับเบราว์เซอร์
+### รองรับ browser
 
-Background Sync ปัจจุบันรองรับเฉพาะ **เบราว์เซอร์ที่ใช้ Chromium** (Chrome, Edge, Samsung Internet, และเบราว์เซอร์ Android ส่วนใหญ่) Firefox และ Safari ไม่ได้ implement ทำให้ graceful fallback เป็นสิ่งจำเป็น — ถ้า API ไม่พร้อมใช้งาน ควรลอง network request ทันที
+Background Sync ปัจจุบันรองรับเฉพาะ **browser ที่ใช้ Chromium** (Chrome, Edge, Samsung Internet, และ browser Android ส่วนใหญ่) Firefox และ Safari ไม่ได้ implement ทำให้ graceful fallback เป็นสิ่งจำเป็น — ถ้า API ไม่พร้อมใช้งาน ควรลอง network request ทันที
 
 ### Feature detection
 
@@ -99,7 +99,7 @@ async function replayOutbox() {
 }
 ```
 
-ถ้า `replayOutbox()` throw หรือคืนค่า rejected Promise เบราว์เซอร์จะถือว่า sync ล้มเหลวและ schedule retry resolve สำเร็จเฉพาะเมื่อคุณแน่ใจว่าข้อมูลถูกส่งแล้ว
+ถ้า `replayOutbox()` throw หรือคืนค่า rejected Promise browser จะถือว่า sync ล้มเหลวและ schedule retry resolve สำเร็จเฉพาะเมื่อคุณแน่ใจว่าข้อมูลถูกส่งแล้ว
 
 ### Sequence diagram
 
@@ -125,7 +125,7 @@ export const syncDiagram = `sequenceDiagram
 
 ### Interactive demo
 
-Playground ด้านล่างแสดง flow ทั้งหมด หน้าเว็บให้คุณ submit ข้อความ Service worker จะ queue ลงใน in-memory outbox และ register sync tag เมื่อเบราว์เซอร์ fire sync event SW จะ log การ replay Toggle แผงเครือข่ายของเบราว์เซอร์เป็น "Offline" ก่อน submit เพื่อดู queue ในการดำเนินการ
+Playground ด้านล่างแสดง flow ทั้งหมด หน้าเว็บให้คุณ submit ข้อความ Service worker จะ queue ลงใน in-memory outbox และ register sync tag เมื่อ browser fire sync event SW จะ log การ replay Toggle แผงเครือข่ายของ browser เป็น "Offline" ก่อน submit เพื่อดู queue ทำงานจริง
 
 export const proj = {
   'index.html': `<!doctype html>
@@ -333,6 +333,25 @@ self.addEventListener('fetch', (event) => {
 <Callout title="ประเด็นสำคัญ">
 Background sync ให้ผู้ใช้ทำงาน offline ได้และส่งข้อมูลอัตโนมัติเมื่อการเชื่อมต่อกลับมา
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ใช้ Background Sync API | retry request ที่ล้มเหลวอัตโนมัติแม้ปิด tab ไปแล้ว | รองรับเฉพาะบาง browser (ไม่มีใน Safari) ต้องมี fallback เอง |
+| Retry ด้วยมือตอนกลับมา online (foreground เท่านั้น) | ทำงานได้ทุก browser ไม่ต้องพึ่ง API พิเศษ | พลาด sync ถ้าผู้ใช้ปิด tab ไปก่อนที่ network จะกลับมา |
+
+## Common Mistakes
+
+- เก็บ mutation ไว้ใน memory แทน IndexedDB ทำให้ข้อมูลหายทันทีที่ service worker ถูก terminate
+- ไม่ทำ retry backoff ทำให้ sync tag ยิง request รัวๆ ซ้ำเมื่อ network กลับมาแต่ server ยัง unstable
+- ไม่ handle กรณี sync ล้มเหลวซ้ำ (permanent failure) ทำให้ queue ค้างพยายาม sync ข้อมูลที่ไม่มีทาง sync สำเร็จตลอดไป
+
+> 💡 Real World Example
+>
+> **Google Maps** — คิว location update และ report ไว้ผ่าน Background Sync แล้วส่งอัตโนมัติทันทีที่กลับมามีสัญญาณ
+>
+> **Notion offline** — เก็บการแก้ไขที่ทำตอน offline ไว้ในคิว แล้ว sync กลับ server อัตโนมัติด้วยกลไกคล้าย background sync เมื่อกลับมา online
 
 export const quizBgSync = [
   {

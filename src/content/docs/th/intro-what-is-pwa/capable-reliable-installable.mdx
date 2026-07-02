@@ -106,6 +106,25 @@ export const pillarsDiagram = `flowchart TD
 "Reliable" หมายความว่าแอปโหลดได้แม้เครือข่ายไม่เสถียร — นั่นคือสิ่งที่ service worker และ cache มอบให้
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ทุ่มเวลาให้ครบทั้งสามเสาหลัก (Capable/Reliable/Installable) | ผู้ใช้ได้ประสบการณ์ใกล้เคียง native เต็มรูปแบบ | ใช้เวลาพัฒนาและทดสอบมากกว่าเว็บไซต์ทั่วไป |
+| ทำแค่ Reliable (offline) โดยข้าม Installable | ผู้ใช้ทุกคนเข้าถึงได้ทันทีผ่าน URL ไม่ต้องติดตั้ง | เสีย engagement ที่มาจาก home-screen icon และ standalone mode |
+
+## Common Mistakes
+
+- มองว่า PWA คือ "แค่ทำ manifest" — โดยไม่ทำ service worker ให้ reliable จริง แอปจะติดตั้งได้แต่ใช้งาน offline ไม่ได้
+- ทดสอบ Capable บน desktop Chrome อย่างเดียว โดยไม่เช็คว่า API ที่ใช้รองรับบน mobile browser หรือไม่
+- คิดว่า Installable แปลว่าต้องผ่าน app store — จริงๆ แล้ว install ได้ตรงจาก browser โดยไม่ต้องพึ่ง store เลย
+
+> 💡 Real World Example
+>
+> **Twitter Lite** — โฟกัสที่ Reliable ก่อน ทำให้แอปใช้งานได้แม้เน็ตขาดหาย ก่อนค่อยเพิ่ม Installable ทีหลัง
+>
+> **Starbucks** — ทำครบสามเสาหลัก ทำให้ผู้ใช้สั่งเมนูได้แม้สัญญาณอ่อนและติดตั้งไว้ที่หน้าจอหลักได้เหมือนแอป native
+
 export const quizCapableReliableInstallable = [
   {
     q: 'API ใดที่ทำให้ PWA เข้าถึง camera ของอุปกรณ์ได้?',
@@ -123,7 +142,7 @@ export const quizCapableReliableInstallable = [
       'HTTPS, manifest ที่ถูกต้อง และ service worker ที่มี fetch handler',
       'HTTPS, manifest ที่ถูกต้อง และ asset ที่ถูก cache อย่างน้อยหนึ่งรายการ',
       'Service worker, push notifications และสิทธิ์ geolocation',
-      'Manifest, ไอคอนแอป และ splash screen',
+      'Manifest, icon แอป และ splash screen',
     ],
     answer: 0,
   },

@@ -1,6 +1,6 @@
 ---
 title: การอัปเดต Service Worker
-description: 'เบราว์เซอร์ตรวจจับการเปลี่ยนแปลงของ service worker อย่างไร, waiting worker, skipWaiting และ clients.claim และจะแจ้งให้ผู้ใช้ reload อย่างปลอดภัยได้อย่างไร'
+description: 'browser ตรวจจับการเปลี่ยนแปลงของ service worker อย่างไร, waiting worker, skipWaiting และ clients.claim และจะแจ้งให้ผู้ใช้ reload อย่างปลอดภัยได้อย่างไร'
 sidebar:
   order: 5
 ---
@@ -11,11 +11,11 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การอัปเดต service worker
 
-การ deploy PWA เวอร์ชันใหม่ก็คือการ deploy service worker ตัวใหม่ การเข้าใจว่าเบราว์เซอร์ตรวจจับและนำการอัปเดตนั้นมาใช้อย่างไร — และจะสื่อสารกับผู้ใช้อย่างไร — ช่วยป้องกันบั๊กที่แอบแฝงและความประหลาดใจเรื่อง asset ที่ล้าสมัย
+การ deploy PWA เวอร์ชันใหม่ก็คือการ deploy service worker ตัวใหม่ การเข้าใจว่า browser ตรวจจับและนำการอัปเดตนั้นมาใช้อย่างไร — และจะสื่อสารกับผู้ใช้อย่างไร — ช่วยป้องกันบั๊กที่แอบแฝงและความประหลาดใจเรื่อง asset ที่ล้าสมัย
 
-### เบราว์เซอร์ตรวจจับการอัปเดตอย่างไร
+### browser ตรวจจับการอัปเดตอย่างไร
 
-เบราว์เซอร์จะตรวจไฟล์ service worker ของคุณว่ามีการเปลี่ยนแปลงหรือไม่ในทุกครั้งที่โหลดหน้า (และทุกครั้งที่คุณเรียก `registration.update()` เอง) มันเปรียบเทียบไฟล์ที่ดาวน์โหลดมาใหม่กับ SW ที่ติดตั้งอยู่ปัจจุบันแบบ byte-for-byte แม้ความต่างเพียง **ไบต์เดียว** — string เวอร์ชันของ cache ที่เปลี่ยนไป, comment ใหม่, การปรับ whitespace — ก็ทริกเกอร์ flow การอัปเดต:
+browser จะตรวจไฟล์ service worker ของคุณว่ามีการเปลี่ยนแปลงหรือไม่ในทุกครั้งที่โหลดหน้า (และทุกครั้งที่คุณเรียก `registration.update()` เอง) มันเปรียบเทียบไฟล์ที่ดาวน์โหลดมาใหม่กับ SW ที่ติดตั้งอยู่ปัจจุบันแบบ byte-for-byte แม้ความต่างเพียง **ไบต์เดียว** — string เวอร์ชันของ cache ที่เปลี่ยนไป, comment ใหม่, การปรับ whitespace — ก็ทริกเกอร์ flow การอัปเดต:
 
 1. SW ตัวใหม่ถูกดาวน์โหลดและ parse
 2. SW ตัวใหม่เข้าสู่เฟส `install`
@@ -26,7 +26,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 ต้นเหตุของความสับสนที่พบบ่อยที่สุดใน PWA ระดับ production:
 
 - ผู้ใช้เปิดแอปของคุณ SW ตัวเก่า activate และควบคุมแท็บนั้น
-- คุณ deploy v2 เบราว์เซอร์ติดตั้ง SW ตัวใหม่ แต่มันนั่งอยู่ใน Waiting
+- คุณ deploy v2 browser ติดตั้ง SW ตัวใหม่ แต่มันนั่งอยู่ใน Waiting
 - ผู้ใช้เปิดแท็บนั้นทิ้งไว้ทั้งวัน
 - SW ตัวใหม่ไม่เคย activate เลย — ผู้ใช้ไม่เคยเห็น v2
 
@@ -112,7 +112,7 @@ self.addEventListener('message', (event) => {
 
 ### registration.update() — การตรวจสอบเชิงรุก
 
-โดยค่าเริ่มต้นเบราว์เซอร์จะตรวจหาการอัปเดต SW ตอน navigation สำหรับ single-page app ที่ผู้ใช้อาจไม่เคยทริกเกอร์ navigation เลย ให้เรียก `registration.update()` เป็นช่วง ๆ:
+โดยค่าเริ่มต้น browser จะตรวจหาการอัปเดต SW ตอน navigation สำหรับ single-page app ที่ผู้ใช้อาจไม่เคยทริกเกอร์ navigation เลย ให้เรียก `registration.update()` เป็นช่วง ๆ:
 
 ```js
 setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
@@ -122,7 +122,7 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
 
 | ขั้นตอน | ทำไม |
 |---|---|
-| เปลี่ยนอย่างน้อยหนึ่งไบต์ใน `sw.js` | ทริกเกอร์การตรวจ byte-diff ของเบราว์เซอร์ |
+| เปลี่ยนอย่างน้อยหนึ่งไบต์ใน `sw.js` | ทริกเกอร์การตรวจ byte-diff ของ browser |
 | ใส่เวอร์ชันให้ชื่อ cache (`v2`, `v3`) | ช่วยให้ activate handler ลบ cache ที่ล้าสมัยได้ |
 | ลบ cache เก่าใน `activate` | หลีกเลี่ยงการเก็บ asset ที่ล้าสมัยไว้ไม่รู้จบ |
 | แจ้งให้ผู้ใช้ reload แทนการบังคับ `skipWaiting()` | ป้องกันความไม่ตรงกันของ asset กลางเซสชัน |
@@ -132,9 +132,28 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
 `skipWaiting()` activate service worker ตัวใหม่ทันที ซึ่งอาจทำให้หน้าที่โหลดไปแล้วรันกับ asset ที่ไม่ตรงกัน แจ้งให้ผู้ใช้ reload แทน — ปล่อยให้การอัปเดตเกิดขึ้นบนการโหลดหน้าที่สะอาด
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| แจ้งเตือนผู้ใช้ให้กด refresh เพื่ออัปเดต (prompt-based) | ผู้ใช้ควบคุม timing เอง ไม่โดนตัดงานที่ทำค้างอยู่ | ผู้ใช้ที่ไม่กด refresh อาจติดอยู่กับ version เก่าไปนาน |
+| Auto-update แบบเงียบ (skipWaiting ทันที) | ผู้ใช้ได้ fix/feature ใหม่เร็วที่สุดโดยไม่ต้องทำอะไร | เสี่ยง state เพี้ยนถ้า reload กลางคันขณะผู้ใช้กำลังกรอกฟอร์มอยู่ |
+
+## Common Mistakes
+
+- ใช้ cache-first HTML ที่ trap ผู้ใช้ไว้กับ shell เวอร์ชันเก่าตลอดไปเพราะไม่เคยไปแตะ network เพื่อเช็ค update เลย
+- ไม่ตั้ง versioned cache name ทำให้ cache เก่ากับใหม่ปนกันตอน service worker คนละเวอร์ชันทำงานพร้อมกันชั่วคราว
+- ไม่ handle statechange event เพื่อบอกผู้ใช้ว่ามี update พร้อมใช้ ทำให้ผู้ใช้ไม่รู้ตัวว่าควร refresh
+
+> 💡 Real World Example
+>
+> **Google Docs** — ใช้ update flow ที่ตรวจ service worker ใหม่เบื้องหลังแล้วแจ้งผู้ใช้ผ่าน UI แทนการ force reload กลางที่กำลังพิมพ์งาน
+>
+> **Gmail** — ตรวจ update เป็นระยะด้วย `registration.update()` และให้ผู้ใช้เลือกเวลาที่จะรับเวอร์ชันใหม่เอง
+
 export const quizUpdatingSw = [
   {
-    q: 'เบราว์เซอร์ตัดสินว่าไฟล์ service worker เปลี่ยนไปได้อย่างไร?',
+    q: 'browser ตัดสินว่าไฟล์ service worker เปลี่ยนไปได้อย่างไร?',
     options: [
       'ตรวจเฉพาะ HTTP header Last-Modified เท่านั้น',
       'เปรียบเทียบไฟล์ใหม่กับเวอร์ชันที่ติดตั้งอยู่แบบ byte-for-byte',
@@ -147,7 +166,7 @@ export const quizUpdatingSw = [
     q: 'ทำไม service worker ที่เพิ่งติดตั้งจึงนั่งอยู่ใน Waiting?',
     options: [
       'มันต้องผ่านการตรวจ security',
-      'เบราว์เซอร์กำลังดาวน์โหลด asset ใหม่',
+      'browser กำลังดาวน์โหลด asset ใหม่',
       'service worker ตัวเก่ายังควบคุมแท็บที่เปิดอยู่',
       'ยังไม่ได้เรียก skipWaiting()',
     ],
@@ -158,7 +177,7 @@ export const quizUpdatingSw = [
     options: [
       'service worker จะไม่ activate เลย',
       'SW ตัวใหม่ activate ขณะที่หน้าเก่ายังเปิดอยู่ ซึ่งอาจทำให้ asset ไม่ตรงกัน',
-      'เบราว์เซอร์เพิกเฉยต่อการเรียกนี้ใน production',
+      'browser เพิกเฉยต่อการเรียกนี้ใน production',
       'Cache Storage ถูกล้างโดยอัตโนมัติ',
     ],
     answer: 1,

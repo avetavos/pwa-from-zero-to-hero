@@ -15,7 +15,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 App-shell architecture คือ design pattern ที่แบ่ง PWA ออกเป็นสองชั้นที่แตกต่างกัน:
 
-- **Shell** — HTML, CSS, และ JavaScript ขั้นต่ำที่ render โครงของแอปพลิเคชัน (navigation, layout, header, footer) มันเปลี่ยนแปลงเฉพาะเมื่อคุณ deploy version ใหม่
+- **Shell** — HTML, CSS, และ JavaScript ขั้นต่ำที่ render โครงของแอป (navigation, layout, header, footer) มันเปลี่ยนแปลงเฉพาะเมื่อคุณ deploy version ใหม่
 - **Content** — ข้อมูลและ markup เฉพาะสำหรับแต่ละ view (บทความ, สินค้า, โปรไฟล์ผู้ใช้) มันเปลี่ยนแปลงบ่อยและถูก fetch ที่ runtime
 
 โดยการแยกสองชั้นนี้ คุณสามารถ precache shell อย่างจริงจังและใช้กลยุทธ์ที่เบากว่าสำหรับ content ผลลัพธ์คือการเข้าชมซ้ำโหลด UI frame จาก local storage ในมิลลิวินาที และ content จะ fill in แบบ asynchronous
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
 
 ### ทำไม SPA pattern ถึงสำคัญที่นี่
 
-ใน Single Page Application เซิร์ฟเวอร์มี HTML file เพียงหนึ่งไฟล์ (`index.html` / `/`) การ routing ทั้งหมดเกิดขึ้นใน JavaScript เมื่อ service worker ดักจับ navigation ไปยัง `/profile` หรือ `/settings` ควรให้บริการ `index.html` shell เดิม — SPA router จะอ่าน URL และ render view ที่ถูกต้อง
+ใน Single Page Application server มี HTML file เพียงหนึ่งไฟล์ (`index.html` / `/`) การ routing ทั้งหมดเกิดขึ้นใน JavaScript เมื่อ service worker ดักจับ navigation ไปยัง `/profile` หรือ `/settings` ควรให้บริการ `index.html` shell เดิม — SPA router จะอ่าน URL และ render view ที่ถูกต้อง
 
 ### Load sequence diagram
 
@@ -241,6 +241,25 @@ self.addEventListener('fetch', (event) => {
 <Callout title="ประเด็นสำคัญ">
 แยก shell (เปลี่ยนแปลงน้อย) ออกจาก content (เปลี่ยนแปลงบ่อย) และ cache ด้วยกลยุทธ์ที่แตกต่างกัน Cache shell อย่างจริงจังด้วย cache-first; ใช้ network-first สำหรับ dynamic data เพื่อให้ผู้ใช้เห็น content ใหม่เมื่อ online และ content ที่ cache ไว้เมื่อ offline
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| App shell architecture | โหลด UI shell ได้ทันทีจาก cache แม้ offline แล้วค่อยเติมข้อมูล | ต้องแยก shell กับ content ตั้งแต่ตอนออกแบบ เพิ่ม complexity ของ build |
+| Server-render เต็มหน้าทุกครั้ง | โครงสร้างง่ายกว่า ไม่ต้องแยก shell/content | ไม่มีอะไรให้แสดงเลยถ้า network ล้มเหลว เพราะทั้งหน้าขึ้นกับ response เดียว |
+
+## Common Mistakes
+
+- cache เฉพาะ shell แต่ลืมว่า content ที่ dynamic ต้องมี fallback ของตัวเองด้วย ไม่งั้น offline จะเห็น shell เปล่าไม่มีข้อมูล
+- ทำ shell ใหญ่เกินไปจนแทบเท่าทั้งหน้า ทำให้เสียประโยชน์ของการแยก shell ออกจาก content
+- ไม่ versioned shell cache ทำให้ deploy ใหม่แล้ว shell เก่ายังค้างอยู่ ผู้ใช้เห็น UI เก่าปนกับ data ใหม่
+
+> 💡 Real World Example
+>
+> **Google Developers site** — เป็นตัวอย่างต้นแบบของ app shell model ที่ Google ใช้สอนแนวคิดนี้ตั้งแต่แรกเริ่ม
+>
+> **Twitter Lite** — แยก shell (navigation, layout) ออกจาก timeline content ทำให้เปิดแอปได้ทันทีแม้เน็ตช้าก่อนค่อยโหลด tweet
 
 export const quizAppShell = [
   {

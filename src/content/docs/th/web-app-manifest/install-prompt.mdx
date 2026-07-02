@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## ขั้นตอนการติดตั้ง
 
-เมื่อเบราว์เซอร์ตัดสินใจว่า PWA ของคุณสามารถติดตั้งได้ (manifest ที่ถูกต้อง + service worker ที่ลงทะเบียน + HTTPS) จะยิง event `beforeinstallprompt` บน `window` โดยค่าเริ่มต้นเบราว์เซอร์จะแสดง install badge หรือ prompt ของตัวเองทันที — แต่คุณสามารถดักจับ event นั้น ซ่อน UI เริ่มต้น และแสดงปุ่มติดตั้งของคุณเองในเวลาที่เหมาะสม
+เมื่อ browser ตัดสินใจว่า PWA ของคุณสามารถติดตั้งได้ (manifest ที่ถูกต้อง + service worker ที่ลงทะเบียน + HTTPS) จะยิง event `beforeinstallprompt` บน `window` โดยค่าเริ่มต้น browser จะแสดง install badge หรือ prompt ของตัวเองทันที — แต่คุณสามารถดักจับ event นั้น ซ่อน UI เริ่มต้น และแสดงปุ่มติดตั้งของคุณเองในเวลาที่เหมาะสม
 
 ### ขั้นตอนที่ 1 — เก็บ event ไว้
 
@@ -163,12 +163,31 @@ self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));`,
 <PwaPlayground files={proj} openFile="main.js" />
 
 <Callout title="ประเด็นสำคัญ">
-คุณต้องเรียก `event.preventDefault()` บน `beforeinstallprompt` เพื่อระงับ install UI เริ่มต้นของเบราว์เซอร์ จากนั้นเรียก `deferredPrompt.prompt()` เฉพาะจากภายใน user gesture (click handler) เท่านั้น การเรียก `prompt()` นอก user gesture จะทำให้เกิด error
+คุณต้องเรียก `event.preventDefault()` บน `beforeinstallprompt` เพื่อระงับ install UI เริ่มต้นของ browser จากนั้นเรียก `deferredPrompt.prompt()` เฉพาะจากภายใน user gesture (click handler) เท่านั้น การเรียก `prompt()` นอก user gesture จะทำให้เกิด error
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ดักจับ beforeinstallprompt แล้วแสดงปุ่มติดตั้งเอง | ควบคุม timing และ UI ได้เต็มที่ ไม่รบกวนผู้ใช้ตอนที่ไม่พร้อม | ต้อง handle state และ event lifecycle เอง เพิ่ม complexity ของโค้ด |
+| ปล่อยให้ browser แสดง install UI ของตัวเอง (default) | ไม่ต้องเขียนโค้ดเพิ่ม ได้ UI มาตรฐานทันที | ควบคุม timing ไม่ได้ อาจโผล่มาตอนที่ผู้ใช้ยังไม่พร้อมตัดสินใจ |
+
+## Common Mistakes
+
+- เรียก prompt() นอก user gesture handler (เช่นใน useEffect ตอน mount) ทำให้ browser โยน error และปฏิเสธคำขอ
+- ไม่เก็บ deferredPrompt ไว้ตั้งแต่ event แรก ทำให้พลาดโอกาสแสดงปุ่มติดตั้งไปเลยหากไม่ได้ดักจับทัน
+- ลืมว่า iOS Safari ไม่ยิง beforeinstallprompt เลย แล้วออกแบบ UI ติดตั้งที่ใช้ไม่ได้กับผู้ใช้ iOS
+
+> 💡 Real World Example
+>
+> **Pinterest** — แสดงปุ่มติดตั้งของตัวเองหลังจากผู้ใช้มี engagement ระดับหนึ่งแล้ว แทนที่จะโชว์ตั้งแต่หน้าแรก ทำให้ conversion สูงขึ้น
+>
+> **Starbucks** — ดักจับ beforeinstallprompt แล้วผูกกับปุ่ม "Add to Home Screen" ที่ออกแบบเข้ากับ branding ของแอปเอง
 
 export const quizInstallPrompt = [
   {
-    q: 'ต้องเรียกอะไรบน event beforeinstallprompt เพื่อระงับ install UI เริ่มต้นของเบราว์เซอร์?',
+    q: 'ต้องเรียกอะไรบน event beforeinstallprompt เพื่อระงับ install UI เริ่มต้นของ browser?',
     options: [
       'event.stopPropagation()',
       'event.preventDefault()',
@@ -196,7 +215,7 @@ export const quizInstallPrompt = [
     q: 'ผู้ใช้ iOS ต้องติดตั้ง PWA อย่างไรเมื่อ beforeinstallprompt ไม่พร้อมใช้งาน?',
     options: [
       'ติดตั้ง PWA บน iOS ไม่ได้',
-      'ใช้เมนูเบราว์เซอร์ตัวเลือก Install App',
+      'ใช้เมนู browser ตัวเลือก Install App',
       'แตะ Share แล้ว Add to Home Screen ใน Safari',
       'ดาวน์โหลดแอปจาก App Store',
     ],

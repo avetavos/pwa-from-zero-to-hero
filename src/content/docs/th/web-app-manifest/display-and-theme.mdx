@@ -12,18 +12,18 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การควบคุมหน้าตาแอปหลังการติดตั้ง
 
-เมื่อผู้ใช้ติดตั้ง PWA ของคุณแล้ว ฟิลด์ใน manifest ที่กล่าวถึงในบทเรียนนี้จะกำหนดว่าแอปดูเหมือนแอปพลิเคชันแท้จริงหรือยังคงแสดง UI ของเบราว์เซอร์ และวิธีที่แอปผสานกับ OS ในระดับภาพ
+เมื่อผู้ใช้ติดตั้ง PWA ของคุณแล้ว ฟิลด์ใน manifest ที่กล่าวถึงในบทเรียนนี้จะกำหนดว่าแอปดูเหมือน application แท้จริงหรือยังคงแสดง UI ของ browser และวิธีที่แอปผสานกับ OS ในระดับภาพ
 
 ### `display`
 
 ฟิลด์ `display` ตั้งค่า display mode ที่ต้องการสำหรับหน้าต่างแอป:
 
-| ค่า | UI เบราว์เซอร์ | กรณีใช้งาน |
+| ค่า | UI browser | กรณีใช้งาน |
 |---|---|---|
 | `standalone` | ไม่มีแถบที่อยู่, มี OS chrome น้อยที่สุด | แอปส่วนใหญ่ — รู้สึกเหมือนแอปแท้จริง |
-| `fullscreen` | ไม่มี UI เบราว์เซอร์เลย | เกม, ประสบการณ์แบบดื่มด่ำ |
+| `fullscreen` | ไม่มี UI browser เลย | เกม, ประสบการณ์แบบดื่มด่ำ |
 | `minimal-ui` | มีเพียงปุ่มย้อนกลับ/ไปข้างหน้า/โหลดซ้ำ | ตัวดูเนื้อหา, media player |
-| `browser` | UI เบราว์เซอร์แบบเต็ม | Fallback — เหมือนแท็บปกติ |
+| `browser` | UI browser แบบเต็ม | Fallback — เหมือนแท็บปกติ |
 
 ```json
 { "display": "standalone" }
@@ -31,7 +31,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ### `display_override`
 
-`display_override` คือรายการลำดับความชอบ เบราว์เซอร์เลือกค่าแรกที่รองรับแล้ว fallback ไปยัง `display` ใช้เพื่อขอ mode ใหม่กว่าอย่าง `window-controls-overlay` บนเบราว์เซอร์ที่รองรับ:
+`display_override` คือรายการลำดับความชอบ browser เลือกค่าแรกที่รองรับแล้ว fallback ไปยัง `display` ใช้เพื่อขอ mode ใหม่กว่าอย่าง `window-controls-overlay` บน browser ที่รองรับ:
 
 ```json
 {
@@ -42,7 +42,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ### `theme_color` และ `background_color`
 
-**`theme_color`** ทาสีแถบเครื่องมือของเบราว์เซอร์และไทล์ task switcher บน Android ตั้งค่าเป็นสีหลักของแบรนด์ คุณสามารถตั้งค่าต่อหน้าด้วย `<meta name="theme-color">` ได้ — meta tag จะ override manifest สำหรับหน้านั้น
+**`theme_color`** ทาสีแถบเครื่องมือของ browser และไทล์ task switcher บน Android ตั้งค่าเป็นสีหลักของแบรนด์ คุณสามารถตั้งค่าต่อหน้าด้วย `<meta name="theme-color">` ได้ — meta tag จะ override manifest สำหรับหน้านั้น
 
 **`background_color`** คือสีที่แสดงระหว่าง splash screen (ช่วงสั้น ๆ ระหว่างการแตะ icon กับการแสดงผลครั้งแรกของแอป) ตั้งค่าให้ตรงกับ background ของแอปเพื่อให้การเปลี่ยนผ่านราบรื่น
 
@@ -65,7 +65,7 @@ export const displayDiagram = `flowchart TD
   F -->|"Yes"| G["Use display value"]
   F -->|"No"| H["Use browser (default)"]`;
 
-<Mermaid code={displayDiagram} title="วิธีที่เบราว์เซอร์เลือก display mode" />
+<Mermaid code={displayDiagram} title="วิธีที่ browser เลือก display mode" />
 
 ### `orientation`
 
@@ -85,7 +85,7 @@ export const displayDiagram = `flowchart TD
 
 ### `screenshots`
 
-`screenshots` ให้รูปภาพที่แสดงใน install dialog บนเบราว์เซอร์และ OS store ที่รองรับ แต่ละรายการมี `src`, `sizes`, `type` และ `form_factor` ที่ไม่บังคับ (`"narrow"` สำหรับมือถือ, `"wide"` สำหรับเดสก์ท็อป)
+`screenshots` ให้รูปภาพที่แสดงใน install dialog บน browser และ OS store ที่รองรับ แต่ละรายการมี `src`, `sizes`, `type` และ `form_factor` ที่ไม่บังคับ (`"narrow"` สำหรับมือถือ, `"wide"` สำหรับเดสก์ท็อป)
 
 ```json
 {
@@ -111,12 +111,31 @@ export const displayDiagram = `flowchart TD
 Chrome บนเดสก์ท็อปต้องการ screenshot อย่างน้อยหนึ่งรูปก่อนจะแสดง install dialog แบบ rich พร้อม preview panel
 
 <Callout title="ประเด็นสำคัญ">
-`display: standalone` ลบแถบที่อยู่ของเบราว์เซอร์ออกเพื่อให้ PWA รู้สึกเหมือนแอปแท้จริง ใช้ `display_override` เพื่อขอ display mode ใหม่กว่าแบบ progressive — เบราว์เซอร์ที่ไม่รู้จัก override จะ fallback ไปยัง `display`
+`display: standalone` ลบแถบที่อยู่ของ browser ออกเพื่อให้ PWA รู้สึกเหมือนแอปแท้จริง ใช้ `display_override` เพื่อขอ display mode ใหม่กว่าแบบ progressive — browser ที่ไม่รู้จัก override จะ fallback ไปยัง `display`
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| display: "standalone" | รู้สึกเหมือน native app เต็มตัว ไม่มี browser UI | ผู้ใช้เสีย back/forward button และ address bar ที่คุ้นเคย |
+| display: "browser" | คงพฤติกรรม browser ปกติ ผู้ใช้งานคุ้นเคยทันที | ไม่ได้ความรู้สึก "แอป" ที่ install prompt สัญญาไว้ |
+
+## Common Mistakes
+
+- ตั้ง theme_color ใน manifest อย่างเดียว โดยไม่ตั้ง `<meta name="theme-color">` คู่กัน ทำให้สีไม่ตรงกันระหว่าง browser UI กับตอนเป็น standalone
+- เลือก display: "fullscreen" สำหรับแอปทั่วไป ทำให้ผู้ใช้เสีย status bar และ gesture navigation จนใช้งานยาก
+- ไม่ทดสอบ theme บน dark mode ทำให้สี background/theme ขัดกับสีระบบของผู้ใช้
+
+> 💡 Real World Example
+>
+> **Spotify Web Player** — ใช้ display: "standalone" คู่กับ theme_color สีดำ ให้ความรู้สึกเหมือนแอป desktop native ตั้งแต่วินาทีแรกที่เปิด
+>
+> **Twitter Lite** — ปรับ theme_color ให้ตรงกับ brand color ทำให้ status bar กลมกลืนกับ UI ทันทีที่เปิดจาก home screen
 
 export const quizDisplayTheme = [
   {
-    q: 'ค่า display ใดที่ลบ UI เบราว์เซอร์ทั้งหมดเพื่อสร้างประสบการณ์แบบดื่มด่ำเต็มที่?',
+    q: 'ค่า display ใดที่ลบ UI browser ทั้งหมดเพื่อสร้างประสบการณ์แบบดื่มด่ำเต็มที่?',
     options: ['standalone', 'minimal-ui', 'fullscreen', 'browser'],
     answer: 2,
   },
@@ -131,11 +150,11 @@ export const quizDisplayTheme = [
     answer: 1,
   },
   {
-    q: 'display_override ทำงานอย่างไรเมื่อเบราว์เซอร์ไม่รองรับค่าแรก?',
+    q: 'display_override ทำงานอย่างไรเมื่อ browser ไม่รองรับค่าแรก?',
     options: [
       'แอปล้มเหลวในการติดตั้ง',
-      'เบราว์เซอร์ใช้ฟิลด์ display เป็น fallback',
-      'เบราว์เซอร์ละเว้นทั้ง display และ display_override',
+      'browser ใช้ฟิลด์ display เป็น fallback',
+      'browser ละเว้นทั้ง display และ display_override',
       'แอปเปิดใน fullscreen mode โดยค่าเริ่มต้น',
     ],
     answer: 1,

@@ -12,9 +12,9 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## lifecycle ของ service worker
 
-service worker ทุกตัวจะเคลื่อนผ่านสเตตแมชชีนที่นิยามไว้อย่างเคร่งครัดและจัดการโดยเบราว์เซอร์ การเข้าใจ lifecycle นี้เป็นเรื่องจำเป็น — ข้ามมันไปแล้วการอัปเดตของคุณจะ activate ไม่สำเร็จแบบเงียบ ๆ หรือคุณทำให้หน้าเว็บที่ยังรัน worker ตัวเก่าอยู่พังได้
+service worker ทุกตัวจะเคลื่อนผ่าน state machine ที่ browser กำหนดไว้ตายตัว การเข้าใจ lifecycle นี้เป็นเรื่องจำเป็น — ข้ามมันไปแล้วการอัปเดตของคุณจะ activate ไม่สำเร็จแบบเงียบ ๆ หรือคุณทำให้หน้าเว็บที่ยังรัน worker ตัวเก่าอยู่พังได้
 
-### สเตตแมชชีน
+### state machine
 
 export const lifecycleDiagram = `stateDiagram-v2
   [*] --> Parsed : browser parses sw.js
@@ -29,11 +29,11 @@ export const lifecycleDiagram = `stateDiagram-v2
   Activated --> Redundant : replaced by a newer SW
   Waiting --> Redundant : replaced by a newer SW`;
 
-<Mermaid code={lifecycleDiagram} title="สเตตแมชชีน lifecycle ของ service worker" />
+<Mermaid code={lifecycleDiagram} title="state machine lifecycle ของ service worker" />
 
 ### install event
 
-`install` event จะ fire ทันทีที่เบราว์เซอร์ parse และดาวน์โหลดไฟล์ service worker ของคุณเสร็จ นี่เป็นจังหวะที่เหมาะที่สุดในการ **pre-cache** ทรัพยากรที่แอปของคุณต้องใช้สำหรับการใช้งานออฟไลน์
+`install` event จะ fire ทันทีที่ browser parse และดาวน์โหลดไฟล์ service worker ของคุณเสร็จ นี่เป็นจังหวะที่เหมาะที่สุดในการ **pre-cache** ทรัพยากรที่แอปของคุณต้องใช้สำหรับการใช้งานออฟไลน์
 
 ```js
 const CACHE_NAME = 'v1';
@@ -50,7 +50,7 @@ self.addEventListener('install', (event) => {
 
 ### สถานะ waiting
 
-หลังจากติดตั้งแล้ว SW ตัวใหม่จะนั่งรออยู่ในสถานะ **Waiting** ถ้ายังมีแท็บใด ๆ ที่ถูกควบคุมโดยเวอร์ชันก่อนหน้าอยู่ เบราว์เซอร์จะไม่ activate SW ตัวใหม่จนกว่าทุกแท็บที่รันตัวเก่าจะถูกปิด (หรือ navigate ออกไป)
+หลังจากติดตั้งแล้ว SW ตัวใหม่จะนั่งรออยู่ในสถานะ **Waiting** ถ้ายังมีแท็บใด ๆ ที่ถูกควบคุมโดยเวอร์ชันก่อนหน้าอยู่ browser จะไม่ activate SW ตัวใหม่จนกว่าทุกแท็บที่รันตัวเก่าจะถูกปิด (หรือ navigate ออกไป)
 
 หากต้องการข้ามช่วงรอด้วยโค้ด ให้เรียก `self.skipWaiting()` ภายใน handler ของ `install`:
 
@@ -92,11 +92,30 @@ self.addEventListener('activate', (event) => {
 | **Waiting** | SW ตัวใหม่พร้อมแล้วแต่ถูกถ่วงไว้ | เรียก `skipWaiting()` ได้ตามต้องการ |
 | **Activating** | SW ตัวใหม่กำลังเข้ารับช่วงต่อ | ลบ cache เก่าใน `activate` |
 | **Activated** | SW ควบคุมเต็มที่แล้ว | เสิร์ฟ request ผ่าน `fetch` event |
-| **Redundant** | SW ถูกแทนที่หรือล้มเหลว | ไม่ต้องทำอะไร — เบราว์เซอร์จะกำจัดมันเอง |
+| **Redundant** | SW ถูกแทนที่หรือล้มเหลว | ไม่ต้องทำอะไร — browser จะกำจัดมันเอง |
 
 <Callout title="ประเด็นสำคัญ">
 service worker ที่เพิ่งติดตั้งจะรอจนกว่าทุกแท็บที่ใช้ตัวเก่าจะปิดลง — เว้นแต่มันจะเรียก `self.skipWaiting()` ใช้ `skipWaiting()` อย่างระมัดระวัง: ถ้า SW ตัวเก่ากับตัวใหม่ใช้ cache schema ต่างกัน หน้าที่โหลดไปแล้วอาจ request asset ที่ cache ตัวใหม่ยังไม่มี
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ใช้ skipWaiting() + clients.claim() | ผู้ใช้ได้ version ใหม่ทันทีโดยไม่ต้องปิด tab ทั้งหมด | เสี่ยง breaking change ถ้า version เก่ากับใหม่ไม่ compatible กันระหว่างที่หน้าเว็บยังเปิดอยู่ |
+| ปล่อยให้รอ default lifecycle (waiting จนกว่า tab ทั้งหมดจะปิด) | ปลอดภัยกว่า ไม่มี version mismatch ระหว่าง client กับ server | ผู้ใช้อาจติดอยู่กับ version เก่านานถ้าไม่ปิด tab เอง |
+
+## Common Mistakes
+
+- ลืมว่า install event ต้อง resolve สำเร็จก่อนเข้า waiting — ถ้า cache.addAll() fail ทั้ง install จะ fail เงียบๆ
+- เรียก skipWaiting() โดยไม่คู่กับ versioned cache name ทำให้ client เปลี่ยนไปใช้ service worker ใหม่แต่ยังอ่าน cache เก่าที่ไม่ตรงกัน
+- ไม่ทดสอบ flow "หลาย tab เปิดพร้อมกัน" ทำให้พลาด edge case ที่ worker เก่ายังคุม tab บางอันอยู่ระหว่าง transition
+
+> 💡 Real World Example
+>
+> **Google Docs** — คุม lifecycle อย่างระมัดระวังเพื่อไม่ให้ผู้ใช้ที่กำลังแก้เอกสารอยู่โดน service worker ใหม่ตัดการทำงานกลางคัน
+>
+> **YouTube** — ใช้ state machine ของ lifecycle ร่วมกับ UI แจ้งเตือน "มีเวอร์ชันใหม่" แทนที่จะ force reload ผู้ใช้แบบไม่บอกกล่าว
 
 export const quizLifecycle = [
   {
@@ -104,7 +123,7 @@ export const quizLifecycle = [
     options: [
       'SW ย้ายไปสถานะ Activated อยู่ดี',
       'SW ย้ายไป Redundant และถูกทิ้ง',
-      'เบราว์เซอร์ลองติดตั้งใหม่โดยอัตโนมัติ',
+      'browser ลองติดตั้งใหม่โดยอัตโนมัติ',
       'SW เข้าสู่สถานะ Waiting',
     ],
     answer: 1,
@@ -113,7 +132,7 @@ export const quizLifecycle = [
     q: 'ทำไม service worker ตัวใหม่จึงนั่งรออยู่ในสถานะ Waiting?',
     options: [
       'มันกำลังรอให้ network พร้อมใช้งาน',
-      'มันรอให้เบราว์เซอร์ดาวน์โหลด asset',
+      'มันรอให้ browser ดาวน์โหลด asset',
       'มันรอจนกว่าจะไม่มีแท็บใดถูกควบคุมโดย service worker ตัวเก่าอีก',
       'มันรอให้ activate event ถูก dispatch',
     ],

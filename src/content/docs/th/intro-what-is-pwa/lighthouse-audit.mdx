@@ -158,6 +158,25 @@ if ('serviceWorker' in navigator) {
 รัน Lighthouse PWA audit แต่เนิ่นๆ — มันบอกคุณว่ายังขาดเกณฑ์ installability ข้อใด
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| รัน Lighthouse audit ใน CI ทุก PR | จับ regression ของ PWA checklist ได้ทันทีก่อน merge | เพิ่มเวลา build/CI และต้อง maintain threshold score |
+| รัน Lighthouse แบบ manual เป็นครั้งคราว | ไม่เพิ่ม overhead ให้ pipeline | พลาด regression ได้ง่าย เพราะไม่มีใครนึกจะรันจนกว่าจะมีปัญหา |
+
+## Common Mistakes
+
+- อ่านแค่ตัวเลขคะแนนรวมโดยไม่ดู audit item ที่ fail จริง ทำให้แก้ปัญหาผิดจุด
+- รัน Lighthouse บน localhost ที่ไม่มี production build/caching จริง แล้วเข้าใจผิดว่าคะแนนใน production จะเหมือนกัน
+- ไม่รันซ้ำหลายรอบ — คะแนน performance ผันผวนตาม network throttling และ CPU ของเครื่องที่รัน
+
+> 💡 Real World Example
+>
+> **web.dev/measure** — ทีม Chrome ใช้ Lighthouse เป็นมาตรฐานกลางสำหรับ PWA checklist ที่นักพัฒนาทั่วโลกอ้างอิง
+>
+> **Lighthouse CI ของ Google** — หลายทีมตั้ง budget คะแนนขั้นต่ำใน pipeline เพื่อกัน regression ก่อนขึ้น production
+
 export const quizLighthouseAudit = [
   {
     q: 'คุณจะพบ Lighthouse PWA audit ใน Chrome DevTools ได้ที่ไหน?',
@@ -195,7 +214,7 @@ export const quizLighthouseAudit = [
       'แก้ไข field ของ manifest โดยตรงใน browser',
       'Force service worker ที่รอให้ activate ทันทีผ่านปุ่ม skipWaiting',
       'ดูคะแนน Lighthouse audit โดยไม่ต้องรัน report เต็มรูปแบบ',
-      'เปลี่ยนใบรับรอง HTTPS สำหรับ localhost',
+      'เปลี่ยน TLS certificate สำหรับ localhost',
     ],
     answer: 1,
   },

@@ -1,6 +1,6 @@
 ---
 title: Periodic Background Sync
-description: 'ใช้ Periodic Background Sync เพื่อรีเฟรชเนื้อหาขณะที่แอปปิดอยู่ — การลงทะเบียน, periodicsync event, ข้อจำกัดและความพร้อมใช้งาน'
+description: 'ใช้ Periodic Background Sync เพื่อรีเฟรชเนื้อหาขณะที่แอปปิดอยู่ — การ register, periodicsync event, ข้อจำกัดและความพร้อมใช้งาน'
 sidebar:
   order: 5
 ---
@@ -14,7 +14,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 Periodic Background Sync (PBS) ช่วยให้ PWA ที่ install แล้วปลุก service worker ให้ทำงานตามกำหนดเวลาซ้ำๆ เพื่อรีเฟรชข้อมูล — แม้เมื่อผู้ใช้ไม่ได้ใช้แอปอยู่ เมื่อผู้ใช้เปิดแอปครั้งต่อไป พวกเขาจะเห็นเนื้อหาใหม่แทนที่จะเป็นข้อมูลเก่า
 
-คิดว่ามันเป็น cron job ที่ทำงานภายในเบราว์เซอร์ โดยขึ้นอยู่กับ heuristics ของเบราว์เซอร์เองว่าเมื่อไหรที่ปลอดภัยและเป็นประโยชน์ที่จะปลุกแอปของคุณ
+คิดว่ามันเป็น cron job ที่ทำงานภายใน browser โดยขึ้นอยู่กับ heuristics ของ browser เองว่าเมื่อไหรที่ปลอดภัยและเป็นประโยชน์ที่จะปลุกแอปของคุณ
 
 ### มันทำงานอย่างไร
 
@@ -48,7 +48,7 @@ async function checkPeriodicSyncSupport() {
 }
 ```
 
-### การลงทะเบียน periodic sync
+### การ register periodic sync
 
 ```js
 async function registerPeriodicSync() {
@@ -67,7 +67,7 @@ async function registerPeriodicSync() {
 }
 ```
 
-`minInterval` เป็นเพียง hint — เบราว์เซอร์จะ fire event **ไม่บ่อยกว่า** interval นี้ แต่อาจ fire น้อยกว่าหรือไม่ fire เลยขึ้นอยู่กับ heuristics ของมัน
+`minInterval` เป็นเพียง hint — browser จะ fire event **ไม่บ่อยกว่า** interval นี้ แต่อาจ fire น้อยกว่าหรือไม่ fire เลยขึ้นอยู่กับ heuristics ของมัน
 
 ### การจัดการ periodicsync event ใน service worker
 
@@ -89,7 +89,7 @@ async function refreshNewsCache() {
 }
 ```
 
-`event.waitUntil()` ทำให้ SW ยังคงทำงานต่อจนกว่างาน async จะเสร็จสมบูรณ์ ถ้า fetch ของคุณใช้เวลานานเกินไปหรือล้มเหลว เบราว์เซอร์อาจไม่ retry ทันที
+`event.waitUntil()` ทำให้ SW ยังคงทำงานต่อจนกว่างาน async จะเสร็จสมบูรณ์ ถ้า fetch ของคุณใช้เวลานานเกินไปหรือล้มเหลว browser อาจไม่ retry ทันที
 
 ### การแสดงรายการและยกเลิก sync
 
@@ -108,15 +108,15 @@ await registration.periodicSync.unregister('refresh-news');
 | ข้อจำกัด | รายละเอียด |
 |---|---|
 | **ต้อง install PWA** | Periodic sync ต้องการให้แอปถูก install บน home screen หรือ desktop |
-| **เฉพาะ Chromium** | ณ ปี 2025 เฉพาะเบราว์เซอร์ที่ใช้ Chromium เท่านั้นที่รองรับ PBS; Firefox และ Safari ไม่รองรับ |
-| **Browser กำหนด cadence** | เบราว์เซอร์ตัดสินใจ firing interval จริงตามแบตเตอรี่, เครือข่าย และ site engagement — ถือ `minInterval` เป็นค่าต่ำสุด ไม่ใช่ตาราง |
+| **เฉพาะ Chromium** | ณ ปี 2025 เฉพาะ browser ที่ใช้ Chromium เท่านั้นที่รองรับ PBS; Firefox และ Safari ไม่รองรับ |
+| **Browser กำหนด cadence** | browser ตัดสินใจ firing interval จริงตามแบตเตอรี่, เครือข่าย และ site engagement — ถือ `minInterval` เป็นค่าต่ำสุด ไม่ใช่ตาราง |
 | **ต้องมีเครือข่าย** | SW จะรัน handler เฉพาะเมื่ออุปกรณ์มีการเชื่อมต่อเครือข่าย |
 | **Engagement score** | Chrome ติดตาม site engagement; เว็บไซต์ที่มี engagement ต่ำอาจมี PBS ถูก throttle หรือปิดใช้งาน |
 | **ต้องใช้ HTTPS** | เหมือนกับฟีเจอร์ service worker ทั้งหมด PBS ทำงานได้เฉพาะบน secure origins |
 
 ### การออกแบบแบบ best-effort
 
-เนื่องจากเบราว์เซอร์ควบคุม cadence ออกแบบแอปให้ทำงานได้ถูกต้องแม้ `periodicsync` จะไม่ fire เลย:
+เนื่องจาก browser ควบคุม cadence ออกแบบแอปให้ทำงานได้ถูกต้องแม้ `periodicsync` จะไม่ fire เลย:
 
 1. แสดงข้อมูลใน cache เสมอถ้า cache มีอยู่ — แม้ข้อมูลเก่าก็ดีกว่าหน้าจอว่างเปล่า
 2. รีเฟรชเมื่อเปิดหน้าเพจเป็น fallback เมื่อ periodic sync ไม่ได้ทำงาน
@@ -145,11 +145,30 @@ async function loadArticles() {
 }
 ```
 
-> **บทเรียนแบบ code-only:** Periodic Background Sync ต้องการ PWA ที่ install แล้วและมีเฉพาะในเบราว์เซอร์ที่ใช้ Chromium ตัวอย่างด้านบนสมบูรณ์และถูกต้อง แต่ไม่สามารถรันใน in-browser playground ได้ ทดสอบใน Chrome หรือ Edge พร้อมกับ PWA ที่ install แล้ว
+> **บทเรียนแบบ code-only:** Periodic Background Sync ต้องการ PWA ที่ install แล้วและมีเฉพาะใน browser ที่ใช้ Chromium ตัวอย่างด้านบนสมบูรณ์และถูกต้อง แต่ไม่สามารถรันใน in-browser playground ได้ ทดสอบใน Chrome หรือ Edge พร้อมกับ PWA ที่ install แล้ว
 
 <Callout title="Key point">
-Periodic Background Sync ทำงานได้เฉพาะกับ PWA ที่ install แล้ว และเบราว์เซอร์เป็นผู้ตัดสิน cadence จริง — ถือว่าเป็น best-effort เสมอ ควรใช้ fallback ที่รีเฟรชข้อมูลเมื่อเปิดหน้าเพจเสมอ เพื่อให้แอปยังทำงานได้อย่างถูกต้องเมื่อ sync ไม่ได้ทำงาน
+Periodic Background Sync ทำงานได้เฉพาะกับ PWA ที่ install แล้ว และ browser เป็นผู้ตัดสิน cadence จริง — ถือว่าเป็น best-effort เสมอ ควรใช้ fallback ที่รีเฟรชข้อมูลเมื่อเปิดหน้าเพจเสมอ เพื่อให้แอปยังทำงานได้อย่างถูกต้องเมื่อ sync ไม่ได้ทำงาน
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| Periodic Background Sync | ข้อมูลสดใหม่รอผู้ใช้อยู่แล้วตอนเปิดแอป โดยไม่ต้องรอโหลด | ต้องผ่านเกณฑ์ installed PWA + engagement heuristic ของ browser ก่อนถึงจะได้สิทธิ์ใช้ |
+| Sync ตอนเปิดแอปเท่านั้น (on-demand) | ทำงานได้ทุก browser ไม่มีเงื่อนไขพิเศษ | ผู้ใช้ต้องรอโหลดข้อมูลทุกครั้งที่เปิดแอป แม้เพิ่งเปิดไปเมื่อกี้ |
+
+## Common Mistakes
+
+- ตั้ง sync interval ถี่เกินไปโดยไม่สนใจว่า browser จะปรับ interval จริงตาม engagement ของผู้ใช้เองอยู่ดี (ตั้งเท่าไหร่ก็เป็นแค่ minimum)
+- ไม่ตรวจสิทธิ์ periodic-background-sync ก่อนเรียก register ทำให้โค้ด throw error บน browser ที่ยังไม่รองรับ
+- ใช้ periodic sync ดึงข้อมูลจำนวนมากโดยไม่สนใจ data usage ของผู้ใช้บนมือถือ ทำให้กิน quota โดยไม่รู้ตัว
+
+> 💡 Real World Example
+>
+> **Google Maps** — ใช้ periodic sync อัปเดตข้อมูลจราจร/แผนที่ที่เคย cache ไว้ให้สดใหม่อยู่เสมอแม้ไม่ได้เปิดแอป
+>
+> **แอปข่าวหลายเจ้า** — sync หัวข้อข่าวล่าสุดเบื้องหลังเป็นระยะ ให้พร้อมอ่านทันทีที่เปิดแอปโดยไม่ต้องรอโหลด
 
 export const quizPeriodicSync = [
   {

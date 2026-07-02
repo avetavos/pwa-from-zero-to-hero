@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## อาร์เรย์ `icons`
 
-ฟิลด์ `icons` ใน manifest คืออาร์เรย์ของอ็อบเจ็กต์รูปภาพ เบราว์เซอร์จะเลือกขนาดที่เหมาะสมที่สุดสำหรับแต่ละบริบท: กล่องโต้ตอบการติดตั้ง, หน้าจอหลัก, splash screen และ app switcher
+ฟิลด์ `icons` ใน manifest คืออาร์เรย์ของอ็อบเจ็กต์รูปภาพ browser จะเลือกขนาดที่เหมาะสมที่สุดสำหรับแต่ละบริบท: กล่องโต้ตอบการติดตั้ง, หน้าจอหลัก, splash screen และ app switcher
 
 ```json
 {
@@ -42,7 +42,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ### ขนาดขั้นต่ำที่จำเป็น
 
-Chrome และเบราว์เซอร์ Chromium อื่น ๆ ต้องการ icon ขนาด **192 x 192** เพื่อแสดง install prompt และ icon ขนาด **512 x 512** สำหรับ splash screen ควรใส่ทั้งคู่เสมอ
+Chrome และ browser Chromium อื่น ๆ ต้องการ icon ขนาด **192 x 192** เพื่อแสดง install prompt และ icon ขนาด **512 x 512** สำหรับ splash screen ควรใส่ทั้งคู่เสมอ
 
 icon SVG สามารถครอบคลุมทุกขนาดด้วยรายการเดียว:
 
@@ -88,7 +88,7 @@ export const safeZoneDiagram = `flowchart TB
 }
 ```
 
-อย่างไรก็ตามวิธีนี้ใช้ได้ก็ต่อเมื่อ artwork ของคุณอยู่ใน safe zone จริง ๆ ในกรณีส่วนใหญ่ควรเตรียม **สองไฟล์แยกกัน**: icon มาตรฐาน (`purpose: "any"`) และ icon ที่ออกแบบมาเฉพาะสำหรับ masking (`purpose: "maskable"`)
+แต่วิธีนี้ใช้ได้ก็ต่อเมื่อ artwork ของคุณอยู่ใน safe zone จริง ๆ ในกรณีส่วนใหญ่ควรเตรียม **สองไฟล์แยกกัน**: icon มาตรฐาน (`purpose: "any"`) และ icon ที่ออกแบบมาเฉพาะสำหรับ masking (`purpose: "maskable"`)
 
 ### การสร้าง icons
 
@@ -108,6 +108,25 @@ export const safeZoneDiagram = `flowchart TB
 <Callout title="ประเด็นสำคัญ">
 ใส่ icon ที่มี `"purpose": "maskable"` เสมอเพื่อให้ Android สามารถปรับรูปทรงได้โดยไม่ตัด logo ออก ออกแบบ maskable variant โดยวาง artwork ทั้งหมดไว้ใน safe zone วงกลม 80% ตรงกลาง
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ทำ maskable icon แยกจาก icon ปกติ | ไอคอนไม่โดนตัดขอบเพี้ยนบน Android (circular crop) | ต้องออกแบบและ export ไฟล์ icon เพิ่มอีกชุด |
+| ใช้ icon ชุดเดียวสำหรับทุก purpose | จัดการไฟล์น้อยกว่า ดูแลง่ายกว่า | เสี่ยงโดน crop เพี้ยนบน platform ที่ต้องการ safe zone แบบ maskable |
+
+## Common Mistakes
+
+- ไม่ใส่ purpose: "maskable" เลย ทำให้ Android เอา icon ปกติไป crop เป็นวงกลมและตัดโลโก้ขาดหาย
+- ออกแบบโลโก้เต็มขอบไฟล์ 512x512 โดยไม่เผื่อ safe zone กลาง 80% ตามสเปก maskable icon
+- ใส่ icon แค่ขนาดเดียว (เช่น 192x192) ทำให้ device ที่ต้องการ resolution สูงกว่าต้อง upscale จนภาพแตก
+
+> 💡 Real World Example
+>
+> **Squoosh** — ออกแบบ maskable icon เฉพาะสำหรับ Android โดยเว้น safe zone ตรงกลางตามสเปก ทำให้โลโก้ไม่โดนตัดเมื่อถูก crop เป็นวงกลม
+>
+> **Maskable.app (เครื่องมือของ Google)** — เป็นเครื่องมือ preview มาตรฐานที่นักพัฒนา PWA ใช้ตรวจ safe zone ก่อน ship icon จริง
 
 export const quizIconsMaskable = [
   {
@@ -129,7 +148,7 @@ export const quizIconsMaskable = [
     q: 'ค่า sizes เป็น "any" สำหรับรายการ icon SVG หมายความว่าอะไร?',
     options: [
       'icon จะถูกละเว้น',
-      'เบราว์เซอร์จะยืดให้เป็นขนาดใด ๆ ที่ต้องการ',
+      'browser จะยืดให้เป็นขนาดใด ๆ ที่ต้องการ',
       'icon ครอบคลุมทุกขนาดเพราะ SVG ไม่ขึ้นอยู่กับความละเอียด',
       'icon ใช้เฉพาะสำหรับ splash screen',
     ],

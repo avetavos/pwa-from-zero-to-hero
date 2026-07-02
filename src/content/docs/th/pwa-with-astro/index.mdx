@@ -12,12 +12,12 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## PWA ผสานกับ Astro ได้อย่างไร
 
-**Astro** เป็น framework ที่เน้น static เป็นหลัก ค่าเริ่มต้นคือการ build ไซต์ออกมาเป็น HTML, CSS และ JavaScript ล้วน ๆ โดยไม่ต้องมีเซิร์ฟเวอร์ขณะ runtime นั่นคือสิ่งที่ **Progressive Web App** ต้องการพอดี: ชุดของ static assets ที่แคชได้และให้บริการออฟไลน์ได้
+**Astro** เป็น framework ที่เน้น static เป็นหลัก ค่าเริ่มต้นคือการ build ไซต์ออกมาเป็น HTML, CSS และ JavaScript ล้วน ๆ โดยไม่ต้องมี server ขณะ runtime นั่นคือสิ่งที่ **Progressive Web App** ต้องการพอดี: ชุดของ static assets ที่แคชได้และให้บริการออฟไลน์ได้
 
 สะพานเชื่อมระหว่าง build output ของ Astro กับฟีเจอร์ PWA คือ **`@vite-pwa/astro`** มันเป็น Astro integration ที่บาง ๆ ซึ่งครอบ `vite-plugin-pwa` ไว้ แล้ว vite-plugin-pwa ก็ใช้ **Workbox** ภายใต้ฝาปิดอีกทีหนึ่ง เมื่อคุณรัน `astro build` integration จะทำงานอัตโนมัติ:
 
 1. สร้าง `sw.js` service worker ที่ precache output แบบ static ทั้งหมด
-2. สร้าง `manifest.webmanifest` เพื่อบอกเบราว์เซอร์ว่าไซต์ของคุณติดตั้งได้
+2. สร้าง `manifest.webmanifest` เพื่อบอก browser ว่าไซต์ของคุณติดตั้งได้
 3. ฉีด registration script เพื่อให้ SW ทำงานตั้งแต่โหลดครั้งแรก
 
 ### Astro islands กับ service worker
@@ -83,7 +83,7 @@ Astro ส่งออก HTML แบบ static เป็นหลัก — `@vi
 |---------|----------------------|
 | 1. ภาพรวม (หน้านี้) | `@vite-pwa/astro` ทำงานอย่างไร และโต้ตอบกับ build ของ Astro อย่างไร |
 | 2. การติดตั้ง | ติดตั้งและเชื่อม `@vite-pwa/astro` เข้ากับโปรเจกต์ Astro ใหม่หรือที่มีอยู่แล้ว |
-| 3. การตั้งค่า manifest | กำหนด `manifest.webmanifest` — ชื่อ, ไอคอน, display, theme color |
+| 3. การตั้งค่า manifest | กำหนด `manifest.webmanifest` — ชื่อ, icon, display, theme color |
 | 4. SW strategies | เลือกและปรับแต่ง Workbox caching strategies สำหรับหน้า, assets, และ API call |
 | 5. ข้อพิเศษของ Astro | Islands hydration ออฟไลน์, partial SSR, และ edge cases |
 
@@ -119,7 +119,7 @@ export const quizPwaWithAstroIndex = [
     q: 'ใน Astro SSG build service worker จะ precache อะไรบ้าง?',
     options: [
       'เฉพาะไฟล์ index.html เท่านั้น',
-      'API response จากเซิร์ฟเวอร์',
+      'API response จาก server',
       'ทุกหน้า HTML แบบ static, CSS, JS bundle และ assets ทั้งหมดใน dist/',
       'เฉพาะ JavaScript component ของ island เท่านั้น',
     ],

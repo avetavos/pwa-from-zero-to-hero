@@ -74,7 +74,7 @@ notify('Your order shipped!', {
 |---|---|---|
 | `body` | string | ข้อความรองด้านล่างชื่อเรื่อง |
 | `icon` | string (URL) | รูปภาพขนาดใหญ่ข้าง notification |
-| `badge` | string (URL) | ไอคอนขาวดำขนาดเล็กสำหรับ status bar |
+| `badge` | string (URL) | icon ขาวดำขนาดเล็กสำหรับ status bar |
 | `image` | string (URL) | รูปภาพ inline ขนาดใหญ่ |
 | `actions` | array | ปุ่มที่ผู้ใช้สามารถกดได้โดยไม่ต้องเปิดแอป |
 | `data` | any | ข้อมูลส่วนตัวที่ส่งไปยัง `notificationclick` handler |
@@ -167,6 +167,25 @@ self.addEventListener('notificationclick', (event) => {
 <Callout title="Key point">
 ควรแสดง notification จาก service worker ผ่าน `registration.showNotification()` เสมอ แทนที่จะใช้ `new Notification()` Notification จาก SW จะถูกส่งได้อย่างน่าเชื่อถือแม้ไม่มีแท็บเปิดอยู่ และรองรับ action buttons และการจัดการ `notificationclick` ใน SW
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ขอ permission แบบ contextual (หลัง user engage แล้ว) | permission grant rate สูงกว่า ผู้ใช้เข้าใจเหตุผลก่อนตัดสินใจ | ต้องออกแบบ trigger point ที่เหมาะสม เพิ่มงานออกแบบ UX |
+| ขอ permission ทันทีตอนโหลดหน้าแรก | เขียนโค้ดง่ายที่สุด | permission block rate สูงมาก ผู้ใช้กด deny เพราะยังไม่เห็นคุณค่าของแอป |
+
+## Common Mistakes
+
+- ขอ Notification permission ทันทีตอนหน้าเว็บโหลด ทำให้ผู้ใช้ส่วนใหญ่กด block ก่อนจะรู้ด้วยซ้ำว่าแอปทำอะไร
+- ไม่ handle กรณี permission ถูก "denied" ถาวร ทำให้โค้ดพยายามขอซ้ำไปเรื่อยๆ โดยไม่มีทาง recover
+- แสดง notification โดยไม่ใส่ icon/tag ที่เหมาะสม ทำให้ notification เดียวกันซ้อนกันหลายอันแทนที่จะ replace อันเดิม
+
+> 💡 Real World Example
+>
+> **Facebook** — ขอ permission เฉพาะหลังผู้ใช้ทำ action ที่เกี่ยวข้อง (เช่นส่งข้อความ) แทนที่จะขอตั้งแต่แรกเข้า
+>
+> **สายการบินต่างๆ** — ใช้ Notifications API แจ้งเตือนเวลา check-in โดยขอ permission ตอนผู้ใช้กำลังจองตั๋วซึ่งเป็นจังหวะที่สมเหตุสมผลที่สุด
 
 export const quizNotifications = [
   {

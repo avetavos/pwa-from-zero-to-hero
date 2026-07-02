@@ -11,7 +11,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## Workbox
 
-Workbox คือชุด library จากทีม Chrome ที่ทำให้รูปแบบ Cache Storage และ fetch-event ระดับล่างที่คุณเขียนด้วยมือมาตลอดกลายเป็นนามธรรม แทนที่จะเขียน logic แบบ cache-first ขึ้นมาเองตั้งแต่ต้น คุณก็แค่เรียก `new CacheFirst()` แทนที่จะจัดการเวอร์ชันของ cache ด้วยมือ precaching manifest ของ Workbox ก็จัดการให้ ผลลัพธ์คือ boilerplate น้อยลง บั๊กในเคสมุมน้อยลง และโมเดลการ caching ที่สอดคล้องกันทั้งแอปพลิเคชัน
+Workbox คือชุด library จากทีม Chrome ที่ทำให้รูปแบบ Cache Storage และ fetch-event ระดับล่างที่คุณเขียนด้วยมือมาตลอดกลายเป็นนามธรรม แทนที่จะเขียน logic แบบ cache-first ขึ้นมาเองตั้งแต่ต้น คุณก็แค่เรียก `new CacheFirst()` แทนที่จะจัดการเวอร์ชันของ cache ด้วยมือ precaching manifest ของ Workbox ก็จัดการให้ ผลลัพธ์คือ boilerplate น้อยลง บั๊กในเคสมุมน้อยลง และโมเดลการ caching ที่สอดคล้องกันทั้งแอป
 
 ## การติดตั้ง Workbox
 
@@ -135,6 +135,25 @@ export default defineConfig({
 <Callout title="จุดสำคัญ">
 Workbox ห่อหุ้ม strategy แบบ cache-first, network-first, และ stale-while-revalidate ไว้ คุณจึงเขียนโค้ด service worker ที่มีโอกาสผิดพลาดน้อยลง `vite-plugin-pwa` ไปไกลกว่านั้น — มันสร้างไฟล์ SW ทั้งไฟล์พร้อม precaching ตอน build
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ใช้ Workbox แทนเขียน service worker เอง | ลด boilerplate เยอะมาก มี strategy สำเร็จรูปและ routing ให้พร้อม | เพิ่ม dependency และ bundle size บางส่วน ต้องเรียนรู้ config เฉพาะของ Workbox |
+| เขียน service worker เปล่าด้วยมือ | ควบคุมทุกบรรทัด ไม่มี abstraction แทรก | ต้อง reinvent cache versioning, routing, precache manifest เองทั้งหมด |
+
+## Common Mistakes
+
+- ใช้ผิด strategy กับผิดประเภท route (เช่น CacheFirst กับ API ที่เปลี่ยนบ่อย) เพราะ copy config จากตัวอย่างมาโดยไม่เข้าใจ
+- ไม่ regenerate precache manifest หลัง build ทำให้ Workbox precache ไฟล์เวอร์ชันเก่าที่ hash ไม่ตรงกับไฟล์จริง
+- ลืมว่า Workbox ยังต้องเรียก `self.skipWaiting()` / `clients.claim()` เองถ้าต้องการ auto-update ไม่ใช่ default ของ library
+
+> 💡 Real World Example
+>
+> **Twitter Lite / Pinterest** — เป็นสองเคสที่ทีม Google อ้างถึงบ่อยที่สุดว่าใช้ Workbox จัดการ caching strategy ระดับ production
+>
+> **Google I/O web app** — ใช้ Workbox precaching ร่วมกับ build tool เพื่อให้ asset ทุกตัว versioned อัตโนมัติทุกครั้งที่ deploy
 
 export const quizWorkbox = [
   {

@@ -9,7 +9,7 @@ import Callout from '../../../../components/Callout.astro';
 import Quiz from '../../../../components/Quiz.tsx';
 import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
-## กลยุทธ์การลงทะเบียนแบบ prompt
+## กลยุทธ์ การ register แบบ prompt
 
 เมื่อตั้งค่า `registerType` เป็น `'prompt'` นั้น `vite-plugin-pwa` จะไม่เรียก `skipWaiting()` โดยอัตโนมัติ แต่จะให้ hook `useRegisterSW()` จาก virtual module `virtual:pwa-register/react` แทน เพื่อให้คุณสร้าง update UI ของตัวเองได้ วิธีนี้ให้ผู้ใช้ควบคุมว่าจะให้ service worker ใหม่ activate และโหลดหน้าใหม่เมื่อใด
 
@@ -112,6 +112,25 @@ export default function App() {
 <Callout title="Key point">
 เมื่อใช้ `registerType: 'prompt'` คุณต้องเรียก `updateServiceWorker(true)` จาก action ของผู้ใช้เพื่อ apply SW ที่รออยู่
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| แสดง toast/banner ให้ผู้ใช้กด "Update now" เอง | ผู้ใช้ควบคุม timing ไม่โดนตัดงานกลางคัน | ผู้ใช้ที่ไม่สนใจ toast อาจติดเวอร์ชันเก่าไปนานมาก |
+| Auto-reload ทันทีที่มี update (ไม่ถาม) | ผู้ใช้อยู่กับเวอร์ชันล่าสุดตลอดเวลาโดยไม่ต้องทำอะไร | เสี่ยง reload กลางที่ผู้ใช้กำลังกรอกฟอร์มหรือทำงานค้างอยู่ |
+
+## Common Mistakes
+
+- ไม่ debounce/dedupe การแสดง update prompt ทำให้ toast โผล่ซ้ำหลายอันถ้า service worker event ยิงมากกว่าหนึ่งครั้ง
+- ปิด prompt ทิ้งโดยไม่เก็บ state ทำให้ผู้ใช้กดปิดไปแล้วแอปไม่มีทางเตือนซ้ำอีกเลยแม้จะยังใช้เวอร์ชันเก่าอยู่
+- ไม่ผูกปุ่ม "Update" เข้ากับ `updateServiceWorker()` ของ plugin จริงๆ ทำให้กดแล้วไม่มีอะไรเกิดขึ้น
+
+> 💡 Real World Example
+>
+> **Vite PWA ecosystem (Elk)** — ใช้ virtual:pwa-register hook แสดง toast "New content available, click to reload" เป็น pattern มาตรฐาน
+>
+> **Google Docs** — แสดง banner แจ้งเตือนอัปเดตให้ผู้ใช้กดเองแทนที่จะ force reload ระหว่างที่กำลังแก้เอกสารอยู่
 
 export const quizUpdatePromptUi = [
   {

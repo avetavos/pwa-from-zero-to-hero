@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การเก็บข้อมูล offline ด้วย IndexedDB
 
-เบราว์เซอร์มีกลไก client-side storage หลักสามแบบ แต่ละแบบออกแบบสำหรับงานที่แตกต่างกัน การเลือกแบบที่ถูกต้องจะป้องกัน bugs ที่ลึกซึ้งและทำให้ประสบการณ์ offline ของคุณเชื่อถือได้
+browser มีกลไก client-side storage หลักสามแบบ แต่ละแบบออกแบบสำหรับงานที่แตกต่างกัน การเลือกแบบที่ถูกต้องจะป้องกัน bugs ที่ลึกซึ้งและทำให้ประสบการณ์ offline ของคุณเชื่อถือได้
 
 ### การเปรียบเทียบ storage
 
@@ -25,11 +25,11 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 | **ใช้ใน SW ได้?** | ไม่ | ใช่ | ใช่ |
 | **เหมาะสำหรับ** | การตั้งค่าขนาดเล็ก / flags | Cache network resources | ข้อมูลแอป: tasks, messages, user records |
 
-หลักการง่าย ๆ: ใช้ **Cache Storage** สำหรับ network assets ที่ service worker cache (HTML, CSS, JS, รูปภาพ) และใช้ **IndexedDB** สำหรับข้อมูลจริงที่แอปพลิเคชันของคุณทำงานด้วย
+หลักการง่าย ๆ: ใช้ **Cache Storage** สำหรับ network assets ที่ service worker cache (HTML, CSS, JS, รูปภาพ) และใช้ **IndexedDB** สำหรับข้อมูลจริงที่แอปของคุณทำงานด้วย
 
 ### Raw IndexedDB API
 
-IndexedDB เป็น transactional, object-oriented database ที่ built-in ในทุกเบราว์เซอร์สมัยใหม่ มันเก็บ JavaScript objects ใน named **object stores** ที่ระบุด้วย key path ที่คุณเลือก
+IndexedDB เป็น transactional, object-oriented database ที่ built-in ในทุก browser สมัยใหม่ มันเก็บ JavaScript objects ใน named **object stores** ที่ระบุด้วย key path ที่คุณเลือก
 
 #### การเปิด database
 
@@ -168,6 +168,25 @@ export const idbDiagram = `sequenceDiagram
 <Callout title="ประเด็นสำคัญ">
 Cache Storage สำหรับ requests/responses; IndexedDB สำหรับข้อมูลแอป — ใช้ทั้งสอง
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| เก็บ mutation/data offline ใน IndexedDB | ทนทาน รอด service worker terminate และ browser restart ได้ | API ใช้งานซับซ้อนกว่า localStorage มาก ต้อง handle transaction/schema เอง |
+| เก็บชั่วคราวใน memory ของ service worker | เขียนโค้ดง่ายกว่า เร็วกว่าในระยะสั้น | หายทันทีที่ service worker ถูก browser terminate (เกิดบ่อยเมื่อ idle) |
+
+## Common Mistakes
+
+- ทำ mutation ระหว่าง offline ไว้ใน variable ธรรมดาแทน IndexedDB ทำให้ข้อมูลหายเมื่อ service worker ถูก kill
+- ไม่ handle onupgradeneeded ให้ครบ ทำให้ schema migration พังตอนอัปเดต version ของ database
+- ไม่มี error handler บน transaction ทำให้ error เงียบหายไปโดยไม่มีใครรู้ว่า write ล้มเหลว
+
+> 💡 Real World Example
+>
+> **Google Docs offline** — เก็บการแก้ไขเอกสารระหว่าง offline ไว้ใน IndexedDB แล้ว sync กลับ server ทันทีที่กลับมามีเน็ต
+>
+> **Gmail** — cache อีเมลและ draft ไว้ใน IndexedDB ทำให้เปิดอ่าน/แก้ draft ได้แม้ไม่มีสัญญาณอินเทอร์เน็ต
 
 export const quizIdb = [
   {

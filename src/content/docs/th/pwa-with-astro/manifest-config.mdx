@@ -1,6 +1,6 @@
 ---
 title: 'การตั้งค่า Web App Manifest'
-description: 'วิธีกำหนด web app manifest ภายใน options ของ AstroPWA integration — ชื่อแอป, ไอคอน, สีธีม, display mode — และผลลัพธ์ที่ได้เป็นไฟล์ manifest.webmanifest'
+description: 'วิธีกำหนด web app manifest ภายใน options ของ AstroPWA integration — ชื่อแอป, icon, สีธีม, display mode — และผลลัพธ์ที่ได้เป็นไฟล์ manifest.webmanifest'
 sidebar:
   order: 3
 ---
@@ -11,7 +11,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การตั้งค่า Web App Manifest
 
-**Web app manifest** คือไฟล์ JSON ที่บอกให้เบราว์เซอร์รู้ว่าควรแสดง PWA ของคุณอย่างไร — ตั้งแต่ชื่อ, ไอคอน, URL สำหรับเปิดแอป ไปจนถึง display mode เมื่อใช้ integration `@astrojs/pwa` (vite-plugin-pwa) คุณไม่ต้องเขียนไฟล์นั้นเอง เพียงประกาศค่าทั้งหมดใน `astro.config.mjs` แล้ว integration จะสร้างไฟล์ manifest และเชื่อมโยงให้อัตโนมัติ
+**Web app manifest** คือไฟล์ JSON ที่บอกให้ browser รู้ว่าควรแสดง PWA ของคุณอย่างไร — ตั้งแต่ชื่อ, icon, URL สำหรับเปิดแอป ไปจนถึง display mode เมื่อใช้ integration `@astrojs/pwa` (vite-plugin-pwa) คุณไม่ต้องเขียนไฟล์นั้นเอง เพียงประกาศค่าทั้งหมดใน `astro.config.mjs` แล้ว integration จะสร้างไฟล์ manifest และเชื่อมโยงให้อัตโนมัติ
 
 ### ประกาศ manifest object ภายใน AstroPWA
 
@@ -51,23 +51,23 @@ export default defineConfig({
 
 **อธิบาย properties สำคัญ:**
 
-- `name` — ชื่อเต็มของแอปพลิเคชัน แสดงบน splash screen และ app store
-- `short_name` — ชื่อย่อสำหรับใช้เมื่อพื้นที่จำกัด เช่น ป้ายกำกับใต้ไอคอนบน home screen
+- `name` — ชื่อเต็มของแอป แสดงบน splash screen และ app store
+- `short_name` — ชื่อย่อสำหรับใช้เมื่อพื้นที่จำกัด เช่น ป้ายกำกับใต้ icon บน home screen
 - `description` — ประโยคสั้น ๆ อธิบายแอป บาง app store นำไปใช้แสดงผล
 - `theme_color` — สีที่ใช้แต่งแถบ address bar หรือ title bar ของ OS ให้ตรงกับแบรนด์คุณ
 - `background_color` — สีพื้นหลังของ splash screen ที่แสดงขณะแอปกำลังโหลด
 - `display` — ควบคุมว่าจะแสดง browser UI มากน้อยแค่ไหน (ดูตารางด้านล่าง)
 - `start_url` — URL ที่ OS จะเปิดเมื่อผู้ใช้เปิดแอป PWA ที่ติดตั้งไว้
-- `icons` — อาร์เรย์ของ image descriptors เบราว์เซอร์จะเลือกขนาดที่เหมาะสมที่สุด
+- `icons` — อาร์เรย์ของ image descriptors browser จะเลือกขนาดที่เหมาะสมที่สุด
 
-### ทำไมต้องมีไอคอน 512 × 512 สองแบบ?
+### ทำไมต้องมี icon 512 × 512 สองแบบ?
 
 field ชื่อ `purpose` มีความหมายสำคัญ:
 
-- `"any"` — ไอคอนมาตรฐานใช้ในบริบทส่วนใหญ่ (app drawer, home screen บน iOS/macOS)
-- `"maskable"` — ไอคอนที่ subject อยู่ใน "safe zone" เพื่อให้ Android ใช้ adaptive-icon mask (วงกลม, squircle ฯลฯ) ได้โดยไม่ตัดภาพ
+- `"any"` — icon มาตรฐานใช้ในบริบทส่วนใหญ่ (app drawer, home screen บน iOS/macOS)
+- `"maskable"` — icon ที่ subject อยู่ใน "safe zone" เพื่อให้ Android ใช้ adaptive-icon mask (วงกลม, squircle ฯลฯ) ได้โดยไม่ตัดภาพ
 
-การมีทั้งสองแบบทำให้ไอคอนของคุณดูถูกต้องบนทุก platform
+การมีทั้งสองแบบทำให้ icon ของคุณดูถูกต้องบนทุก platform
 
 ### ไฟล์ manifest.webmanifest ที่ integration สร้างให้
 
@@ -92,9 +92,9 @@ field ชื่อ `purpose` มีความหมายสำคัญ:
 
 นอกจากนี้ integration ยังฉีด tag `<link rel="manifest" href="/manifest.webmanifest">` เข้าใน `<head>` ของทุกหน้าให้อัตโนมัติ — คุณไม่ต้องเพิ่มเองเลย
 
-### สร้างไอคอนอัตโนมัติด้วย pwaAssets
+### สร้าง icon อัตโนมัติด้วย pwaAssets
 
-การปรับขนาดไอคอนให้ครบทุก dimension ด้วยมือเป็นเรื่องน่าเบื่อ option ชื่อ `pwaAssets` (ขับเคลื่อนโดย `@vite-pwa/assets-generator`) จะสร้าง icon variants ทั้งหมดจากภาพต้นฉบับเพียงรูปเดียว:
+การปรับขนาด icon ให้ครบทุก dimension ด้วยมือเป็นเรื่องน่าเบื่อ option ชื่อ `pwaAssets` (ขับเคลื่อนโดย `@vite-pwa/assets-generator`) จะสร้าง icon variants ทั้งหมดจากภาพต้นฉบับเพียงรูปเดียว:
 
 ```ts
 pwaAssets: {
@@ -113,13 +113,32 @@ field `display` ควบคุมว่า browser chrome จะแสดงม
 | `standalone` | หน้าต่างแบบแอป ไม่มี browser UI |
 | `minimal-ui` | แสดง browser UI น้อยที่สุด |
 | `fullscreen` | เต็มหน้าจอ ไม่มี UI เลย |
-| `browser` | แท็บเบราว์เซอร์ปกติ |
+| `browser` | แท็บ browser ปกติ |
 
 `"standalone"` เป็นตัวเลือกยอดนิยมสำหรับ PWA เพราะให้ประสบการณ์เหมือนแอป native โดยไม่มี address bar ให้เห็น
 
 <Callout title="Key point">
 Configure the manifest once in `astro.config.mjs`; the integration emits it and links it for you.
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ตั้งค่า manifest ผ่าน astro.config.mjs (@vite-pwa/astro) | manifest ถูก generate อัตโนมัติตอน build sync กับ config เดียวเสมอ | ต้องเรียนรู้ option ของ plugin เฉพาะ Astro แทนที่จะเขียน JSON ตรงๆ |
+| วาง manifest.json ไว้ใน public/ ตรงๆ | เห็นและแก้ไขไฟล์ได้ตรงๆ ไม่ผ่าน config abstraction | ต้อง sync ด้วยมือกับ build output เอง เสี่ยง manifest ไม่ตรงกับ asset จริง |
+
+## Common Mistakes
+
+- ตั้ง scope/start_url ไม่ตรงกับ base path ที่ deploy จริง (เช่น deploy ใน subpath แต่ manifest ตั้ง start_url เป็น "/")
+- ไม่ generate icon ผ่าน plugin ทำให้ขนาด icon ไม่ครบตามที่ store/Android ต้องการ
+- ลืมว่า config เปลี่ยนต้อง rebuild ใหม่เสมอ ไม่ hot-reload เหมือนโค้ด component ปกติ
+
+> 💡 Real World Example
+>
+> **Astro documentation site เอง** — ใช้ @vite-pwa/astro ตั้งค่า manifest ผ่าน config ให้ sync กับ build pipeline อัตโนมัติ
+>
+> **VitePress sites** — ใช้แนวทาง config-driven manifest คล้ายกันทำให้ documentation หลายพันเว็บติดตั้งเป็น PWA ได้โดยไม่ต้องเขียน manifest.json เอง
 
 export const quizManifestConfig = [
   {
@@ -143,12 +162,12 @@ export const quizManifestConfig = [
     answer: 2,
   },
   {
-    q: 'ทำไมต้องมีไอคอน 512x512 ทั้งแบบ "any" และ "maskable"?',
+    q: 'ทำไมต้องมี icon 512x512 ทั้งแบบ "any" และ "maskable"?',
     options: [
-      'เพราะ manifest spec กำหนดให้มีไอคอนสองแบบทุกขนาด',
-      'เพื่อให้เบราว์เซอร์เลือกไฟล์ที่เล็กกว่าประหยัด bandwidth',
-      'เพื่อให้ Android ใช้ adaptive-icon mask ได้โดยไม่ตัดภาพ ขณะที่ platform อื่นใช้ไอคอนมาตรฐาน',
-      'เพราะไอคอน "maskable" ใช้บน splash screen เท่านั้น',
+      'เพราะ manifest spec กำหนดให้มี icon สองแบบทุกขนาด',
+      'เพื่อให้ browser เลือกไฟล์ที่เล็กกว่าประหยัด bandwidth',
+      'เพื่อให้ Android ใช้ adaptive-icon mask ได้โดยไม่ตัดภาพ ขณะที่ platform อื่นใช้ icon มาตรฐาน',
+      'เพราะ icon "maskable" ใช้บน splash screen เท่านั้น',
     ],
     answer: 2,
   },

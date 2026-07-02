@@ -115,6 +115,25 @@ const CACHE = `cache-\${version}`;
 `$service-worker` ให้รายการ built asset ที่แน่นอนพร้อม version string — precache `build` และ `files` ใน `install` และลบทุก cache ที่ชื่อไม่ตรงกับ version ปัจจุบันใน `activate` โดยไม่ต้องใช้ Workbox
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ใช้ `$service-worker` module ของ SvelteKit | เข้าถึง build manifest (asset list, version) ได้ตรงๆ จาก SvelteKit เอง | ผูกกับ SvelteKit convention เฉพาะ ย้ายไป framework อื่นต้องเขียนใหม่ |
+| เขียน service worker แบบ static ไม่พึ่ง SvelteKit module | ทำงานได้แม้นอก SvelteKit build pipeline | ต้อง maintain asset list เองแทนที่จะให้ framework generate ให้ |
+
+## Common Mistakes
+
+- import `$service-worker` ผิด context (ใช้นอกไฟล์ service worker) ทำให้ build error เพราะ module นี้ resolve เฉพาะตอน build service worker เท่านั้น
+- ไม่ใช้ `build` และ `files` ที่ export มาจาก module นี้ในการ precache ทำให้ต้อง list asset เองด้วยมือและหลุด sync กับ build จริง
+- ลืมว่า `version` จาก module นี้เปลี่ยนทุก build ทำให้ถ้าไม่ใช้ตั้งชื่อ cache จะ invalidate cache เก่าไม่ถูกจังหวะ
+
+> 💡 Real World Example
+>
+> **SvelteKit official service worker docs** — ใช้ `$service-worker` เป็นแนวทางมาตรฐานสำหรับทุกโปรเจกต์ SvelteKit ที่ต้องการ precache แบบ build-aware
+>
+> **Vite PWA ecosystem (SvelteKit-based projects)** — โปรเจกต์จำนวนมากที่ใช้ SvelteKit ต่อยอดจาก module นี้เพื่อทำ offline-first app
+
 export const quizServiceWorkerModule = [
   {
     q: 'export ชื่อ build จาก $service-worker มีเนื้อหาอะไร?',

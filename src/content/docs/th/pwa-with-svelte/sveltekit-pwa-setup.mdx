@@ -117,6 +117,25 @@ SvelteKitPWA({
 เพิ่ม `SvelteKitPWA()` ใน Vite plugins ของคุณ — มันสร้าง service worker และ manifest สำหรับ SvelteKit build ใช้ `registerType: 'prompt'` ใน production เพื่อให้ผู้ใช้ควบคุมเวลาที่จะ apply การอัปเดต
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| ใช้ `@vite-pwa/sveltekit` | ตั้งค่า manifest+service worker ให้พร้อมใช้ในคำสั่งเดียว เข้ากับ adapter ของ SvelteKit | ผูกกับ ecosystem เฉพาะ ต้องตามอัปเดต plugin แยกจาก SvelteKit เอง |
+| เขียน setup เองแบบผสม `$service-worker` module ตรงๆ | ควบคุมทุกรายละเอียดโดยไม่ผ่าน plugin | ต้อง integrate กับ adapter (static/node/vercel) เองทั้งหมด เพิ่ม edge case |
+
+## Common Mistakes
+
+- ตั้งค่า plugin โดยไม่เช็คว่า adapter ที่ใช้อยู่ (adapter-static, adapter-node ฯลฯ) รองรับ service worker แบบที่ต้องการหรือไม่
+- ลืมเปิด `devOptions.enabled: true` แล้วสับสนว่าทำไม service worker ไม่ register ตอน dev
+- ไม่ทดสอบบน production build (`vite build && vite preview`) ทำให้พลาด bug ที่เกิดเฉพาะตอน build จริงเท่านั้น
+
+> 💡 Real World Example
+>
+> **Vite PWA ecosystem** — `@vite-pwa/sveltekit` เป็นส่วนหนึ่งของ ecosystem เดียวกับ Elk (Mastodon client) ที่พอร์ตแนวคิดเดียวกันมาใช้กับ SvelteKit
+>
+> **SvelteKit community starter templates** — หลายเทมเพลตใช้ plugin นี้เป็นจุดเริ่มต้นมาตรฐานสำหรับทำ SvelteKit PWA
+
 export const quizSvelteKitPwaSetup = [
   {
     q: 'คุณเพิ่ม SvelteKitPWA() ไว้ที่ไหนในโปรเจกต์ SvelteKit?',

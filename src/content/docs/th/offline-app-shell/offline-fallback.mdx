@@ -1,6 +1,6 @@
 ---
 title: Offline Fallback Page
-description: 'Precache หน้า offline.html และให้บริการจาก service worker เมื่อ navigation request ล้มเหลว เพื่อไม่ให้ผู้ใช้เห็นหน้า error ของเบราว์เซอร์'
+description: 'Precache หน้า offline.html และให้บริการจาก service worker เมื่อ navigation request ล้มเหลว เพื่อไม่ให้ผู้ใช้เห็นหน้า error ของ browser'
 sidebar:
   order: 2
 ---
@@ -13,14 +13,14 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การให้บริการหน้า offline fallback
 
-การปรับปรุงที่ง่ายที่สุดที่คุณสามารถทำกับ PWA ที่ยังไม่มีกลยุทธ์ offline คือการเพิ่มหน้า **offline fallback** หน้าเดียว เมื่อผู้ใช้นำทางไปยังไซต์และเครือข่ายไม่พร้อมใช้งาน แทนที่จะแสดงหน้า error ของเบราว์เซอร์ พวกเขาจะเห็นหน้าที่มี branding ของคุณที่บอกว่าพวกเขา offline
+การปรับปรุงที่ง่ายที่สุดที่คุณสามารถทำกับ PWA ที่ยังไม่มีกลยุทธ์ offline คือการเพิ่มหน้า **offline fallback** หน้าเดียว เมื่อผู้ใช้นำทางไปยังไซต์และเครือข่ายไม่พร้อมใช้งาน แทนที่จะแสดงหน้า error ของ browser พวกเขาจะเห็นหน้าที่มี branding ของคุณที่บอกว่าพวกเขา offline
 
 ### รูปแบบสองขั้นตอน
 
 1. **ใน `install`** — precache `offline.html` เพื่อให้พร้อมใช้ทันที แม้ก่อนที่ผู้ใช้จะเคยเยี่ยมชมหน้าอื่น
 2. **ใน `fetch`** — ดักจับ navigation requests (`event.request.mode === 'navigate'`), ลองเครือข่าย, และ catch ความล้มเหลวโดยให้บริการ `offline.html` ที่ cache ไว้
 
-รูปแบบนี้จงใจให้เรียบง่าย ไม่ดักจับ sub-resources (รูปภาพ, สคริปต์, API calls) — เฉพาะ top-level page navigations เท่านั้น ทำให้ logic เรียบง่ายและหลีกเลี่ยงผลข้างเคียงที่ไม่ตั้งใจต่อ API calls
+รูปแบบนี้จงใจให้เรียบง่าย ไม่ดักจับ sub-resources (รูปภาพ, script, API calls) — เฉพาะ top-level page navigations เท่านั้น ทำให้ logic เรียบง่ายและหลีกเลี่ยงผลข้างเคียงที่ไม่ตั้งใจต่อ API calls
 
 ### Precaching ใน install
 
@@ -207,6 +207,25 @@ self.addEventListener('fetch', (event) => {
 <Callout title="ประเด็นสำคัญ">
 จัดการ navigation requests เป็นพิเศษ — ให้บริการหน้าที่ cache ไว้หรือ offline fallback เพื่อให้ผู้ใช้ไม่เห็น dinosaur
 </Callout>
+
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| Serve หน้า offline fallback ที่ออกแบบเอง | UX ดีกว่ามาก ผู้ใช้รู้สถานะและทำอะไรต่อได้ (เช่นดูของที่ cache ไว้) | ต้องออกแบบและ maintain หน้าเพิ่มอีกหนึ่งหน้า |
+| ปล่อยให้ browser แสดง error page มาตรฐาน (dino game ของ Chrome) | ไม่ต้องทำอะไรเพิ่ม | ผู้ใช้ไม่รู้ว่าแอปมีอะไรให้ใช้ offline ได้บ้าง ประสบการณ์แย่กว่ามาก |
+
+## Common Mistakes
+
+- ไม่ precache หน้า offline fallback เอง ทำให้ตอนที่ network ล้มเหลวจริงๆ กลับโหลดหน้า fallback ไม่ได้เช่นกัน (chicken-and-egg problem)
+- แสดง fallback แบบเดียวกันทุก route โดยไม่บอกผู้ใช้ว่าตอนนี้กำลังพยายามโหลดอะไรอยู่
+- ลืมทดสอบ fallback บนกรณีที่ network "ช้ามาก" ไม่ใช่แค่ "ขาดหายสนิท" ทำให้ UX พังตอนเน็ตแค่แย่ไม่ถึงกับหลุด
+
+> 💡 Real World Example
+>
+> **Chrome dino game** — เป็น offline fallback แบบ built-in ของ browser เอง ที่แสดงให้เห็นว่า "ไม่มีอะไรให้ทำ" นั้น UX แย่แค่ไหนเทียบกับแอปที่เตรียม fallback เอง
+>
+> **The Guardian / BBC News** — แสดงหน้า offline ที่บอกชัดว่าไม่มีสัญญาณ พร้อมลิงก์ไปบทความที่เคย cache ไว้ให้อ่านต่อได้ทันที
 
 export const quizFallback = [
   {

@@ -1,0 +1,98 @@
+---
+title: Glossary
+description: คำศัพท์ PWA ที่ใช้ตลอด course นี้ — รักษา terminology ภาษาอังกฤษตามที่ developer ใช้จริง
+sidebar:
+  order: 99
+---
+
+import Callout from '../../../components/Callout.astro';
+import ProgressTracker from '../../../components/ProgressTracker.tsx';
+
+## Core PWA Concepts
+
+| English | Thai Style | หมายเหตุ |
+|---------|-----------|---------|
+| Progressive Web App (PWA) | PWA | เว็บแอปที่เพิ่ม API สมัยใหม่ให้ทำสิ่งที่ native app ทำได้ |
+| Capable | Capable | หนึ่งในสามเสาหลัก — เข้าถึง device API ได้ |
+| Reliable | Reliable | หนึ่งในสามเสาหลัก — โหลดได้ทันทีและทนทานต่อ offline |
+| Installable | Installable | หนึ่งในสามเสาหลัก — เพิ่มไปยัง home screen/desktop ได้ |
+| Secure Context | secure context | environment ที่ผ่านเกณฑ์ HTTPS/localhost ตาม spec |
+| App Shell | app shell | โครง UI ที่ precache ไว้ แยกจาก dynamic content |
+
+## Service Worker
+
+| English | Thai Style | หมายเหตุ |
+|---------|-----------|---------|
+| Service Worker | service worker | script ที่ทำหน้าที่เป็น network proxy ระหว่างหน้าเว็บกับ network |
+| Register / Registration | register / registration | การลงทะเบียน service worker กับ browser |
+| Scope | scope | ขอบเขต URL ที่ service worker ควบคุม |
+| Lifecycle | lifecycle | สถานะ install → waiting → activating → activated → redundant |
+| skipWaiting | skipWaiting | เรียก activate service worker ใหม่ทันทีโดยไม่รอ tab เก่าปิด |
+| clients.claim | clients.claim | ให้ service worker ใหม่เข้าควบคุม client ที่เปิดอยู่ทันที |
+| Fetch Event | fetch event | event ที่ยิงทุกครั้งที่มี network request ผ่าน service worker |
+
+## Caching
+
+| English | Thai Style | หมายเหตุ |
+|---------|-----------|---------|
+| Cache Storage API | Cache Storage API | API เก็บ Request/Response pair ในเครื่อง |
+| Cache-First | cache-first | strategy ที่ตอบจาก cache ก่อนเสมอ |
+| Network-First | network-first | strategy ที่ลอง network ก่อนเสมอ |
+| Stale-While-Revalidate | stale-while-revalidate (SWR) | ตอบจาก cache ทันทีพร้อมอัปเดตเบื้องหลัง |
+| Precache | precache | cache asset ล่วงหน้าตอน install |
+| Runtime Cache | runtime cache | cache ที่เติมระหว่างการใช้งานจริง |
+| Workbox | Workbox | library จากทีม Chrome สำหรับจัดการ caching strategy |
+
+## Web App Manifest
+
+| English | Thai Style | หมายเหตุ |
+|---------|-----------|---------|
+| Web App Manifest | web app manifest | ไฟล์ JSON ที่อธิบายแอปให้ browser รู้จัก |
+| Icon | icon | รูปภาพของแอปในหลายขนาด |
+| Maskable Icon | maskable icon | icon ที่เผื่อ safe zone สำหรับ adaptive icon ของ Android |
+| Display Mode | display mode | ค่าที่กำหนดว่าแอปแสดงแบบ standalone/browser/fullscreen |
+| start_url | start_url | URL ที่เปิดเมื่อผู้ใช้เปิดแอปจาก home screen |
+| Theme Color | theme color | สีที่ควบคุม browser UI/status bar |
+| Install Prompt | install prompt | UI ที่ให้ผู้ใช้กดติดตั้ง PWA |
+| beforeinstallprompt | beforeinstallprompt | event ที่ browser ยิงก่อนแสดง install prompt เริ่มต้น |
+
+## Offline & Background APIs
+
+| English | Thai Style | หมายเหตุ |
+|---------|-----------|---------|
+| IndexedDB | IndexedDB | database ฝั่ง client สำหรับเก็บข้อมูลแบบมีโครงสร้าง |
+| Background Sync | Background Sync | API ให้ retry request ที่ล้มเหลวอัตโนมัติ |
+| Periodic Background Sync | Periodic Background Sync | API ปลุก service worker เป็นระยะเพื่อรีเฟรชข้อมูล |
+| Offline Fallback | offline fallback | หน้าสำรองที่แสดงเมื่อ navigation request ล้มเหลว |
+| Push API | Push API | API ให้ server ส่งข้อความมาแม้แอปไม่ได้เปิดอยู่ |
+| Notifications API | Notifications API | API แสดง system-level notification |
+| App Badging API | App Badging API | API แสดงตัวเลข/จุดบน icon ของแอปที่ install แล้ว |
+| Share Target | Share Target | ให้แอปรับ content ที่แชร์มาจากแอปอื่น |
+
+## Framework Tooling
+
+| English | Thai Style | หมายเหตุ |
+|---------|-----------|---------|
+| vite-plugin-pwa | vite-plugin-pwa | plugin มาตรฐานสำหรับเพิ่ม PWA ให้แอปที่ใช้ Vite |
+| @vite-pwa/astro | @vite-pwa/astro | integration ของ Vite PWA สำหรับ Astro |
+| @vite-pwa/sveltekit | @vite-pwa/sveltekit | integration ของ Vite PWA สำหรับ SvelteKit |
+| registerType | registerType | ตั้งค่าว่า service worker อัปเดตแบบ autoUpdate หรือ prompt |
+| generateSW | generateSW | mode ที่ Workbox generate service worker ให้อัตโนมัติ |
+| injectManifest | injectManifest | mode ที่เขียน service worker เองแล้ว inject precache manifest |
+
+## เมื่อ **ไม่** ควรใช้ literal Thai translation
+
+| หลีกเลี่ยง | ใช้แทน |
+|------------|--------|
+| เบราว์เซอร์ | browser |
+| ไอคอน | icon |
+| เซิร์ฟเวอร์ | server |
+| แอปพลิเคชัน | application / แอป |
+| การลงทะเบียน (service worker context) | register / registration |
+| สเตตแมชชีน | state machine |
+
+<Callout title="ทำไมคำเหล่านี้ไม่แปลเป็นไทยทั้งหมด">
+Course นี้เก็บคำศัพท์ด้าน service worker, caching และ web platform API ไว้เป็นภาษาอังกฤษ เพราะเป็นคำที่นักพัฒนาเว็บใช้พูดคุยกันจริงในที่ทำงานและใน MDN/spec ต้นฉบับ การแปลคำเหล่านี้ทั้งหมดเป็นไทยจะทำให้สื่อสารกับทีมและเอกสารทางการไม่ตรงกัน ส่วนคำกริยาที่กลายเป็นธรรมชาติในภาษาไทยแล้ว เช่น "ถูกแคช" หรือ "ทำงานออฟไลน์ได้" ยังคงใช้ตามปกติ
+</Callout>
+
+<ProgressTracker client:visible id="th/glossary" />

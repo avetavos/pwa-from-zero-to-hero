@@ -97,6 +97,25 @@ npx @vite-pwa/assets-generator --preset minimal logo.svg
 แนะนำให้ปล่อยให้ plugin จัดการ manifest และ precache เพื่อให้ `dist/` ของคุณพร้อมติดตั้งโดยไม่ต้องเขียน SW เอง
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| กำหนด manifest ผ่าน config ของ vite-plugin-pwa | generate icon หลายขนาดอัตโนมัติ ไม่ต้อง maintain ไฟล์ manifest.json เอง | ผูกกับ config syntax เฉพาะของ plugin ต้องเรียนรู้ option เพิ่ม |
+| เขียน manifest.json เองแบบ static | ควบคุมได้ตรงๆ ไม่ผ่าน abstraction ของ plugin | ต้อง maintain icon หลายขนาดและ sync กับ build เองทั้งหมด |
+
+## Common Mistakes
+
+- ใส่ icon แค่ขนาดเดียวใน config ทำให้ plugin generate ชุด icon ไม่ครบตามที่ Android/iOS ต้องการ
+- ลืมตั้ง base path ให้ตรงกับที่ deploy จริง ทำให้ path ของ icon ใน manifest ผิดตอน production build
+- ไม่ generate maskable icon แยก ทำให้ icon โดน crop เพี้ยนบน Android เหมือนไม่ได้ตั้งค่าอะไรเลย
+
+> 💡 Real World Example
+>
+> **Vite PWA ecosystem** — โปรเจกต์อย่าง Elk (Mastodon client) ใช้ vite-plugin-pwa generate manifest และ icon ชุดเต็มอัตโนมัติจาก config เดียว
+>
+> **VitePress sites หลายเจ้า** — ใช้ plugin เดียวกันนี้ทำให้ documentation site ติดตั้งเป็น PWA ได้โดยแทบไม่ต้องเขียน manifest เอง
+
 export const quizManifestAndIcons = [
   {
     q: 'คุณกำหนด manifest ไว้ที่ไหนเมื่อใช้ vite-plugin-pwa?',

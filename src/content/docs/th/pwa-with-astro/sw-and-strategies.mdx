@@ -121,6 +121,25 @@ export const strategyDiagram = `flowchart TD
 ใช้ `generateSW` สำหรับการ caching มาตรฐาน เปลี่ยนไปใช้ `injectManifest` เมื่อคุณต้องการ logic ของ service worker แบบ custom
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| generateSW (Workbox generate อัตโนมัติ) | เริ่มต้นเร็วที่สุด ไม่ต้องเขียน service worker เอง | ปรับแต่ง logic เฉพาะทำได้จำกัดกว่าการเขียนเอง |
+| injectManifest (เขียน service worker เอง + inject precache list) | ควบคุม logic ได้เต็มที่ ผสม custom logic ได้อิสระ | ต้องเขียนและ maintain service worker file เอง เพิ่ม complexity |
+
+## Common Mistakes
+
+- เลือก generateSW แล้วพยายามเพิ่ม custom logic ที่ mode นี้ไม่รองรับ ทำให้ต้องย้ายไป injectManifest ทีหลัง เสียเวลา refactor
+- ไม่ตั้ง strategy ให้ตรงกับประเภท route ของ Astro (static page vs API endpoint) ทำให้ cache ผิดประเภท
+- ลืมว่า Astro build output เปลี่ยน asset hash ทุกครั้ง ทำให้ precache manifest เก่าที่ generate ไว้ไม่ตรงกับไฟล์จริงถ้าไม่ rebuild
+
+> 💡 Real World Example
+>
+> **@vite-pwa/astro ecosystem** — ให้ทั้งสอง mode นี้เป็นทางเลือก โปรเจกต์ documentation ส่วนใหญ่ใช้ generateSW เพราะพอสำหรับ static site
+>
+> **แอปที่มี custom offline logic ซับซ้อน** — เลือก injectManifest เพื่อผสม custom fetch handler เข้ากับ precache list ที่ Workbox generate ให้
+
 export const quizSwAndStrategies = [
   {
     q: 'กลยุทธ์ใดที่ให้ Workbox generate ไฟล์ service worker ทั้งหมดอัตโนมัติจาก config object?',
@@ -135,7 +154,7 @@ export const quizSwAndStrategies = [
   {
     q: 'registerType: "autoUpdate" ทำอะไรเมื่อมี service worker ใหม่พร้อมใช้งาน?',
     options: [
-      'แสดง prompt ของเบราว์เซอร์เพื่อขอให้ผู้ใช้ reload',
+      'แสดง prompt ของ browser เพื่อขอให้ผู้ใช้ reload',
       'รอให้ผู้ใช้เรียก updateSW(true) ก่อน activate',
       'Install และ activate service worker ใหม่แบบเงียบๆ ใน background',
       'บล็อกหน้าเว็บจนกว่าการอัปเดตจะเสร็จสมบูรณ์',

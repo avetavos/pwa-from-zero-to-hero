@@ -54,11 +54,11 @@ export const buildingBlocksDiagram = `flowchart TD
 
 ### HTTPS
 
-Service worker สามารถสกัดกั้น network request ทุกรายการที่หน้าเว็บทำ ดังนั้น browser จะปฏิเสธการลงทะเบียน service worker บน origin ที่ไม่ปลอดภัย (ทุกอย่างนอกจาก `https://` หรือ `localhost`) HTTPS ไม่ใช่ตัวเลือก — มันคือรากฐานที่ทุกอย่างยึดอยู่
+Service worker สามารถสกัดกั้น network request ทุกรายการที่หน้าเว็บทำ ดังนั้น browser จะปฏิเสธ การ register service worker บน origin ที่ไม่ปลอดภัย (ทุกอย่างนอกจาก `https://` หรือ `localhost`) HTTPS ไม่ใช่ตัวเลือก — มันคือรากฐานที่ทุกอย่างยึดอยู่
 
 ### Web App Manifest
 
-ไฟล์ JSON ที่ลิงก์จาก HTML ซึ่งบอก browser ชื่อแอป, ไอคอน, สีธีม, และวิธีที่แอปควรแสดงผลเมื่อเปิดจากหน้าจอหลัก หากไม่มี manifest ที่ถูกต้อง browser จะไม่แสดง install prompt
+ไฟล์ JSON ที่ลิงก์จาก HTML ซึ่งบอก browser ชื่อแอป, icon, สีธีม, และวิธีที่แอปควรแสดงผลเมื่อเปิดจากหน้าจอหลัก หากไม่มี manifest ที่ถูกต้อง browser จะไม่แสดง install prompt
 
 ```json
 {
@@ -91,7 +91,7 @@ export const quizIntroIndex = [
   {
     q: 'ข้อใดอธิบาย Progressive Web App ได้ดีที่สุด?',
     options: [
-      'แอปพลิเคชัน native ที่สร้างด้วยเทคโนโลยีเว็บและแจกจ่ายผ่าน app store',
+      'แอป native ที่สร้างด้วยเทคโนโลยีเว็บและแจกจ่ายผ่าน app store',
       'เว็บไซต์ที่ใช้ความสามารถสมัยใหม่ของเว็บเพื่อทำงานเหมือนแอปที่ติดตั้งแล้วและน่าเชื่อถือ',
       'Single-page application ที่สร้างด้วย React หรือ Vue',
       'เว็บไซต์ที่ต้องใช้ PWA runtime เฉพาะในการรัน',
@@ -122,7 +122,7 @@ export const quizIntroIndex = [
     q: 'เหตุใด HTTPS จึงเป็นข้อกำหนดบังคับสำหรับ Progressive Web Apps?',
     options: [
       'HTTPS บีบอัด asset ได้เร็วกว่า HTTP',
-      'Browser ปฏิเสธการลงทะเบียน service worker บน origin ที่ไม่ปลอดภัย',
+      'Browser ปฏิเสธ การ register service worker บน origin ที่ไม่ปลอดภัย',
       'Web app manifest จะ parse ไม่ได้ผ่าน HTTP ธรรมดา',
       'HTTPS จำเป็นสำหรับ push notification เท่านั้น ไม่ใช่ PWA โดยทั่วไป',
     ],

@@ -13,7 +13,11 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## Cache-first และ network-first
 
-caching strategy พื้นฐานที่สุดสองตัวคือ **cache-first** และ **network-first** cache-first ให้ความสำคัญกับความเร็ว service worker เสิร์ฟจาก cache ทันทีและแตะ network เฉพาะตอนที่ cache miss เท่านั้น — ทำให้มันเหมาะที่สุดสำหรับ app shell, ฟอนต์, ไอคอน, และ static asset อื่น ๆ ที่เปลี่ยนแปลงไม่บ่อย ส่วน network-first ให้ความสำคัญกับความสดใหม่ มันพยายาม fetch สด ๆ เสมอและจะ fallback ไปที่ cache เฉพาะตอนที่ network ใช้งานไม่ได้ — ทำให้มันเป็นตัวเลือกที่ถูกต้องสำหรับการตอบกลับจาก API, หน้า HTML แบบไดนามิก, และ resource ใด ๆ ที่การเสิร์ฟข้อมูลเก่าจะก่อให้เกิดความเสียหาย
+caching strategy พื้นฐานที่สุดสองตัวคือ **cache-first** และ **network-first**
+
+cache-first ให้ความสำคัญกับความเร็ว service worker เสิร์ฟจาก cache ทันทีและแตะ network เฉพาะตอนที่ cache miss เท่านั้น ทำให้มันเหมาะที่สุดสำหรับ app shell, ฟอนต์, icon, และ static asset อื่น ๆ ที่เปลี่ยนแปลงไม่บ่อย
+
+ส่วน network-first ให้ความสำคัญกับความสดใหม่ มันพยายาม fetch สด ๆ เสมอและจะ fallback ไปที่ cache เฉพาะตอนที่ network ใช้งานไม่ได้ ทำให้มันเป็นตัวเลือกที่ถูกต้องสำหรับการตอบกลับจาก API, หน้า HTML แบบไดนามิก, และ resource ใด ๆ ที่การเสิร์ฟข้อมูลเก่าจะก่อให้เกิดความเสียหาย
 
 การเลือกระหว่างสองตัวนี้คือการแลกเปลี่ยน: cache-first ให้การโหลดทันทีโดยเสี่ยงกับเนื้อหาที่เก่า; network-first ให้เนื้อหาสดใหม่โดยแลกกับ network round-trip ในทุก request
 
@@ -52,9 +56,9 @@ export const cacheFirstDiagram = `flowchart LR
 
 ## Network-first
 
-ลอง network ก่อนเสมอ เมื่อ network ล้มเหลวจึง fallback ไปที่ cache วิธีนี้เหมาะที่สุดสำหรับข้อมูลไดนามิกที่คุณต้องการความสดใหม่ — การตอบกลับ JSON จาก API, HTML ที่ render จากเซิร์ฟเวอร์ — แต่ก็ยังต้องการความทนทานแบบออฟไลน์เพื่อไม่ให้ผู้ใช้ต้องจ้องหน้าเพจว่างเปล่า
+ลอง network ก่อนเสมอ เมื่อ network ล้มเหลวจึง fallback ไปที่ cache วิธีนี้เหมาะที่สุดสำหรับข้อมูลไดนามิกที่คุณต้องการความสดใหม่ — การตอบกลับ JSON จาก API, HTML ที่ render จาก server — แต่ก็ยังต้องการความทนทานแบบออฟไลน์เพื่อไม่ให้ผู้ใช้ต้องจ้องหน้าเพจว่างเปล่า
 
-ข้อแลกเปลี่ยนคือทุก request ที่สำเร็จต้องจ่ายค่า network round-trip เต็ม ๆ หน้าเพจจึงโหลดได้ไม่เร็วกว่าที่เซิร์ฟเวอร์ตอบกลับ บนการเชื่อมต่อที่ช้านี่ช้ากว่า cache-first อย่างเห็นได้ชัด network-first จึงเป็นตัวเลือกที่ผิดสำหรับ static asset ขนาดใหญ่ ให้สงวนมันไว้สำหรับ resource ที่ข้อมูลเก่ายอมรับไม่ได้จริง ๆ
+ข้อแลกเปลี่ยนคือทุก request ที่สำเร็จต้องจ่ายค่า network round-trip เต็ม ๆ หน้าเพจจึงโหลดได้ไม่เร็วกว่าที่ server ตอบกลับ บนการเชื่อมต่อที่ช้านี่ช้ากว่า cache-first อย่างเห็นได้ชัด network-first จึงเป็นตัวเลือกที่ผิดสำหรับ static asset ขนาดใหญ่ ให้สงวนมันไว้สำหรับ resource ที่ข้อมูลเก่ายอมรับไม่ได้จริง ๆ
 
 ```js
 const CACHE = 'app-v1';
@@ -125,6 +129,25 @@ self.addEventListener('fetch', function(e) {
 cache-first นั้นเร็วแต่สามารถเสิร์ฟ asset ที่เก่าได้ — ทำ versioning ให้ชื่อ cache ของคุณ (เช่น `app-v2`) และลบ cache เก่าใน `activate` event ทุกครั้งที่คุณ deploy asset ใหม่
 </Callout>
 
+## Trade-offs
+
+| ตัวเลือก | Benefit | Cost |
+|---|---|---|
+| Cache-first | โหลดเร็วที่สุด เหมาะกับ static asset ที่เปลี่ยนไม่บ่อย | เสี่ยง serve เนื้อหาเก่าถ้า asset เปลี่ยนแต่ cache ไม่ถูก invalidate |
+| Network-first | ได้ข้อมูลสดใหม่เสมอเมื่อ network พร้อม | ช้ากว่า cache-first ทุก request เพราะต้องรอ network round-trip ก่อนเสมอ |
+
+## Common Mistakes
+
+- ใช้ cache-first กับ API response ที่เปลี่ยนบ่อย ทำให้ผู้ใช้เห็นข้อมูลเก่าโดยไม่รู้ตัว
+- ใช้ network-first กับ static asset ขนาดใหญ่ ทำให้เสียเวลาโหลดโดยไม่จำเป็นทั้งที่ asset แทบไม่เปลี่ยน
+- ไม่ตั้ง timeout ให้ network-first ทำให้ผู้ใช้ต้องรอ network ที่ช้ามากแทนที่จะ fallback ไป cache เร็วกว่านี้
+
+> 💡 Real World Example
+>
+> **Twitter Lite / Pinterest** — ใช้ Workbox ผสมทั้ง cache-first (asset) และ network-first (feed data) ในแอปเดียว ให้เหมาะกับแต่ละประเภท resource
+>
+> **BBC News** — ใช้ network-first สำหรับข่าวด่วนเพื่อความสดใหม่ แต่ cache-first สำหรับ layout/asset เพื่อความเร็ว
+
 export const quizCacheFirstNetworkFirst = [
   {
     q: 'strategy ใดที่ลอง network ก่อนและจะ fallback ไปที่ cache เฉพาะตอนล้มเหลวเท่านั้น?',
@@ -141,7 +164,7 @@ export const quizCacheFirstNetworkFirst = [
     options: [
       'การตอบกลับจาก API ที่เปลี่ยนแปลงบ่อย',
       'request การยืนยันตัวตนของผู้ใช้',
-      'static asset อย่างฟอนต์, ไอคอน, และ JS ของ app shell',
+      'static asset อย่างฟอนต์, icon, และ JS ของ app shell',
       'endpoint การชำระเงิน',
     ],
     answer: 2,
