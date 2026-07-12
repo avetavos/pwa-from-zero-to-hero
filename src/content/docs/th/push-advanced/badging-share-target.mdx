@@ -180,7 +180,7 @@ Badging และ Web Share Target ทำให้ PWA ที่ install แล�
 
 export const quizBadgingShareTarget = [
   {
-    q: 'Which method clears the badge from an app icon?',
+    q: 'method ใดที่ล้าง badge ออกจาก icon ของแอป?',
     options: [
       'navigator.setAppBadge(0)',
       'navigator.clearAppBadge()',
@@ -190,27 +190,27 @@ export const quizBadgingShareTarget = [
     answer: 1,
   },
   {
-    q: 'Where do you declare a Web Share Target?',
+    q: 'คุณประกาศ Web Share Target ที่ไหน?',
     options: [
-      'In the service worker with registration.shareTarget.register()',
-      'In the manifest.webmanifest under the share_target key',
-      'In a <meta name="share-target"> tag in the HTML head',
-      'In a navigator.share() call with the target option',
+      'ใน service worker ด้วย registration.shareTarget.register()',
+      'ใน manifest.webmanifest ภายใต้ key share_target',
+      'ใน tag <meta name="share-target"> ใน head ของ HTML',
+      'ในการเรียก navigator.share() พร้อม option target',
     ],
     answer: 1,
   },
   {
-    q: 'What must be true before navigator.share() can be called?',
+    q: 'ต้องเป็นจริงข้อใดก่อนจึงจะเรียก navigator.share() ได้?',
     options: [
-      'The PWA must be installed',
-      'The user must be signed in',
-      'It must be triggered from a user gesture such as a button click',
-      'Notification permission must be granted',
+      'PWA ต้องถูกติดตั้งก่อน',
+      'ผู้ใช้ต้อง sign in ก่อน',
+      'ต้องถูก trigger จาก user gesture เช่นการคลิกปุ่ม',
+      'ต้องได้รับ notification permission ก่อน',
     ],
     answer: 2,
   },
   {
-    q: 'Which error name should you catch and ignore when the user dismisses the share sheet?',
+    q: 'ควร catch แล้วเพิกเฉย error ชื่อใดเมื่อผู้ใช้ปิด share sheet?',
     options: ['TypeError', 'AbortError', 'NotAllowedError', 'ShareError'],
     answer: 1,
   },

@@ -180,37 +180,37 @@ Push notification ต้องการ backend server ของคุณต้�
 
 export const quizPushApi = [
   {
-    q: 'What does pushManager.subscribe() return?',
+    q: 'pushManager.subscribe() return อะไร?',
     options: [
-      'A boolean indicating success',
-      'A PushSubscription object containing the endpoint and encryption keys',
-      'A ServiceWorkerRegistration',
-      'A VAPID key pair',
+      'ค่า boolean บอกว่าสำเร็จหรือไม่',
+      'object PushSubscription ที่มี endpoint และ encryption key',
+      'object ServiceWorkerRegistration',
+      'คู่ VAPID key',
     ],
     answer: 1,
   },
   {
-    q: 'Why is userVisibleOnly: true required in the subscribe options?',
+    q: 'ทำไม subscribe options จึงต้องมี userVisibleOnly: true?',
     options: [
-      'It improves performance',
-      'Browsers require every push message to result in a visible notification',
-      'It enables background sync',
-      'It restricts the subscription to the current tab',
+      'เพราะมันช่วยเพิ่ม performance',
+      'เพราะ browser บังคับว่าทุก push message ต้องแสดง notification ที่ผู้ใช้เห็นได้',
+      'เพราะมันเปิดใช้ background sync',
+      'เพราะมันจำกัด subscription ไว้เฉพาะแท็บปัจจุบัน',
     ],
     answer: 1,
   },
   {
-    q: 'Where should the VAPID private key be stored?',
+    q: 'ควรเก็บ VAPID private key ไว้ที่ไหน?',
     options: [
-      'In the manifest.webmanifest',
-      'In the service worker source file',
-      'Only on your backend server, never exposed to the browser',
-      'In localStorage for persistence',
+      'ใน manifest.webmanifest',
+      'ในไฟล์ source ของ service worker',
+      'เก็บไว้เฉพาะบน backend server เท่านั้น ไม่เปิดเผยต่อ browser',
+      'ใน localStorage เพื่อให้คงอยู่',
     ],
     answer: 2,
   },
   {
-    q: 'Which service worker event fires when your server sends a push message?',
+    q: 'event ใดของ service worker ที่ทำงานเมื่อ server ส่ง push message?',
     options: ['fetch', 'message', 'push', 'sync'],
     answer: 2,
   },

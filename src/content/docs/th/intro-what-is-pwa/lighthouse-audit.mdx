@@ -1,6 +1,6 @@
 ---
 title: 'การ Audit PWA ด้วย Lighthouse'
-description: 'วิธีรัน Lighthouse PWA audit ใน Chrome DevTools, นำทาง Application tab, ตีความการตรวจสอบ installability และแก้ไขความล้มเหลวที่พบบ่อยที่สุด'
+description: 'Lighthouse ไม่มีหมวด PWA อีกต่อไป — รันหมวดที่เหลือของ Lighthouse แล้วตรวจสอบ installability ใน Application panel ของ Chrome DevTools (manifest, service worker, install warning)'
 sidebar:
   order: 5
 ---
@@ -12,23 +12,23 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การ Audit PWA ด้วย Lighthouse
 
-Lighthouse คือเครื่องมือคุณภาพที่ built-in มากับ Chrome มันรัน automated check กับหน้าของคุณและสร้าง report แบบแยกหมวดหมู่ — หนึ่งในนั้นคือหมวด **Progressive Web App** หมวด PWA ไม่ได้ให้คะแนนตัวเลข แต่ให้ผลลัพธ์ pass/fail สำหรับเกณฑ์ installability แต่ละข้อ หากเกณฑ์ใดล้มเหลว browser จะปฏิเสธการแสดง install prompt
+Lighthouse คือเครื่องมือคุณภาพที่ built-in มากับ Chrome มันรัน automated check กับหน้าของคุณและสร้าง report แบบแยกหมวดหมู่พร้อมคะแนน ตั้งแต่ **Lighthouse 12** (ปี 2024 มากับ Chrome DevTools ราวๆ Chrome 126) report มีสี่หมวด: **Performance**, **Accessibility**, **Best Practices** และ **SEO** ส่วนหมวดเดิม **Progressive Web App** — ที่เคยแสดง pass/fail ของเกณฑ์ installability แต่ละข้อ — ถูก **ลบออกไปแล้ว** Lighthouse ไม่ให้คะแนนหมวด PWA อีกต่อไป การตรวจสอบ installability และเช็คเฉพาะทางของ PWA ย้ายไปอยู่ที่ **Application** panel ใน DevTools แทน
 
-การสร้างนิสัยในการรัน Lighthouse audit แต่เนิ่นๆ — ก่อนที่คุณจะเชื่อมต่อ caching strategy หรือ push notification — หมายความว่าคุณจับส่วนที่ขาดหายไปได้ในขณะที่ codebase ยังเล็กอยู่
+การสร้างนิสัยในการเช็คแอปแต่เนิ่นๆ — ก่อนที่คุณจะเชื่อมต่อ caching strategy หรือ push notification — หมายความว่าคุณจับส่วนที่ขาดหายไปได้ในขณะที่ codebase ยังเล็กอยู่ Lighthouse ดูแลเรื่อง performance และ best practices ส่วน Application panel ดูแลเรื่อง installability
 
-### วิธีรัน Lighthouse PWA audit
+### วิธีรัน Lighthouse
 
 1. เปิด Chrome และนำทางไปยังแอปของคุณ (ต้อง serve ผ่าน HTTPS หรือ `localhost`)
 2. เปิด DevTools ด้วย `F12` หรือ `Cmd+Option+I`
 3. คลิก tab **Lighthouse** (คุณอาจต้องคลิกลูกศร overflow `»` เพื่อค้นหา)
-4. ภายใต้ **Categories** ติ๊ก **Progressive Web App** (ยกเลิกติ๊กอื่นๆ เพื่อเร่งความเร็ว)
+4. ภายใต้ **Categories** เลือกหมวดที่ต้องการ — **Performance**, **Accessibility**, **Best Practices**, **SEO**
 5. คลิก **Analyze page load**
 
-Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล และแสดง report ส่วน PWA จะแสดงการตรวจสอบ installability แต่ละรายการด้วยเครื่องหมายถูกสีเขียวหรือกากบาทสีแดง
+Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล และแสดง report พร้อมคะแนนแยกตามหมวด สังเกตว่า **ไม่มีหมวด Progressive Web App** ให้ติ๊กแล้ว — มันถูกลบไปใน Lighthouse 12 หากต้องการยืนยันว่าแอปติดตั้งได้ ให้ใช้ **Application** panel ที่อธิบายต่อจากนี้
 
 ### ทัวร์ Application tab
 
-ในขณะที่ Lighthouse มอบ report แบบเป็นลายลักษณ์อักษร tab **Application** ใน DevTools ให้คุณตรวจสอบ state สดของ PWA ได้ตลอดเวลาโดยไม่ต้องโหลดซ้ำ
+tab **Application** ใน DevTools คือที่ที่ installability ย้ายมาอยู่ตอนนี้ มันให้คุณตรวจสอบ state สดของ PWA ได้ตลอดเวลาโดยไม่ต้องโหลดซ้ำ
 
 | Panel | สิ่งที่แสดง |
 |---|---|
@@ -39,9 +39,9 @@ Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล แ�
 
 เปิด panel **Manifest** ก่อนเป็นอันดับแรกสำหรับ PWA ที่ไม่คุ้นเคย มันบอกได้ทันทีว่า browser ได้ parse manifest ที่ถูกต้องหรือไม่ และพบ icon อะไรบ้าง
 
-### สิ่งที่ Lighthouse ตรวจสอบสำหรับ installability
+### เกณฑ์ installability (ตรวจสอบใน Application panel)
 
-เกณฑ์การ install ของ Chrome (ณ Chrome 2023+) แมปตรงกับการตรวจสอบ PWA ของ Lighthouse:
+เกณฑ์การ install ของ Chrome คือสิ่งที่ browser ต้องการก่อนจะเสนอให้ติดตั้งแอป panel **Application → Manifest** จะเตือน installability warning สำหรับข้อที่ยังไม่ผ่าน:
 
 | เกณฑ์ | สิ่งที่ต้องเป็นจริง |
 |---|---|
@@ -66,7 +66,7 @@ Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล แ�
 
 ### ทดลองแบบ live
 
-demo ด้านล่างเป็น PWA ขั้นต่ำที่ผ่านการตรวจสอบ installability ทั้งหมดของ Lighthouse เปิดใน StackBlitz และรัน Lighthouse audit ภายใน preview เพื่อดูทุกเกณฑ์ผ่าน
+demo ด้านล่างเป็น PWA ขั้นต่ำที่ผ่านเกณฑ์ installability ทุกข้อ เปิดใน StackBlitz แล้วเปิด **Application → Manifest** ภายใน preview เพื่อยืนยันว่าไม่มี installability warning และรัน Lighthouse หากต้องการดูคะแนน Performance และ Best Practices ด้วย
 
 export const proj = {
   'index.html': `<!doctype html>
@@ -155,7 +155,7 @@ if ('serviceWorker' in navigator) {
 <PwaPlayground files={proj} openFile="manifest.webmanifest" />
 
 <Callout title="ประเด็นสำคัญ">
-รัน Lighthouse PWA audit แต่เนิ่นๆ — มันบอกคุณว่ายังขาดเกณฑ์ installability ข้อใด
+Lighthouse ไม่มีหมวด PWA อีกต่อไป (ถูกลบใน v12) — หมวดที่เหลือคือ Performance, Accessibility, Best Practices และ SEO ให้ตรวจสอบ installability แต่เนิ่นๆ ที่ **Application → Manifest** ซึ่งบอกคุณว่ายังขาดข้อใด
 </Callout>
 
 ## Trade-offs
@@ -179,12 +179,12 @@ if ('serviceWorker' in navigator) {
 
 export const quizLighthouseAudit = [
   {
-    q: 'คุณจะพบ Lighthouse PWA audit ใน Chrome DevTools ได้ที่ไหน?',
+    q: 'Lighthouse ลบหมวด Progressive Web App ออกไปใน v12 ตอนนี้คุณจะตรวจสอบ installability ของ PWA ใน Chrome DevTools ได้ที่ไหน?',
     options: [
-      'Application tab > Manifest panel',
-      'Lighthouse tab > Progressive Web App category',
-      'Network tab > PWA filter',
-      'Sources tab > Service Workers panel',
+      'tab Lighthouse ยังมีหมวด Progressive Web App ที่แสดงการตรวจสอบ installability แต่ละข้อ',
+      'tab Application > Manifest panel ซึ่งแสดง installability warning',
+      'tab Network > PWA filter',
+      'tab Sources > Service Workers panel',
     ],
     answer: 1,
   },

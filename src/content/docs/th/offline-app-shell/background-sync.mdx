@@ -355,7 +355,7 @@ Background sync ให้ผู้ใช้ทำงาน offline ได้แ�
 
 export const quizBgSync = [
   {
-    q: 'Which method does the page call to schedule a background sync?',
+    q: 'หน้าเว็บเรียก method ใดเพื่อตั้งเวลา background sync?',
     options: [
       'navigator.serviceWorker.sync()',
       'registration.sync.register(tag)',
@@ -365,32 +365,32 @@ export const quizBgSync = [
     answer: 1,
   },
   {
-    q: 'In which browsers is the Background Sync API currently supported?',
+    q: 'ปัจจุบัน Background Sync API รองรับใน browser ใดบ้าง?',
     options: [
-      'All modern browsers including Firefox and Safari',
-      'Only Safari on iOS and macOS',
-      'Chromium-based browsers (Chrome, Edge, Samsung Internet)',
-      'Firefox and Chrome only',
+      'ทุก browser สมัยใหม่ รวมถึง Firefox และ Safari',
+      'เฉพาะ Safari บน iOS และ macOS',
+      'browser ที่ใช้ Chromium (Chrome, Edge, Samsung Internet)',
+      'เฉพาะ Firefox และ Chrome',
     ],
     answer: 2,
   },
   {
-    q: 'What should the service worker do if the sync attempt fails (the network request throws)?',
+    q: 'ถ้าการ sync ล้มเหลว (network request throw) service worker ควรทำอย่างไร?',
     options: [
-      'Delete the queued data to prevent infinite retries',
-      'Catch the error silently and resolve event.waitUntil()',
-      'Let the Promise reject so the browser schedules an automatic retry',
-      'Call event.retry() to trigger an immediate reattempt',
+      'ลบข้อมูลที่ queue ไว้เพื่อกันการ retry ไม่รู้จบ',
+      'catch error แบบเงียบๆ แล้ว resolve event.waitUntil()',
+      'ปล่อยให้ Promise reject เพื่อให้ browser ตั้งเวลา retry อัตโนมัติ',
+      'เรียก event.retry() เพื่อลองใหม่ทันที',
     ],
     answer: 2,
   },
   {
-    q: 'Why is data saved to IndexedDB before registering the sync tag?',
+    q: 'ทำไมต้องบันทึกข้อมูลลง IndexedDB ก่อน register sync tag?',
     options: [
-      'IndexedDB registration is required by the SyncManager API',
-      'So the service worker can access the queued data even if the page is closed',
-      'To prevent the sync tag from being overwritten',
-      'Because Cache Storage cannot store form data',
+      'เพราะ SyncManager API บังคับให้ต้อง register IndexedDB',
+      'เพื่อให้ service worker เข้าถึงข้อมูลที่ queue ไว้ได้แม้ปิดหน้าเว็บไปแล้ว',
+      'เพื่อกันไม่ให้ sync tag ถูกเขียนทับ',
+      'เพราะ Cache Storage เก็บข้อมูล form ไม่ได้',
     ],
     answer: 1,
   },

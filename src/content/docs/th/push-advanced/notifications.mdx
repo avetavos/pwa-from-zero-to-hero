@@ -189,37 +189,37 @@ self.addEventListener('notificationclick', (event) => {
 
 export const quizNotifications = [
   {
-    q: 'What does Notification.requestPermission() return?',
+    q: 'Notification.requestPermission() return อะไร?',
     options: [
-      'A boolean',
-      'A Promise that resolves to "granted", "denied", or "default"',
-      'A ServiceWorkerRegistration',
+      'ค่า boolean',
+      'Promise ที่ resolve เป็น "granted", "denied" หรือ "default"',
+      'object ServiceWorkerRegistration',
       'void',
     ],
     answer: 1,
   },
   {
-    q: 'Why is registration.showNotification() preferred over new Notification()?',
+    q: 'ทำไมจึงนิยมใช้ registration.showNotification() มากกว่า new Notification()?',
     options: [
-      'It is faster',
-      'It works even when no tab is open, because it runs in the service worker',
-      'It does not require permission',
-      'It supports more CSS styling options',
+      'เพราะมันเร็วกว่า',
+      'เพราะมันทำงานได้แม้ไม่มีแท็บเปิดอยู่ เนื่องจากรันใน service worker',
+      'เพราะมันไม่ต้องขอ permission',
+      'เพราะมันรองรับ option การจัดสไตล์ CSS ได้มากกว่า',
     ],
     answer: 1,
   },
   {
-    q: 'Where does the notificationclick event fire?',
+    q: 'event notificationclick ทำงานที่ไหน?',
     options: [
-      'In the page JavaScript',
-      'In the service worker',
-      'In a shared worker',
-      'In the browser UI thread',
+      'ใน JavaScript ของหน้าเว็บ',
+      'ใน service worker',
+      'ใน shared worker',
+      'ใน UI thread ของ browser',
     ],
     answer: 1,
   },
   {
-    q: 'Which notification option replaces an existing notification with the same identifier?',
+    q: 'notification option ใดที่แทนที่ notification เดิมที่มี identifier เดียวกัน?',
     options: ['data', 'renotify', 'tag', 'badge'],
     answer: 2,
   },

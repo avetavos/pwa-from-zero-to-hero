@@ -229,37 +229,37 @@ self.addEventListener('fetch', (event) => {
 
 export const quizFallback = [
   {
-    q: 'Which event.request.mode value identifies a top-level page navigation?',
+    q: 'ค่า event.request.mode ใดที่บ่งบอกว่าเป็น navigation ของหน้าระดับบนสุด?',
     options: ['"same-origin"', '"cors"', '"navigate"', '"no-cors"'],
     answer: 2,
   },
   {
-    q: 'Why is self.skipWaiting() called in the install event?',
+    q: 'ทำไมจึงเรียก self.skipWaiting() ใน install event?',
     options: [
-      'To delete old caches immediately',
-      'To make the newly installed SW take control without waiting for old clients to close',
-      'To prevent the fetch event from firing during install',
-      'To register the offline page with the browser',
+      'เพื่อลบ cache เก่าทันที',
+      'เพื่อให้ SW ที่เพิ่งติดตั้งเข้าควบคุมทันทีโดยไม่ต้องรอให้ client เก่าปิด',
+      'เพื่อกันไม่ให้ fetch event ทำงานระหว่าง install',
+      'เพื่อ register หน้า offline กับ browser',
     ],
     answer: 1,
   },
   {
-    q: 'What does event.waitUntil() do in the install handler?',
+    q: 'event.waitUntil() ทำอะไรใน install handler?',
     options: [
-      'It delays the page load until caching is complete',
-      'It keeps the install phase alive until the supplied Promise resolves',
-      'It waits for the user to grant cache storage permission',
-      'It prevents activate from firing',
+      'มันหน่วงการโหลดหน้าจนกว่าจะ cache เสร็จ',
+      'มันคงเฟส install ไว้จนกว่า Promise ที่ส่งเข้าไปจะ resolve',
+      'มันรอให้ผู้ใช้อนุญาต permission ของ cache storage',
+      'มันกันไม่ให้ activate ทำงาน',
     ],
     answer: 1,
   },
   {
-    q: 'Why should an offline.html fallback page be completely self-contained (no external CSS or JS)?',
+    q: 'ทำไมหน้า fallback offline.html จึงควร self-contained อย่างสมบูรณ์ (ไม่มี CSS หรือ JS ภายนอก)?',
     options: [
-      'The Cache Storage API cannot store sub-resources',
-      'External resources will also fail to load when the user is offline',
-      'Browsers block external resources in service worker responses',
-      'Self-contained pages load faster on HTTPS',
+      'เพราะ Cache Storage API เก็บ sub-resource ไม่ได้',
+      'เพราะ resource ภายนอกก็จะโหลดไม่ได้เช่นกันเมื่อผู้ใช้ offline',
+      'เพราะ browser บล็อก resource ภายนอกใน response ของ service worker',
+      'เพราะหน้าที่ self-contained โหลดเร็วกว่าบน HTTPS',
     ],
     answer: 1,
   },
