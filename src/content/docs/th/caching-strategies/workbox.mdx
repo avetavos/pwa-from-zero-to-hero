@@ -59,7 +59,7 @@ registerRoute(
 
 ## การ precache ด้วย manifest
 
-Workbox สามารถ precache รายการไฟล์ที่ถูกสร้างตอน build ได้ manifest เป็น array ของรายการ `{ url, revision }` ตอน runtime การ precaching ของ Workbox จะติดตั้งไฟล์ทั้งหมดที่ระบุไว้ระหว่าง `install` event ของ service worker และจัดการ cache-busting อัตโนมัติผ่าน revision hash — เมื่อไฟล์เปลี่ยน revision hash ของมันก็เปลี่ยน และ Workbox จะแทนที่เฉพาะรายการนั้น
+Workbox สามารถ precache รายการไฟล์ที่ถูกสร้างตอน build ได้ manifest เป็น array ของรายการ `{ url, revision }` ตอน runtime การ precaching ของ Workbox จะติดตั้งไฟล์ทั้งหมดที่ระบุไว้ระหว่าง `install` event ของ service worker และจัดการ cache-busting อัตโนมัติผ่าน revision hash — เมื่อไฟล์เปลี่ยน revision hash ของตัวเองก็เปลี่ยน และ Workbox จะแทนที่เฉพาะรายการนั้น
 
 ```js
 import { precacheAndRoute } from 'workbox-precaching';
@@ -78,7 +78,7 @@ precacheAndRoute(self.__WB_MANIFEST);
 ]
 ```
 
-คุณไม่เคยต้องเขียน array นี้ด้วยมือ — มันถูกสร้างขึ้นอัตโนมัติจากผลลัพธ์ build ของคุณ
+คุณไม่เคยต้องเขียน array นี้ด้วยมือ — Workbox สร้างให้อัตโนมัติจากผลลัพธ์ build ของคุณ
 
 ## ExpirationPlugin
 
@@ -106,7 +106,7 @@ registerRoute(
 
 ## vite-plugin-pwa
 
-หากคุณใช้ Vite (กับ React, Vue, Svelte, หรือ JS ล้วน ๆ) `vite-plugin-pwa` จะผนวก Workbox เข้ากับ build pipeline ของคุณโดยอัตโนมัติ มันสร้างไฟล์ SW พร้อม precaching manifest จัดการ cache versioning ในทุก build และลงทะเบียน SW ในแอปของคุณ — โดยไม่ต้องดูแล `self.__WB_MANIFEST` ด้วยมือเลย ตั้งค่ามันใน `vite.config.ts`:
+หากคุณใช้ Vite (กับ React, Vue, Svelte, หรือ JS ล้วน ๆ) `vite-plugin-pwa` จะผนวก Workbox เข้ากับ build pipeline ของคุณโดยอัตโนมัติ plugin จะสร้างไฟล์ SW พร้อม precaching manifest จัดการ cache versioning ในทุก build และลงทะเบียน SW ในแอปของคุณ — โดยไม่ต้องดูแล `self.__WB_MANIFEST` ด้วยมือเลย ตั้งค่าใน `vite.config.ts`:
 
 ```ts
 import { VitePWA } from 'vite-plugin-pwa';
@@ -133,23 +133,23 @@ export default defineConfig({
 `globPatterns` ควบคุมว่าไฟล์ผลลัพธ์ build ใดบ้างที่จะเข้า precache manifest `runtimeCaching` เพิ่มการเรียก `registerRoute` สำหรับ URL ที่ไม่ได้เป็นส่วนหนึ่งของผลลัพธ์ build — เช่น API ภายนอก ส่วน string ของ `handler` map ไปยังชื่อ strategy class ของ Workbox
 
 <Callout title="จุดสำคัญ">
-Workbox ห่อหุ้ม strategy แบบ cache-first, network-first, และ stale-while-revalidate ไว้ คุณจึงเขียนโค้ด service worker ที่มีโอกาสผิดพลาดน้อยลง `vite-plugin-pwa` ไปไกลกว่านั้น — มันสร้างไฟล์ SW ทั้งไฟล์พร้อม precaching ตอน build
+Workbox ห่อหุ้ม strategy แบบ cache-first, network-first, และ stale-while-revalidate ไว้ คุณจึงเขียนโค้ด service worker ที่มีโอกาสผิดพลาดน้อยลง `vite-plugin-pwa` ไปไกลกว่านั้น — สร้างไฟล์ SW ทั้งไฟล์พร้อม precaching ให้ตอน build
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ใช้ Workbox แทนเขียน service worker เอง | ลด boilerplate เยอะมาก มี strategy สำเร็จรูปและ routing ให้พร้อม | เพิ่ม dependency และ bundle size บางส่วน ต้องเรียนรู้ config เฉพาะของ Workbox |
 | เขียน service worker เปล่าด้วยมือ | ควบคุมทุกบรรทัด ไม่มี abstraction แทรก | ต้อง reinvent cache versioning, routing, precache manifest เองทั้งหมด |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ใช้ผิด strategy กับผิดประเภท route (เช่น CacheFirst กับ API ที่เปลี่ยนบ่อย) เพราะ copy config จากตัวอย่างมาโดยไม่เข้าใจ
 - ไม่ regenerate precache manifest หลัง build ทำให้ Workbox precache ไฟล์เวอร์ชันเก่าที่ hash ไม่ตรงกับไฟล์จริง
 - ลืมว่า Workbox ยังต้องเรียก `self.skipWaiting()` / `clients.claim()` เองถ้าต้องการ auto-update ไม่ใช่ default ของ library
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Twitter Lite / Pinterest** — เป็นสองเคสที่ทีม Google อ้างถึงบ่อยที่สุดว่าใช้ Workbox จัดการ caching strategy ระดับ production
 >

@@ -17,14 +17,14 @@ Service worker และ API อื่นๆ ของ PWA ทำงานเฉ
 
 **Secure context** คือ environment ที่ตรงตามมาตรฐานขั้นต่ำของการรับรองความถูกต้องและความลับ ตามที่กำหนดโดย W3C ในทางปฏิบัติ หน้าจะอยู่ใน secure context เมื่อ:
 
-- มันถูก serve ผ่าน **HTTPS** (เช่น `https://example.com`)
-- หรือมันทำงานบน **`localhost`** หรือ `127.0.0.1` (ข้อยกเว้นพิเศษสำหรับการพัฒนา)
+- ถูก serve ผ่าน **HTTPS** (เช่น `https://example.com`)
+- หรือทำงานบน **`localhost`** หรือ `127.0.0.1` (ข้อยกเว้นพิเศษสำหรับการพัฒนา)
 
 หน้าที่ถูก serve ผ่าน `http://` ในทุกโดเมนอื่นนอกจาก localhost ไม่ใช่ secure context ไม่ว่าจะ deploy ที่ไหน
 
 ### ทำไม service worker จึงต้องการ secure context
 
-Service worker เป็น proxy ที่ทรงพลัง มันสามารถ intercept request ทุก request จากแอปของคุณ แก้ไข response และ cache เนื้อหาได้ หากถูก serve ผ่าน HTTP ทั่วไป ผู้โจมตีที่อยู่บนเครือข่ายเดียวกัน (man-in-the-middle) สามารถ:
+Service worker เป็น proxy ที่ทรงพลัง สามารถ intercept ทุก request จากแอปของคุณ แก้ไข response และ cache เนื้อหาได้ หากถูก serve ผ่าน HTTP ทั่วไป ผู้โจมตีที่อยู่บนเครือข่ายเดียวกัน (man-in-the-middle) สามารถ:
 
 - แทนที่ script ของ service worker ด้วยโค้ดที่เป็นอันตรายได้
 - Intercept หรือดัดแปลง response ที่ service worker cache ไว้
@@ -57,11 +57,11 @@ if (window.isSecureContext) {
 
 ### กฎ scope ของ service worker
 
-Service worker ควบคุม URL ภายใน **scope** ของมัน ซึ่งค่าเริ่มต้นคือ directory ที่ script ของ SW อยู่ Scope นี้ถูกจำกัดโดย HTTPS อีกชั้น:
+Service worker ควบคุม URL ภายใน **scope** ของตัวเอง ซึ่งค่าเริ่มต้นคือ directory ที่ script ของ SW อยู่ Scope นี้ถูกจำกัดโดย HTTPS อีกชั้น:
 
 - SW ที่ serve จาก `https://example.com/app/sw.js` ควบคุมเฉพาะ URL ภายใต้ `/app/`
 - SW ไม่สามารถยกระดับ scope ของตัวเองให้สูงกว่า path ของไฟล์ SW ได้ ยกเว้นจะมี `Service-Worker-Allowed` response header
-- ใน HTTPS ทั้งหมดนี้ถูก enforce อย่างเคร่งครัด — ไม่มี loophole ใดที่จะอนุญาตให้ SW ที่ไม่น่าเชื่อถือ intercept traffic ที่ไม่ได้มีเจตนาให้มัน intercept
+- ใน HTTPS ทั้งหมดนี้ถูก enforce อย่างเคร่งครัด — ไม่มี loophole ใดที่จะอนุญาตให้ SW ที่ไม่น่าเชื่อถือ intercept traffic ที่ไม่ได้ตั้งใจให้ SW ตัวนั้นเข้าถึง
 
 ### ข้อยกเว้น localhost
 
@@ -98,20 +98,20 @@ registerServiceWorker();
 Service worker และ PWA API อื่นๆ ทำงานได้เฉพาะใน secure context — ใช้ HTTPS ใน production และ localhost ใน development
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | บังคับ HTTPS ทุก origin (รวม subdomain) | service worker และ API สมัยใหม่ทำงานได้เต็มรูปแบบ ปลอดภัยจาก MITM | ต้องจัดการ TLS cert และ redirect ให้ครบทุก environment รวม staging |
 | อนุญาต localhost แบบ HTTP สำหรับ dev | พัฒนาและทดสอบได้เร็วโดยไม่ต้องตั้ง cert local | ต้องระวังไม่ให้ config นี้หลุดไปที่ production โดยไม่ตั้งใจ |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ลืมว่า mixed content (โหลด asset ผ่าน http:// บนหน้า https://) ทำให้ browser บล็อก request นั้นเงียบๆ
 - ตั้ง redirect จาก HTTP ไป HTTPS ที่ระดับ app แทนที่จะทำที่ edge/CDN ทำให้ยังมี window ที่ request แรกไม่ปลอดภัย
 - ไม่ต่ออายุ TLS certificate ทันเวลา ทำให้ service worker ที่เคยลงทะเบียนไว้ใช้งานไม่ได้ทันทีที่ cert หมดอายุ
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Google Chrome** — ตั้งแต่ปี 2018 เริ่มขึ้น label "Not Secure" ให้ทุกเว็บที่ไม่ใช่ HTTPS บังคับให้ทั้งอุตสาหกรรมย้ายมาใช้ TLS
 >
@@ -139,10 +139,10 @@ export const quizHttpsSecureContext = [
     answer: 2,
   },
   {
-    q: 'service worker ลงทะเบียนที่ /dashboard/sw.js โดยไม่มี option หรือ header พิเศษ มันควบคุมหน้าใดบ้าง?',
+    q: 'service worker ลงทะเบียนที่ /dashboard/sw.js โดยไม่มี option หรือ header พิเศษ จะควบคุมหน้าใดบ้าง?',
     options: [
       'origin ทั้งหมด (/)',
-      'เฉพาะ /dashboard/ และ sub-path ของมัน',
+      'เฉพาะ /dashboard/ และ sub-path ของตัวเอง',
       'เฉพาะ URL /dashboard/sw.js เท่านั้น',
       'path ใดก็ได้ที่ opt in ผ่าน navigator.serviceWorker.controller',
     ],

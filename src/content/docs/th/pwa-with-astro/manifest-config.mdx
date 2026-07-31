@@ -121,20 +121,20 @@ field `display` ควบคุมว่า browser chrome จะแสดงม
 Configure the manifest once in `astro.config.mjs`; the integration emits it and links it for you.
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ตั้งค่า manifest ผ่าน astro.config.mjs (@vite-pwa/astro) | manifest ถูก generate อัตโนมัติตอน build sync กับ config เดียวเสมอ | ต้องเรียนรู้ option ของ plugin เฉพาะ Astro แทนที่จะเขียน JSON ตรงๆ |
 | วาง manifest.json ไว้ใน public/ ตรงๆ | เห็นและแก้ไขไฟล์ได้ตรงๆ ไม่ผ่าน config abstraction | ต้อง sync ด้วยมือกับ build output เอง เสี่ยง manifest ไม่ตรงกับ asset จริง |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ตั้ง scope/start_url ไม่ตรงกับ base path ที่ deploy จริง (เช่น deploy ใน subpath แต่ manifest ตั้ง start_url เป็น "/")
 - ไม่ generate icon ผ่าน plugin ทำให้ขนาด icon ไม่ครบตามที่ store/Android ต้องการ
 - ลืมว่า config เปลี่ยนต้อง rebuild ใหม่เสมอ ไม่ hot-reload เหมือนโค้ด component ปกติ
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Astro documentation site เอง** — ใช้ @vite-pwa/astro ตั้งค่า manifest ผ่าน config ให้ sync กับ build pipeline อัตโนมัติ
 >

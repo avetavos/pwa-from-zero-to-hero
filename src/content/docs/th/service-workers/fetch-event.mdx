@@ -123,23 +123,23 @@ self.addEventListener('fetch', (event) => {
 ```
 
 <Callout title="ประเด็นสำคัญ">
-เมื่อ service worker ควบคุมหน้าเว็บแล้ว ทุก request จะผ่าน `fetch` handler ของมัน ถ้าคุณเรียก `event.respondWith()` แต่ Promise ของคุณ reject หรือไม่คืนค่าอะไรเลย หน้าเว็บจะได้รับ network error — จัดการทุกเส้นทางของโค้ดอย่างชัดเจน
+เมื่อ service worker ควบคุมหน้าเว็บแล้ว ทุก request จะผ่าน `fetch` handler ของตัวเอง ถ้าคุณเรียก `event.respondWith()` แต่ Promise ของคุณ reject หรือไม่คืนค่าอะไรเลย หน้าเว็บจะได้รับ network error — จัดการทุกเส้นทางของโค้ดอย่างชัดเจน
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | Intercept ทุก fetch event และ respondWith() เอง | ควบคุม caching strategy ได้ละเอียดทุก request | ทุก request ต้อง handle ให้ถูก ไม่งั้น fetch อาจ hang หรือ error |
 | ปล่อยให้ request ผ่านไปหา network ตามปกติ (ไม่ intercept) | โค้ดง่าย ไม่เสี่ยง bug จาก caching logic | ไม่ได้ประโยชน์ offline หรือความเร็วจาก cache เลย |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ไม่เรียก event.respondWith() เลยในบาง path ทำให้ browser fallback ไป network แบบไม่ตั้งใจ (เงียบๆ ไม่มี error)
 - cache response ของ POST/PUT request ที่ไม่ควร cache ทำให้ mutation ทำงานผิดพลาดตอน replay จาก cache
 - ไม่เช็ค request.mode หรือ request.method ก่อน intercept ทำให้ fetch handler ไปยุ่งกับ request ที่ควรปล่อยผ่าน เช่น cross-origin analytics call
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Gmail** — fetch handler ของ service worker แยก strategy ระหว่าง static asset กับ API call ของอีเมลอย่างชัดเจน ทำให้ offline ยังเปิดอีเมลที่เคยอ่านได้
 >

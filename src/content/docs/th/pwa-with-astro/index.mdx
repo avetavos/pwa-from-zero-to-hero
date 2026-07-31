@@ -14,7 +14,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 **Astro** เป็น framework ที่เน้น static เป็นหลัก ค่าเริ่มต้นคือการ build ไซต์ออกมาเป็น HTML, CSS และ JavaScript ล้วน ๆ โดยไม่ต้องมี server ขณะ runtime นั่นคือสิ่งที่ **Progressive Web App** ต้องการพอดี: ชุดของ static assets ที่แคชได้และให้บริการออฟไลน์ได้
 
-สะพานเชื่อมระหว่าง build output ของ Astro กับฟีเจอร์ PWA คือ **`@vite-pwa/astro`** มันเป็น Astro integration ที่บาง ๆ ซึ่งครอบ `vite-plugin-pwa` ไว้ แล้ว vite-plugin-pwa ก็ใช้ **Workbox** ภายใต้ฝาปิดอีกทีหนึ่ง เมื่อคุณรัน `astro build` integration จะทำงานอัตโนมัติ:
+สะพานเชื่อมระหว่าง build output ของ Astro กับฟีเจอร์ PWA คือ **`@vite-pwa/astro`** เป็น Astro integration ที่บาง ๆ ซึ่งครอบ `vite-plugin-pwa` ไว้ แล้ว vite-plugin-pwa ก็ใช้ **Workbox** ภายใต้ฝาปิดอีกทีหนึ่ง เมื่อคุณรัน `astro build` integration จะทำงานอัตโนมัติ:
 
 1. สร้าง `sw.js` service worker ที่ precache output แบบ static ทั้งหมด
 2. สร้าง `manifest.webmanifest` เพื่อบอก browser ว่าไซต์ของคุณติดตั้งได้
@@ -33,7 +33,7 @@ import Counter from '../components/Counter.tsx';
 <Counter client:visible />
 ```
 
-จากมุมมองของ service worker นั้น islands คือไฟล์ JavaScript เท่านั้น SW จะ precache พวกมันควบคู่กับ HTML และ CSS เมื่อผู้ใช้ออฟไลน์:
+จากมุมมองของ service worker นั้น islands คือไฟล์ JavaScript เท่านั้น SW จะ precache ไฟล์เหล่านี้ควบคู่กับ HTML และ CSS เมื่อผู้ใช้ออฟไลน์:
 
 - หน้า HTML แบบ static จะถูกให้บริการจากแคชทันที
 - JS bundle ของ island ก็ถูกแคชด้วย ดังนั้น interactive components จะ hydrate ได้ตามปกติ
@@ -110,8 +110,8 @@ export const quizPwaWithAstroIndex = [
     options: [
       'คุณเขียน service worker เองแล้ว Workbox ฉีด precache list ให้',
       'Workbox สร้างไฟล์ service worker ทั้งหมดให้คุณ',
-      'มันสร้าง Astro island ใหม่สำหรับตรวจจับสถานะออฟไลน์',
-      'มันสร้างแค่ manifest.webmanifest เท่านั้น ไม่มี service worker',
+      'สร้าง Astro island ใหม่สำหรับตรวจจับสถานะออฟไลน์',
+      'สร้างแค่ manifest.webmanifest เท่านั้น ไม่มี service worker',
     ],
     answer: 1,
   },

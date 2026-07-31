@@ -109,20 +109,20 @@ export const safeZoneDiagram = `flowchart TB
 ใส่ icon ที่มี `"purpose": "maskable"` เสมอเพื่อให้ Android สามารถปรับรูปทรงได้โดยไม่ตัด logo ออก ออกแบบ maskable variant โดยวาง artwork ทั้งหมดไว้ใน safe zone วงกลม 80% ตรงกลาง
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ทำ maskable icon แยกจาก icon ปกติ | ไอคอนไม่โดนตัดขอบเพี้ยนบน Android (circular crop) | ต้องออกแบบและ export ไฟล์ icon เพิ่มอีกชุด |
 | ใช้ icon ชุดเดียวสำหรับทุก purpose | จัดการไฟล์น้อยกว่า ดูแลง่ายกว่า | เสี่ยงโดน crop เพี้ยนบน platform ที่ต้องการ safe zone แบบ maskable |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ไม่ใส่ purpose: "maskable" เลย ทำให้ Android เอา icon ปกติไป crop เป็นวงกลมและตัดโลโก้ขาดหาย
 - ออกแบบโลโก้เต็มขอบไฟล์ 512x512 โดยไม่เผื่อ safe zone กลาง 80% ตามสเปก maskable icon
 - ใส่ icon แค่ขนาดเดียว (เช่น 192x192) ทำให้ device ที่ต้องการ resolution สูงกว่าต้อง upscale จนภาพแตก
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Squoosh** — ออกแบบ maskable icon เฉพาะสำหรับ Android โดยเว้น safe zone ตรงกลางตามสเปก ทำให้โลโก้ไม่โดนตัดเมื่อถูก crop เป็นวงกลม
 >

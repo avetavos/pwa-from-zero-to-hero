@@ -334,20 +334,20 @@ self.addEventListener('fetch', (event) => {
 Background sync ให้ผู้ใช้ทำงาน offline ได้และส่งข้อมูลอัตโนมัติเมื่อการเชื่อมต่อกลับมา
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ใช้ Background Sync API | retry request ที่ล้มเหลวอัตโนมัติแม้ปิด tab ไปแล้ว | รองรับเฉพาะบาง browser (ไม่มีใน Safari) ต้องมี fallback เอง |
 | Retry ด้วยมือตอนกลับมา online (foreground เท่านั้น) | ทำงานได้ทุก browser ไม่ต้องพึ่ง API พิเศษ | พลาด sync ถ้าผู้ใช้ปิด tab ไปก่อนที่ network จะกลับมา |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - เก็บ mutation ไว้ใน memory แทน IndexedDB ทำให้ข้อมูลหายทันทีที่ service worker ถูก terminate
 - ไม่ทำ retry backoff ทำให้ sync tag ยิง request รัวๆ ซ้ำเมื่อ network กลับมาแต่ server ยัง unstable
 - ไม่ handle กรณี sync ล้มเหลวซ้ำ (permanent failure) ทำให้ queue ค้างพยายาม sync ข้อมูลที่ไม่มีทาง sync สำเร็จตลอดไป
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Google Maps** — คิว location update และ report ไว้ผ่าน Background Sync แล้วส่งอัตโนมัติทันทีที่กลับมามีสัญญาณ
 >

@@ -139,7 +139,7 @@ async function shareContent() {
 }
 ```
 
-`navigator.share` ต้องเรียกจาก user gesture (คลิก, แตะ) จับ `AbortError` แยกต่างหาก — มันแค่หมายความว่าผู้ใช้ปิด share sheet
+`navigator.share` ต้องเรียกจาก user gesture (คลิก, แตะ) จับ `AbortError` แยกต่างหาก — แค่หมายความว่าผู้ใช้ปิด share sheet
 
 ### การแชร์ไฟล์
 
@@ -159,20 +159,20 @@ async function shareFile(file) {
 Badging และ Web Share Target ทำให้ PWA ที่ install แล้วรู้สึกเหมือนแอป native ชั้นหนึ่ง — จำนวน unread บน icon และการปรากฏใน OS share sheet ฟีเจอร์เหล่านี้ไม่มีค่าใช้จ่าย ไม่ต้องใช้ server แค่ manifest entry และ API call สองรายการ
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | App Badging API | แจ้งจำนวนที่ยังไม่อ่านได้แบบ native โดยไม่รบกวนด้วย notification popup | รองรับเฉพาะบาง platform (desktop Chrome/Edge, ไม่มีบน iOS) |
 | Share Target API | รับ content ที่แชร์มาจากแอปอื่นได้เหมือน native app | ต้อง register ใน manifest และรองรับเฉพาะ browser ที่ implement แล้ว |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ไม่ clearAppBadge() เมื่อผู้ใช้อ่านแล้ว ทำให้ badge ค้างเลขเก่าตลอดไปจนผู้ใช้เลิกเชื่อตัวเลขนั้น
 - ตั้ง share_target ผิด method/enctype ใน manifest ทำให้ OS ส่ง data มาแบบที่แอป parse ไม่ได้
 - ลืมว่า Badging API ไม่มีบน iOS Safari เลย แล้วออกแบบ flow ที่พึ่งพา badge เป็นทางเดียวในการแจ้งเตือน
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Facebook Messenger PWA** — ใช้ App Badging แสดงจำนวนข้อความที่ยังไม่อ่านบน icon ทันที เหมือนแอป native
 >

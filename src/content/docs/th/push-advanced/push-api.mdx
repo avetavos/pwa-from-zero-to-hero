@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## Push API
 
-Push API ช่วยให้ server ของคุณส่งข้อความไปยังอุปกรณ์ของผู้ใช้ได้แม้ผู้ใช้จะไม่ได้ใช้แอปอยู่ — ไม่ต้องมีแท็บเปิดอยู่ browser รักษาการเชื่อมต่อถาวรกับ **push service** (ที่ดูแลโดย browser vendor) server ของคุณพูดคุยกับ push service นั้น และ push service ส่งข้อความไปยังอุปกรณ์ของผู้ใช้ที่ service worker ของคุณรับมัน
+Push API ช่วยให้ server ของคุณส่งข้อความไปยังอุปกรณ์ของผู้ใช้ได้แม้ผู้ใช้จะไม่ได้ใช้แอปอยู่ — ไม่ต้องมีแท็บเปิดอยู่ browser รักษาการเชื่อมต่อถาวรกับ **push service** (ที่ดูแลโดย browser vendor) server ของคุณพูดคุยกับ push service นั้น และ push service ส่งข้อความไปยังอุปกรณ์ของผู้ใช้ที่ service worker ของคุณรับข้อความนั้น
 
 ### Push ทำงานอย่างไรแบบ end-to-end
 
@@ -159,20 +159,20 @@ if (subscription) {
 Push notification ต้องการ backend server ของคุณต้องถือ VAPID private key, เก็บ subscription และส่ง message ผ่าน push service ของ browser vendor browser ส่งเฉพาะสิ่งที่ server ของคุณส่ง — ไม่มี push โดยไม่มี server
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | Push API (re-engage ผู้ใช้ที่ไม่ได้เปิดแอป) | ดึงผู้ใช้กลับมาได้แม้ปิดแอปไปนาน เพิ่ม retention | ต้องมี push server/VAPID key และจัดการ subscription lifecycle เอง |
 | ไม่ใช้ push เลย พึ่งแค่ในแอป | ไม่ต้องดูแล infrastructure ฝั่ง push server เลย | เสียโอกาส re-engage ผู้ใช้ที่ไม่ได้เปิดแอปเป็นระยะ |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ไม่ handle subscription expiry/rotation ทำให้ push ที่ส่งไปเงียบหายเพราะ endpoint เก่าใช้ไม่ได้แล้ว
 - ส่ง push notification บ่อยเกินไปจนผู้ใช้ revoke permission ทิ้งทั้งหมด
 - ไม่ encrypt payload ตามสเปก Web Push (VAPID + payload encryption) ทำให้ push provider บาง raw ปฏิเสธ request
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Facebook web push** — ใช้ Push API แจ้งเตือนข้อความและ activity ให้ผู้ใช้กลับมาที่เว็บแม้ปิด tab ไปแล้ว
 >
@@ -192,10 +192,10 @@ export const quizPushApi = [
   {
     q: 'ทำไม subscribe options จึงต้องมี userVisibleOnly: true?',
     options: [
-      'เพราะมันช่วยเพิ่ม performance',
+      'เพราะช่วยเพิ่ม performance',
       'เพราะ browser บังคับว่าทุก push message ต้องแสดง notification ที่ผู้ใช้เห็นได้',
-      'เพราะมันเปิดใช้ background sync',
-      'เพราะมันจำกัด subscription ไว้เฉพาะแท็บปัจจุบัน',
+      'เพราะเปิดใช้ background sync',
+      'เพราะจำกัด subscription ไว้เฉพาะแท็บปัจจุบัน',
     ],
     answer: 1,
   },

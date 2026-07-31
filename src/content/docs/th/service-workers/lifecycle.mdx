@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## lifecycle ของ service worker
 
-service worker ทุกตัวจะเคลื่อนผ่าน state machine ที่ browser กำหนดไว้ตายตัว การเข้าใจ lifecycle นี้เป็นเรื่องจำเป็น — ข้ามมันไปแล้วการอัปเดตของคุณจะ activate ไม่สำเร็จแบบเงียบ ๆ หรือคุณทำให้หน้าเว็บที่ยังรัน worker ตัวเก่าอยู่พังได้
+service worker ทุกตัวจะเคลื่อนผ่าน state machine ที่ browser กำหนดไว้ตายตัว การเข้าใจ lifecycle นี้เป็นเรื่องจำเป็น — ข้ามไปแล้วการอัปเดตของคุณจะ activate ไม่สำเร็จแบบเงียบ ๆ หรือคุณทำให้หน้าเว็บที่ยังรัน worker ตัวเก่าอยู่พังได้
 
 ### state machine
 
@@ -46,7 +46,7 @@ self.addEventListener('install', (event) => {
 });
 ```
 
-`event.waitUntil()` รับ Promise เข้ามา ถ้า Promise **resolve** SW จะย้ายไปสถานะ `Installed` ถ้ามัน **reject** (เช่น เกิด network error ระหว่าง pre-cache) SW จะย้ายไป `Redundant` และถูกทิ้ง — ไม่มีอะไรพังสำหรับผู้ใช้ SW ตัวเก่ายังคงทำงานต่อไป
+`event.waitUntil()` รับ Promise เข้ามา ถ้า Promise **resolve** SW จะย้ายไปสถานะ `Installed` ถ้า Promise **reject** (เช่น เกิด network error ระหว่าง pre-cache) SW จะย้ายไป `Redundant` และถูกทิ้ง — ไม่มีอะไรพังสำหรับผู้ใช้ SW ตัวเก่ายังคงทำงานต่อไป
 
 ### สถานะ waiting
 
@@ -64,7 +64,7 @@ self.addEventListener('install', (event) => {
 
 ### activate event
 
-เมื่อ SW ตัวเก่าหายไปแล้ว (หรือมีการเรียก `skipWaiting()`) SW ตัวใหม่จะ fire `activate` event ของมัน นี่เป็นจังหวะที่เหมาะในการ **ล้าง cache เก่า** เพื่อไม่ให้ asset ที่ล้าสมัยกินพื้นที่จัดเก็บไปเรื่อย ๆ ไม่รู้จบ
+เมื่อ SW ตัวเก่าหายไปแล้ว (หรือมีการเรียก `skipWaiting()`) SW ตัวใหม่จะ fire `activate` event ของตัวเอง นี่เป็นจังหวะที่เหมาะในการ **ล้าง cache เก่า** เพื่อไม่ให้ asset ที่ล้าสมัยกินพื้นที่จัดเก็บไปเรื่อย ๆ ไม่รู้จบ
 
 ```js
 const CURRENT_CACHES = ['v2'];
@@ -92,26 +92,26 @@ self.addEventListener('activate', (event) => {
 | **Waiting** | SW ตัวใหม่พร้อมแล้วแต่ถูกถ่วงไว้ | เรียก `skipWaiting()` ได้ตามต้องการ |
 | **Activating** | SW ตัวใหม่กำลังเข้ารับช่วงต่อ | ลบ cache เก่าใน `activate` |
 | **Activated** | SW ควบคุมเต็มที่แล้ว | เสิร์ฟ request ผ่าน `fetch` event |
-| **Redundant** | SW ถูกแทนที่หรือล้มเหลว | ไม่ต้องทำอะไร — browser จะกำจัดมันเอง |
+| **Redundant** | SW ถูกแทนที่หรือล้มเหลว | ไม่ต้องทำอะไร — browser จะกำจัดให้เอง |
 
 <Callout title="ประเด็นสำคัญ">
-service worker ที่เพิ่งติดตั้งจะรอจนกว่าทุกแท็บที่ใช้ตัวเก่าจะปิดลง — เว้นแต่มันจะเรียก `self.skipWaiting()` ใช้ `skipWaiting()` อย่างระมัดระวัง: ถ้า SW ตัวเก่ากับตัวใหม่ใช้ cache schema ต่างกัน หน้าที่โหลดไปแล้วอาจ request asset ที่ cache ตัวใหม่ยังไม่มี
+service worker ที่เพิ่งติดตั้งจะรอจนกว่าทุกแท็บที่ใช้ตัวเก่าจะปิดลง — เว้นแต่จะเรียก `self.skipWaiting()` ใช้ `skipWaiting()` อย่างระมัดระวัง: ถ้า SW ตัวเก่ากับตัวใหม่ใช้ cache schema ต่างกัน หน้าที่โหลดไปแล้วอาจ request asset ที่ cache ตัวใหม่ยังไม่มี
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ใช้ skipWaiting() + clients.claim() | ผู้ใช้ได้ version ใหม่ทันทีโดยไม่ต้องปิด tab ทั้งหมด | เสี่ยง breaking change ถ้า version เก่ากับใหม่ไม่ compatible กันระหว่างที่หน้าเว็บยังเปิดอยู่ |
 | ปล่อยให้รอ default lifecycle (waiting จนกว่า tab ทั้งหมดจะปิด) | ปลอดภัยกว่า ไม่มี version mismatch ระหว่าง client กับ server | ผู้ใช้อาจติดอยู่กับ version เก่านานถ้าไม่ปิด tab เอง |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ลืมว่า install event ต้อง resolve สำเร็จก่อนเข้า waiting — ถ้า cache.addAll() fail ทั้ง install จะ fail เงียบๆ
 - เรียก skipWaiting() โดยไม่คู่กับ versioned cache name ทำให้ client เปลี่ยนไปใช้ service worker ใหม่แต่ยังอ่าน cache เก่าที่ไม่ตรงกัน
 - ไม่ทดสอบ flow "หลาย tab เปิดพร้อมกัน" ทำให้พลาด edge case ที่ worker เก่ายังคุม tab บางอันอยู่ระหว่าง transition
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Google Docs** — คุม lifecycle อย่างระมัดระวังเพื่อไม่ให้ผู้ใช้ที่กำลังแก้เอกสารอยู่โดน service worker ใหม่ตัดการทำงานกลางคัน
 >
@@ -131,20 +131,20 @@ export const quizLifecycle = [
   {
     q: 'ทำไม service worker ตัวใหม่จึงนั่งรออยู่ในสถานะ Waiting?',
     options: [
-      'มันกำลังรอให้ network พร้อมใช้งาน',
-      'มันรอให้ browser ดาวน์โหลด asset',
-      'มันรอจนกว่าจะไม่มีแท็บใดถูกควบคุมโดย service worker ตัวเก่าอีก',
-      'มันรอให้ activate event ถูก dispatch',
+      'กำลังรอให้ network พร้อมใช้งาน',
+      'รอให้ browser ดาวน์โหลด asset',
+      'รอจนกว่าจะไม่มีแท็บใดถูกควบคุมโดย service worker ตัวเก่าอีก',
+      'รอให้ activate event ถูก dispatch',
     ],
     answer: 2,
   },
   {
     q: 'self.clients.claim() ใน activate handler มีจุดประสงค์อะไร?',
     options: [
-      'มันลบ cache เก่าทั้งหมด',
-      'มันข้ามสถานะ waiting',
-      'มันทำให้ SW ที่ activate แล้วเข้าควบคุมหน้าที่เปิดอยู่ได้ทันที',
-      'มัน register SW สำหรับ push notifications',
+      'ลบ cache เก่าทั้งหมด',
+      'ข้ามสถานะ waiting',
+      'ทำให้ SW ที่ activate แล้วเข้าควบคุมหน้าที่เปิดอยู่ได้ทันที',
+      'register SW สำหรับ push notifications',
     ],
     answer: 2,
   },

@@ -166,20 +166,20 @@ self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));`,
 คุณต้องเรียก `event.preventDefault()` บน `beforeinstallprompt` เพื่อระงับ install UI เริ่มต้นของ browser จากนั้นเรียก `deferredPrompt.prompt()` เฉพาะจากภายใน user gesture (click handler) เท่านั้น การเรียก `prompt()` นอก user gesture จะทำให้เกิด error
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ดักจับ beforeinstallprompt แล้วแสดงปุ่มติดตั้งเอง | ควบคุม timing และ UI ได้เต็มที่ ไม่รบกวนผู้ใช้ตอนที่ไม่พร้อม | ต้อง handle state และ event lifecycle เอง เพิ่ม complexity ของโค้ด |
 | ปล่อยให้ browser แสดง install UI ของตัวเอง (default) | ไม่ต้องเขียนโค้ดเพิ่ม ได้ UI มาตรฐานทันที | ควบคุม timing ไม่ได้ อาจโผล่มาตอนที่ผู้ใช้ยังไม่พร้อมตัดสินใจ |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - เรียก prompt() นอก user gesture handler (เช่นใน useEffect ตอน mount) ทำให้ browser โยน error และปฏิเสธคำขอ
 - ไม่เก็บ deferredPrompt ไว้ตั้งแต่ event แรก ทำให้พลาดโอกาสแสดงปุ่มติดตั้งไปเลยหากไม่ได้ดักจับทัน
 - ลืมว่า iOS Safari ไม่ยิง beforeinstallprompt เลย แล้วออกแบบ UI ติดตั้งที่ใช้ไม่ได้กับผู้ใช้ iOS
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Pinterest** — แสดงปุ่มติดตั้งของตัวเองหลังจากผู้ใช้มี engagement ระดับหนึ่งแล้ว แทนที่จะโชว์ตั้งแต่หน้าแรก ทำให้ conversion สูงขึ้น
 >

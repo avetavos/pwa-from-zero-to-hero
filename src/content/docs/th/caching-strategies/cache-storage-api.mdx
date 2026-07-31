@@ -28,7 +28,7 @@ cache หลายตัวสามารถอยู่ร่วมกัน�
 
 ## Precaching ตอน install
 
-`cache.addAll(urls)` รับ array ของ URL string เข้ามา แล้วดึงและเก็บมันทั้งหมดแบบ atomic หาก request ใดเพียงตัวเดียวล้มเหลว — network error, 404, หรืออะไรก็ตาม — การเรียก `addAll` ทั้งหมดจะ reject และ install event จะล้มเหลว นี่เป็นพฤติกรรมที่ตั้งใจ มันรับประกันว่า app shell ของคุณจะถูกแคชครบทั้งหมดหรือไม่ก็ไม่ถูกแคชเลย
+`cache.addAll(urls)` รับ array ของ URL string เข้ามา แล้วดึงและเก็บทั้งหมดแบบ atomic หาก request ใดเพียงตัวเดียวล้มเหลว — network error, 404, หรืออะไรก็ตาม — การเรียก `addAll` ทั้งหมดจะ reject และ install event จะล้มเหลว นี่เป็นพฤติกรรมที่ตั้งใจ เพื่อรับประกันว่า app shell ของคุณจะถูกแคชครบทั้งหมดหรือไม่ก็ไม่ถูกแคชเลย
 
 ```js
 const CACHE_NAME = 'cache-v1';
@@ -50,7 +50,7 @@ self.addEventListener('install', (event) => {
 
 ## cache.put และ caches.match
 
-สำหรับ runtime caching คุณเพิ่ม response แต่ละตัวด้วย `cache.put(request, response)` คุณดึงมันออกมาได้ด้วย `cache.match(request)` (ค้นเฉพาะ cache ตัวนั้น ๆ) หรือ `caches.match(request)` (ค้นทุก cache แล้วคืนค่าตัวที่ตรงตัวแรก)
+สำหรับ runtime caching คุณเพิ่ม response แต่ละตัวด้วย `cache.put(request, response)` คุณดึงออกมาได้ด้วย `cache.match(request)` (ค้นเฉพาะ cache ตัวนั้น ๆ) หรือ `caches.match(request)` (ค้นทุก cache แล้วคืนค่าตัวที่ตรงตัวแรก)
 
 ```js
 // Runtime cache: intercept a fetch, cache the response, return it
@@ -86,9 +86,9 @@ caches.match('/app.js').then((res) => {
 
 ## response.clone()
 
-ออบเจ็กต์ `Response` ห่อหุ้ม body ที่เป็น readable stream แบบใช้ได้ครั้งเดียว เมื่อคุณ consume มัน — ด้วยการเรียก `.json()`, `.text()`, หรือส่งมันให้ `cache.put()` — stream นั้นจะถูกดึงจนหมดและ body ก็หายไป การอ่านครั้งถัดไปจะได้ผลลัพธ์ว่างเปล่า
+ออบเจ็กต์ `Response` ห่อหุ้ม body ที่เป็น readable stream แบบใช้ได้ครั้งเดียว เมื่อคุณ consume body — ด้วยการเรียก `.json()`, `.text()`, หรือส่งต่อให้ `cache.put()` — stream นั้นจะถูกดึงจนหมดและ body ก็หายไป การอ่านครั้งถัดไปจะได้ผลลัพธ์ว่างเปล่า
 
-เมื่อคุณต้องการทั้งแคช response และคืนค่ามันกลับไปให้ผู้เรียก คุณต้อง clone มันก่อน `response.clone()` สร้าง `Response` ตัวที่สองที่แชร์ข้อมูล body เดียวกันแต่มี read cursor เป็นอิสระต่อกัน
+เมื่อคุณต้องการทั้งแคช response และคืนค่ากลับไปให้ผู้เรียก คุณต้อง clone ก่อน `response.clone()` สร้าง `Response` ตัวที่สองที่แชร์ข้อมูล body เดียวกันแต่มี read cursor เป็นอิสระต่อกัน
 
 ```js
 fetch(event.request).then((response) => {
@@ -99,12 +99,12 @@ fetch(event.request).then((response) => {
 ```
 
 <Callout title="จุดสำคัญ">
-clone Response ก่อนแคชเสมอ — body ของมันคือ stream ที่ใช้ได้ครั้งเดียว ส่ง clone ให้ `cache.put()` แล้วคืน original กลับไปให้หน้าเพจ หรือสลับกันก็ได้ ไม่ว่าจะทางไหน คุณต้องมีออบเจ็กต์ Response ที่เป็นอิสระต่อกันสองตัว
+clone Response ก่อนแคชเสมอ — body ของตัวเองคือ stream ที่ใช้ได้ครั้งเดียว ส่ง clone ให้ `cache.put()` แล้วคืน original กลับไปให้หน้าเพจ หรือสลับกันก็ได้ ไม่ว่าจะทางไหน คุณต้องมีออบเจ็กต์ Response ที่เป็นอิสระต่อกันสองตัว
 </Callout>
 
 ## การลบ cache เก่าตอน activate
 
-เมื่อคุณ deploy SW เวอร์ชันใหม่ที่ใช้ชื่อ cache ใหม่ cache เก่าจะยังคงอยู่บนดิสก์จนกว่าคุณจะลบมันออกอย่างชัดเจน activate event คือที่ที่เหมาะสำหรับการทำสิ่งนี้ เพราะ SW ตัวใหม่ได้เข้าควบคุมแล้ว จึงปลอดภัยที่จะลบ cache ที่ SW ตัวเก่าเคยพึ่งพา
+เมื่อคุณ deploy SW เวอร์ชันใหม่ที่ใช้ชื่อ cache ใหม่ cache เก่าจะยังคงอยู่บนดิสก์จนกว่าคุณจะลบออกอย่างชัดเจน activate event คือที่ที่เหมาะสำหรับการทำสิ่งนี้ เพราะ SW ตัวใหม่ได้เข้าควบคุมแล้ว จึงปลอดภัยที่จะลบ cache ที่ SW ตัวเก่าเคยพึ่งพา
 
 ```js
 const CACHE_VERSION = 'v1';
@@ -237,20 +237,20 @@ self.addEventListener('fetch', function(event) {
 
 <PwaPlayground client:visible files={proj} openFile="sw.js" />
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | จัดการ Cache Storage API ตรงๆ ด้วยมือ | ควบคุม logic ได้ทุกรายละเอียด ไม่ผูกกับ library | ต้องเขียนและ maintain boilerplate เยอะ เสี่ยง bug จากการ handle edge case เอง |
 | ใช้ library ครอบ (เช่น Workbox) | โค้ดสั้นลง ลด boilerplate จัดการ cache versioning ให้ | เพิ่ม dependency และเรียนรู้ API ของ library เพิ่ม |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ไม่ตั้งชื่อ cache แบบ versioned (เช่น `app-v1`) ทำให้ลบ cache เก่าตอน activate ไม่ได้อย่างปลอดภัย
 - ลืม cache.delete() cache เก่าตอน activate event ทำให้ storage โตขึ้นเรื่อยๆ ไม่มีที่สิ้นสุด
 - cache response ที่เป็น opaque (cross-origin แบบไม่มี CORS) โดยไม่รู้ตัวว่ากิน quota เท่ากับไฟล์เต็มแม้จะอ่าน body ไม่ได้
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Wikipedia** — ใช้ Cache Storage API เก็บบทความที่เคยอ่านไว้ ทำให้เปิดซ้ำได้แบบ offline โดยไม่ต้องโหลดใหม่
 >

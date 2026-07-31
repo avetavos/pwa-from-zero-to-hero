@@ -30,7 +30,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 PWA ที่ reliable โหลดได้ทันทีและทำงานต่อไปได้บนเครือข่ายที่ไม่เสถียร ซึ่งทั้งหมดนี้เป็นหน้าที่ของ **service worker** และ **Cache Storage API**
 
-เมื่อ service worker ถูก register และทำงานอยู่ มันจะอยู่ระหว่างหน้าและเครือข่าย คอย intercept ทุก `fetch` event คุณเป็นคนกำหนด caching strategy: serve จาก cache ก่อน แล้ว fallback ไปยังเครือข่าย หรือแข่งทั้งสอง ผลลัพธ์คือแอปที่:
+เมื่อ service worker ถูก register และทำงานอยู่ จะอยู่ระหว่างหน้าและเครือข่าย คอย intercept ทุก `fetch` event คุณเป็นคนกำหนด caching strategy: serve จาก cache ก่อน แล้ว fallback ไปยังเครือข่าย หรือแข่งทั้งสอง ผลลัพธ์คือแอปที่:
 
 - เปิดได้ทันทีในการเยี่ยมชมซ้ำ เพราะ asset มาจาก cache ในเครื่อง
 - ทำงานได้ในโหมดเครื่องบินหรือบนการเชื่อมต่อ 2G โดย serve cached shell
@@ -106,20 +106,20 @@ export const pillarsDiagram = `flowchart TD
 "Reliable" หมายความว่าแอปโหลดได้แม้เครือข่ายไม่เสถียร — นั่นคือสิ่งที่ service worker และ cache มอบให้
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ทุ่มเวลาให้ครบทั้งสามเสาหลัก (Capable/Reliable/Installable) | ผู้ใช้ได้ประสบการณ์ใกล้เคียง native เต็มรูปแบบ | ใช้เวลาพัฒนาและทดสอบมากกว่าเว็บไซต์ทั่วไป |
 | ทำแค่ Reliable (offline) โดยข้าม Installable | ผู้ใช้ทุกคนเข้าถึงได้ทันทีผ่าน URL ไม่ต้องติดตั้ง | เสีย engagement ที่มาจาก home-screen icon และ standalone mode |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - มองว่า PWA คือ "แค่ทำ manifest" — โดยไม่ทำ service worker ให้ reliable จริง แอปจะติดตั้งได้แต่ใช้งาน offline ไม่ได้
 - ทดสอบ Capable บน desktop Chrome อย่างเดียว โดยไม่เช็คว่า API ที่ใช้รองรับบน mobile browser หรือไม่
 - คิดว่า Installable แปลว่าต้องผ่าน app store — จริงๆ แล้ว install ได้ตรงจาก browser โดยไม่ต้องพึ่ง store เลย
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Twitter Lite** — โฟกัสที่ Reliable ก่อน ทำให้แอปใช้งานได้แม้เน็ตขาดหาย ก่อนค่อยเพิ่ม Installable ทีหลัง
 >

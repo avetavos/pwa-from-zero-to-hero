@@ -14,9 +14,9 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 Periodic Background Sync (PBS) ช่วยให้ PWA ที่ install แล้วปลุก service worker ให้ทำงานตามกำหนดเวลาซ้ำๆ เพื่อรีเฟรชข้อมูล — แม้เมื่อผู้ใช้ไม่ได้ใช้แอปอยู่ เมื่อผู้ใช้เปิดแอปครั้งต่อไป พวกเขาจะเห็นเนื้อหาใหม่แทนที่จะเป็นข้อมูลเก่า
 
-คิดว่ามันเป็น cron job ที่ทำงานภายใน browser โดยขึ้นอยู่กับ heuristics ของ browser เองว่าเมื่อไหรที่ปลอดภัยและเป็นประโยชน์ที่จะปลุกแอปของคุณ
+คิดว่าเป็น cron job ที่ทำงานภายใน browser โดยขึ้นอยู่กับ heuristics ของ browser เองว่าเมื่อไหรที่ปลอดภัยและเป็นประโยชน์ที่จะปลุกแอปของคุณ
 
-### มันทำงานอย่างไร
+### ทำงานอย่างไร
 
 export const pbsDiagram = `sequenceDiagram
   participant App as Installed PWA
@@ -67,7 +67,7 @@ async function registerPeriodicSync() {
 }
 ```
 
-`minInterval` เป็นเพียง hint — browser จะ fire event **ไม่บ่อยกว่า** interval นี้ แต่อาจ fire น้อยกว่าหรือไม่ fire เลยขึ้นอยู่กับ heuristics ของมัน
+`minInterval` เป็นเพียง hint — browser จะ fire event **ไม่บ่อยกว่า** interval นี้ แต่อาจ fire น้อยกว่าหรือไม่ fire เลยขึ้นอยู่กับ heuristics ของตัวเอง
 
 ### การจัดการ periodicsync event ใน service worker
 
@@ -151,20 +151,20 @@ async function loadArticles() {
 Periodic Background Sync ทำงานได้เฉพาะกับ PWA ที่ install แล้ว และ browser เป็นผู้ตัดสิน cadence จริง — ถือว่าเป็น best-effort เสมอ ควรใช้ fallback ที่รีเฟรชข้อมูลเมื่อเปิดหน้าเพจเสมอ เพื่อให้แอปยังทำงานได้อย่างถูกต้องเมื่อ sync ไม่ได้ทำงาน
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | Periodic Background Sync | ข้อมูลสดใหม่รอผู้ใช้อยู่แล้วตอนเปิดแอป โดยไม่ต้องรอโหลด | ต้องผ่านเกณฑ์ installed PWA + engagement heuristic ของ browser ก่อนถึงจะได้สิทธิ์ใช้ |
 | Sync ตอนเปิดแอปเท่านั้น (on-demand) | ทำงานได้ทุก browser ไม่มีเงื่อนไขพิเศษ | ผู้ใช้ต้องรอโหลดข้อมูลทุกครั้งที่เปิดแอป แม้เพิ่งเปิดไปเมื่อกี้ |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ตั้ง sync interval ถี่เกินไปโดยไม่สนใจว่า browser จะปรับ interval จริงตาม engagement ของผู้ใช้เองอยู่ดี (ตั้งเท่าไหร่ก็เป็นแค่ minimum)
 - ไม่ตรวจสิทธิ์ periodic-background-sync ก่อนเรียก register ทำให้โค้ด throw error บน browser ที่ยังไม่รองรับ
 - ใช้ periodic sync ดึงข้อมูลจำนวนมากโดยไม่สนใจ data usage ของผู้ใช้บนมือถือ ทำให้กิน quota โดยไม่รู้ตัว
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Google Maps** — ใช้ periodic sync อัปเดตข้อมูลจราจร/แผนที่ที่เคย cache ไว้ให้สดใหม่อยู่เสมอแม้ไม่ได้เปิดแอป
 >

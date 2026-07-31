@@ -49,7 +49,7 @@ AstroPWA({
 
 ### injectManifest — คุณควบคุม SW เอง
 
-เมื่อคุณต้องการ custom fetch logic — routing ขั้นสูง, background sync, push notifications หรืออะไรก็ตามที่ Workbox ไม่สามารถ generate ให้อัตโนมัติได้ — ให้เปลี่ยนไปใช้ `injectManifest` คุณเขียน `src/sw.ts` เอง; ในขั้นตอน build Vite PWA จะ compile มันแล้วฉีด precache manifest เข้าไปผ่าน placeholder `self.__WB_MANIFEST`
+เมื่อคุณต้องการ custom fetch logic — routing ขั้นสูง, background sync, push notifications หรืออะไรก็ตามที่ Workbox ไม่สามารถ generate ให้อัตโนมัติได้ — ให้เปลี่ยนไปใช้ `injectManifest` คุณเขียน `src/sw.ts` เอง; ในขั้นตอน build Vite PWA จะ compile ไฟล์นี้แล้วฉีด precache manifest เข้าไปผ่าน placeholder `self.__WB_MANIFEST`
 
 ```ts
 // astro.config.mjs
@@ -121,20 +121,20 @@ export const strategyDiagram = `flowchart TD
 ใช้ `generateSW` สำหรับการ caching มาตรฐาน เปลี่ยนไปใช้ `injectManifest` เมื่อคุณต้องการ logic ของ service worker แบบ custom
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | generateSW (Workbox generate อัตโนมัติ) | เริ่มต้นเร็วที่สุด ไม่ต้องเขียน service worker เอง | ปรับแต่ง logic เฉพาะทำได้จำกัดกว่าการเขียนเอง |
 | injectManifest (เขียน service worker เอง + inject precache list) | ควบคุม logic ได้เต็มที่ ผสม custom logic ได้อิสระ | ต้องเขียนและ maintain service worker file เอง เพิ่ม complexity |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - เลือก generateSW แล้วพยายามเพิ่ม custom logic ที่ mode นี้ไม่รองรับ ทำให้ต้องย้ายไป injectManifest ทีหลัง เสียเวลา refactor
 - ไม่ตั้ง strategy ให้ตรงกับประเภท route ของ Astro (static page vs API endpoint) ทำให้ cache ผิดประเภท
 - ลืมว่า Astro build output เปลี่ยน asset hash ทุกครั้ง ทำให้ precache manifest เก่าที่ generate ไว้ไม่ตรงกับไฟล์จริงถ้าไม่ rebuild
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **@vite-pwa/astro ecosystem** — ให้ทั้งสอง mode นี้เป็นทางเลือก โปรเจกต์ documentation ส่วนใหญ่ใช้ generateSW เพราะพอสำหรับ static site
 >
@@ -164,10 +164,10 @@ export const quizSwAndStrategies = [
   {
     q: 'virtual:pwa-register module มีจุดประสงค์อะไร?',
     options: [
-      'มันจะ generate web app manifest ในขั้นตอน build',
-      'มันให้ฟังก์ชัน registerSW สำหรับจัดการ callback การอัปเดตและ offline-ready',
-      'มันแทนที่ self.__WB_MANIFEST ด้วย precache list จริง',
-      'มันติดตั้ง workbox-precaching เป็น dev dependency',
+      'จะ generate web app manifest ในขั้นตอน build',
+      'ให้ฟังก์ชัน registerSW สำหรับจัดการ callback การอัปเดตและ offline-ready',
+      'แทนที่ self.__WB_MANIFEST ด้วย precache list จริง',
+      'ติดตั้ง workbox-precaching เป็น dev dependency',
     ],
     answer: 1,
   },

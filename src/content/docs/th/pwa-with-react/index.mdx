@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## เส้นทาง React PWA สมัยใหม่
 
-กับ Vite และ React วิธีที่แนะนำในการเพิ่ม PWA support คือ `vite-plugin-pwa` มันครอบ Workbox ไว้ภายใต้ฝาปิด, สร้าง service worker ของคุณตอน build time, ฉีด web app manifest เข้าไปใน HTML ของคุณ และเปิดเผย registration API ขนาดเล็กที่คุณสามารถเรียกใช้จาก code ในแอป Create React App ซึ่งเป็นทางเลือกเก่า ปัจจุบันถูก deprecated แล้วและไม่ควรนำมาใช้กับโปรเจกต์ใหม่
+กับ Vite และ React วิธีที่แนะนำในการเพิ่ม PWA support คือ `vite-plugin-pwa` โดย plugin ตัวนี้ครอบ Workbox ไว้เบื้องหลัง, สร้าง service worker ให้คุณตอน build time, ฉีด web app manifest เข้าไปใน HTML และเปิดเผย registration API ขนาดเล็กที่คุณสามารถเรียกใช้จาก code ในแอป Create React App ที่เป็นทางเลือกเก่า ปัจจุบันถูก deprecated แล้วและไม่ควรนำมาใช้กับโปรเจกต์ใหม่
 
 โมดูลนี้ครอบคลุม 5 บทเรียนที่พาคุณจากโปรเจกต์ Vite + React เปล่า ไปสู่ PWA ที่ทำงานได้อย่างสมบูรณ์พร้อม update prompt และ integration patterns เฉพาะของ React
 

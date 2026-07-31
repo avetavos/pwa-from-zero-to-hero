@@ -29,7 +29,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ### App-shell model
 
-**App shell** คือชุดขั้นต่ำของ HTML, CSS, และ JavaScript ที่จำเป็นสำหรับการ render โครงของแอป — navigation bar, sidebar, loading skeleton, และ chrome อื่น ๆ ที่เหมือนกันในทุกหน้า มันเปลี่ยนแปลงน้อยมาก (คิดว่า: ครั้งต่อ deployment) และมักมีขนาดเล็ก
+**App shell** คือชุดขั้นต่ำของ HTML, CSS, และ JavaScript ที่จำเป็นสำหรับการ render โครงของแอป — navigation bar, sidebar, loading skeleton, และ chrome อื่น ๆ ที่เหมือนกันในทุกหน้า shell เปลี่ยนแปลงน้อยมาก (คิดว่า: ครั้งต่อ deployment) และมักมีขนาดเล็ก
 
 Dynamic content — ข้อมูลจริงที่แอปแสดง — โหลดแยกกัน มักมาจาก API หรือ IndexedDB เนื้อหานี้เปลี่ยนแปลงตลอดเวลาและไม่สามารถ precache ได้ทั้งหมด
 
@@ -39,7 +39,7 @@ Dynamic content — ข้อมูลจริงที่แอปแสดง
 
 ใน **การเข้าชมครั้งแรก** browser ยังไม่มี cache ดังนั้นทุกอย่างมาจากเครือข่าย Service worker ติดตั้งในพื้นหลังและเติมข้อมูล cache ด้วย shell assets
 
-ใน **ทุกการเข้าชมถัดไป** (รวมถึงเมื่อ offline) service worker จะดักจับ navigation request และตอบกลับจาก cache Shell ปรากฏขึ้นทันที — โดยปกติน้อยกว่า 100 ms — ในขณะที่แอป fetch เนื้อหาใหม่แบบ asynchronous
+ใน **ทุกการเข้าชมถัดไป** (รวมถึงเมื่อ offline) service worker จะดักจับ navigation request และตอบกลับจาก cache Shell ปรากฏขึ้นทันที — โดยปกติน้อยกว่า 100 ms — ขณะที่แอป fetch เนื้อหาใหม่แบบ asynchronous
 
 export const shellDiagram = `flowchart TD
   subgraph CacheStorage["Cache Storage (precached on install)"]

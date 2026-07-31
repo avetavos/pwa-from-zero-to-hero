@@ -110,20 +110,20 @@ AstroPWA({
 Add the integration to `astro.config.mjs` `integrations` — it wires the SW + manifest into Astro's build.
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ใช้ @vite-pwa/astro ครบชุด | ตั้งค่า service worker + manifest ให้ในคำสั่งเดียว เข้ากับ build pipeline ของ Astro ทันที | ผูกกับ ecosystem ของ Vite PWA ต้องตามอัปเดต plugin เอง |
 | ตั้งค่า service worker เองแบบ manual ใน Astro | ไม่ผูกกับ plugin เฉพาะ ควบคุมได้เต็มที่ | ต้อง integrate เข้ากับ Astro build output ด้วยมือทั้งหมด เสี่ยง bug จาก asset hash ไม่ sync |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ลืมเปิด `devOptions.enabled: true` ทำให้ทดสอบ service worker บน dev server ไม่ได้เลยและเข้าใจผิดว่า setup พัง
 - ไม่รู้ว่า Astro เป็น SSG default ทำให้ precache ทำงานเฉพาะตอน build จริง ทดสอบใน dev mode แล้วสับสนว่าทำไมไม่ cache อะไรเลย
 - ตั้ง registerType ผิดกับที่ต้องการ (เช่นตั้ง autoUpdate ทั้งที่อยากให้ผู้ใช้กด prompt เอง) ทำให้ UX อัปเดตไม่ตรงกับที่ออกแบบไว้
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Vite PWA ecosystem** — @vite-pwa/astro เป็นส่วนหนึ่งของ ecosystem เดียวกับที่ Elk (Mastodon client) ใช้บน Vue/React
 >

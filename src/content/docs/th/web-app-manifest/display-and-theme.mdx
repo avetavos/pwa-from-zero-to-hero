@@ -114,20 +114,20 @@ Chrome บนเดสก์ท็อปต้องการ screenshot อย�
 `display: standalone` ลบแถบที่อยู่ของ browser ออกเพื่อให้ PWA รู้สึกเหมือนแอปแท้จริง ใช้ `display_override` เพื่อขอ display mode ใหม่กว่าแบบ progressive — browser ที่ไม่รู้จัก override จะ fallback ไปยัง `display`
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | display: "standalone" | รู้สึกเหมือน native app เต็มตัว ไม่มี browser UI | ผู้ใช้เสีย back/forward button และ address bar ที่คุ้นเคย |
 | display: "browser" | คงพฤติกรรม browser ปกติ ผู้ใช้งานคุ้นเคยทันที | ไม่ได้ความรู้สึก "แอป" ที่ install prompt สัญญาไว้ |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ตั้ง theme_color ใน manifest อย่างเดียว โดยไม่ตั้ง `<meta name="theme-color">` คู่กัน ทำให้สีไม่ตรงกันระหว่าง browser UI กับตอนเป็น standalone
 - เลือก display: "fullscreen" สำหรับแอปทั่วไป ทำให้ผู้ใช้เสีย status bar และ gesture navigation จนใช้งานยาก
 - ไม่ทดสอบ theme บน dark mode ทำให้สี background/theme ขัดกับสีระบบของผู้ใช้
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Spotify Web Player** — ใช้ display: "standalone" คู่กับ theme_color สีดำ ให้ความรู้สึกเหมือนแอป desktop native ตั้งแต่วินาทีแรกที่เปิด
 >

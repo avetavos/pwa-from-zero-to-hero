@@ -54,7 +54,7 @@ export const buildingBlocksDiagram = `flowchart TD
 
 ### HTTPS
 
-Service worker สามารถสกัดกั้น network request ทุกรายการที่หน้าเว็บทำ ดังนั้น browser จะปฏิเสธ การ register service worker บน origin ที่ไม่ปลอดภัย (ทุกอย่างนอกจาก `https://` หรือ `localhost`) HTTPS ไม่ใช่ตัวเลือก — มันคือรากฐานที่ทุกอย่างยึดอยู่
+Service worker สามารถสกัดกั้น network request ทุกรายการที่หน้าเว็บทำ ดังนั้น browser จะปฏิเสธ การ register service worker บน origin ที่ไม่ปลอดภัย (ทุกอย่างนอกจาก `https://` หรือ `localhost`) HTTPS ไม่ใช่ตัวเลือก — แต่เป็นรากฐานที่ทุกอย่างยึดอยู่
 
 ### Web App Manifest
 
@@ -77,7 +77,7 @@ Service worker สามารถสกัดกั้น network request ทุ
 
 ### Service Worker
 
-ไฟล์ JavaScript ที่รันใน background thread แยกจากหน้าเว็บของคุณ มันทำหน้าที่เป็น network proxy ที่ตั้งโปรแกรมได้ — สกัดกั้น fetch request, ตอบสนองจาก cache, และเปิดใช้งาน push notification และ background sync บทเรียนในส่วน **Service Workers** จะครอบคลุมเรื่องนี้อย่างละเอียด
+ไฟล์ JavaScript ที่รันใน background thread แยกจากหน้าเว็บของคุณ ทำหน้าที่เป็น network proxy ที่ตั้งโปรแกรมได้ — สกัดกั้น fetch request, ตอบสนองจาก cache, และเปิดใช้งาน push notification และ background sync บทเรียนในส่วน **Service Workers** จะครอบคลุมเรื่องนี้อย่างละเอียด
 
 ### App Shell
 

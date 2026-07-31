@@ -99,7 +99,7 @@ SW ใหม่รอ Component Svelte ของคุณใช้ `useRegisterS
 {/if}
 ```
 
-`updateServiceWorker(true)` ส่ง `SKIP_WAITING` ไปยัง SW ที่รออยู่ และ reload หน้าเมื่อมันถูก activate
+`updateServiceWorker(true)` ส่ง `SKIP_WAITING` ไปยัง SW ที่รออยู่ และ reload หน้าเมื่อ SW ตัวนั้น activate
 
 ### ตัวเลือก C: manual `updatefound` / `statechange` (SW ในตัว)
 
@@ -164,23 +164,23 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // ทุกชั่�
 ```
 
 <Callout title="Key point">
-ด้วย `@vite-pwa/sveltekit` ใช้ API `virtual:pwa-register/svelte` — มันให้ store `needRefresh` และ `offlineReady` รวมถึง `updateServiceWorker()` สำหรับ SW ในตัว ให้เชื่อมต่อ `updatefound` และ `statechange` เองและใช้ `postMessage` เพื่อให้ `skipWaiting()` ขึ้นอยู่กับการกระทำของผู้ใช้
+ด้วย `@vite-pwa/sveltekit` ใช้ API `virtual:pwa-register/svelte` — API นี้ให้ store `needRefresh` และ `offlineReady` รวมถึง `updateServiceWorker()` สำหรับ SW ในตัว ให้เชื่อมต่อ `updatefound` และ `statechange` เองและใช้ `postMessage` เพื่อให้ `skipWaiting()` ขึ้นอยู่กับการกระทำของผู้ใช้
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ให้ SvelteKit reactive statement (`$:`) ตรวจ update state จาก store | UI อัปเดตทันทีแบบ declarative ไม่ต้อง manual DOM update | ต้องเข้าใจ reactivity model ของ Svelte ให้ดีไม่งั้น trigger ผิดจังหวะ |
 | Poll `registration.update()` เป็นระยะด้วยมือ | ควบคุม timing การเช็ค update ได้ชัดเจน | เพิ่ม network request โดยไม่จำเป็นถ้า interval ตั้งถี่เกินไป |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ไม่ handle `updatefound` event ให้ครบ ทำให้ UI ไม่รู้เลยว่ามี service worker เวอร์ชันใหม่กำลังติดตั้งอยู่เบื้องหลัง
 - Reload หน้าทันทีที่ state เปลี่ยนโดยไม่ถามผู้ใช้ก่อน ทำให้งานที่กำลังกรอกอยู่ในฟอร์มหายไปกลางคัน
 - ไม่ debounce การเช็ค update ทำให้ยิง `registration.update()` ถี่เกินจำเป็นทุกครั้งที่ navigate ไปมาในแอป
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Vite PWA ecosystem (SvelteKit)** — ใช้ `virtual:pwa-register/svelte` store แจ้ง needRefresh ให้ UI แสดง toast ตามมาตรฐานเดียวกับฝั่ง React/Vue
 >

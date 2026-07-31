@@ -90,14 +90,14 @@ self.addEventListener('fetch', (event) => {
 เกณฑ์บังคับสามข้อ: ให้บริการผ่าน HTTPS, มี web app manifest และมี service worker ที่ลงทะเบียนแล้ว
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | PWA (เว็บเป็นฐาน) | เข้าถึงได้ผ่าน URL เดียว ไม่ต้องผ่าน app store ก่อนลอง | เข้าถึง API บางตัวของอุปกรณ์ได้จำกัดกว่า native เต็มรูปแบบ |
 | Native App | เข้าถึง hardware/OS API ได้เต็มรูปแบบ | ต้องผ่าน app store ผู้ใช้ต้องดาวน์โหลดก่อนถึงจะลองได้ |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - คิดว่า "มี manifest แล้ว = เป็น PWA" — ทั้งที่ยังขาด HTTPS หรือ service worker ที่ลงทะเบียนสำเร็จ
 - เข้าใจว่า PWA ต้องเลือกแทนที่ native app เสมอ — หลายทีมใช้ทั้งสองคู่กัน (PWA สำหรับ reach, native สำหรับ power user)

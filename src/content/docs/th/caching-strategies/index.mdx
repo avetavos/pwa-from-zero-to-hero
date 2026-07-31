@@ -14,11 +14,11 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 network request ล้มเหลวได้จากหลายสาเหตุ — ผู้ใช้อยู่ออฟไลน์ อยู่บนการเชื่อมต่อที่ช้า หรือ server ใช้งานไม่ได้ชั่วคราว หากไม่มี cache สถานการณ์เหล่านี้ล้วนทำให้ประสบการณ์ใช้งานพังลง แต่ด้วย caching strategy ที่เลือกมาอย่างดี browser สามารถเสิร์ฟ asset จาก local storage ได้ทันทีและซิงค์กับ server ในเบื้องหลัง
 
-caching ยังช่วยตัด round trip ที่ไม่จำเป็นออกไปด้วย ไฟล์ CSS ที่ไม่ได้เปลี่ยนแปลงไม่จำเป็นต้องวิ่งผ่าน network ทุกครั้งที่มีคนโหลดหน้าเพจของคุณ การเสิร์ฟมันจาก local cache ลดเวลาโหลดจากหลายร้อยมิลลิวินาทีให้เหลือเกือบเป็นศูนย์
+caching ยังช่วยตัด round trip ที่ไม่จำเป็นออกไปด้วย ไฟล์ CSS ที่ไม่ได้เปลี่ยนแปลงไม่จำเป็นต้องวิ่งผ่าน network ทุกครั้งที่มีคนโหลดหน้าเพจของคุณ การเสิร์ฟจาก local cache ลดเวลาโหลดจากหลายร้อยมิลลิวินาทีให้เหลือเกือบเป็นศูนย์
 
 ### Precache กับ runtime cache
 
-**Precaching** เกิดขึ้นตอน service worker install คุณระบุ URL ที่ต้องการแคชอย่างชัดเจน แล้ว browser จะดึงและเก็บมันก่อนที่ SW จะ activate วิธีนี้เหมาะที่สุดสำหรับ app shell ของคุณ — ไฟล์ HTML, CSS, และ JS ที่ประกอบเป็นโครงสร้างหลักของ UI
+**Precaching** เกิดขึ้นตอน service worker install คุณระบุ URL ที่ต้องการแคชอย่างชัดเจน แล้ว browser จะดึงและเก็บไฟล์เหล่านั้นก่อนที่ SW จะ activate วิธีนี้เหมาะที่สุดสำหรับ app shell ของคุณ — ไฟล์ HTML, CSS, และ JS ที่ประกอบเป็นโครงสร้างหลักของ UI
 
 **Runtime caching** เกิดขึ้นแบบ on demand ในครั้งแรกที่ผู้ใช้ร้องขอ resource (รูปภาพ, การตอบกลับจาก API, ฟอนต์) service worker จะดักจับ fetch เก็บ response นั้นไว้ และเสิร์ฟ request ครั้งถัดไปจาก cache แนวทางนี้เหมาะกับเนื้อหาแบบไดนามิกหรือเฉพาะผู้ใช้ที่คุณไม่สามารถระบุล่วงหน้าตอน build ได้
 
@@ -55,7 +55,7 @@ export const quizIndex = [
   {
     q: 'อะไรคือความแตกต่างระหว่าง precaching กับ runtime caching?',
     options: [
-      'Precaching เก็บ asset ตอน install time; runtime caching เก็บมันตอน request ครั้งแรก',
+      'Precaching เก็บ asset ตอน install time; runtime caching เก็บตอน request ครั้งแรก',
       'Precaching เร็วกว่า runtime caching',
       'Runtime caching ทำงานได้เฉพาะตอนออนไลน์เท่านั้น',
       'Precaching แคชได้เฉพาะไฟล์ HTML เท่านั้น',

@@ -52,7 +52,7 @@ export const online = readable(
 
 ### Install-prompt store และ component
 
-Event `beforeinstallprompt` จะ fire เมื่อ browser ตัดสินใจว่า PWA ของคุณสามารถติดตั้งได้ คุณต้องจับ event object ไว้ — มันเป็น ephemeral — และเรียก `.prompt()` ในภายหลังเมื่อผู้ใช้โต้ตอบกับ install button ของคุณ
+Event `beforeinstallprompt` จะ fire เมื่อ browser ตัดสินใจว่า PWA ของคุณสามารถติดตั้งได้ คุณต้องจับ event object ไว้ — เป็น ephemeral — และเรียก `.prompt()` ในภายหลังเมื่อผู้ใช้โต้ตอบกับ install button ของคุณ
 
 ```ts
 // src/lib/stores/install-prompt.ts
@@ -97,7 +97,7 @@ Component ที่ใช้ store เพื่อแสดง install button:
 
 ### Reactive "update available" state
 
-คุณสามารถเก็บ update state ใน plain writable store เพื่อให้ UI ของคุณทุกส่วน react ต่อมันได้:
+คุณสามารถเก็บ update state ใน plain writable store เพื่อให้ UI ทุกส่วน react ต่อ state นี้ได้:
 
 ```ts
 // src/lib/stores/sw-update.ts
@@ -170,23 +170,23 @@ export const prerender = true;
 ด้วย `adapter-node` หรือ `adapter-vercel` เฉพาะ route ที่คุณ prerender อย่างชัดเจนเท่านั้นที่ใช้ได้ offline Route ที่ render บน server แบบ dynamic ต้องการการเชื่อมต่อเครือข่าย
 
 <Callout title="Key point">
-เก็บสถานะ PWA — สถานะ offline, ความพร้อมในการอัปเดต, และ install prompt — ใน Svelte store เพื่อให้ component ใดก็ตาม react ต่อมันได้ ป้องกัน browser-only API (`navigator`, `window`) ด้วย `typeof window !== 'undefined'` เสมอเพื่อป้องกัน SSR crash ใช้ `adapter-static` พร้อม `prerendered` asset สำหรับแอปที่ offline ได้ทั้งหมด
+เก็บสถานะ PWA — สถานะ offline, ความพร้อมในการอัปเดต, และ install prompt — ใน Svelte store เพื่อให้ component ไหนก็ react ต่อ store นี้ได้ ป้องกัน browser-only API (`navigator`, `window`) ด้วย `typeof window !== 'undefined'` เสมอเพื่อป้องกัน SSR crash ใช้ `adapter-static` พร้อม `prerendered` asset สำหรับแอปที่ offline ได้ทั้งหมด
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ผูก PWA state เข้ากับ Svelte store | UI reactive ต่อ install/update state ทันทีทั่วทั้งแอปผ่าน store เดียว | ต้องออกแบบ store structure ให้ดีไม่งั้น state กระจัดกระจาย |
 | จัดการ PWA state แบบแยกเป็น local component variable | เขียนง่ายในเคสเล็กๆ ไม่ต้องตั้ง store | ไม่ sync กันข้าม component ทำให้ UI ส่วนต่างๆ เห็น state ไม่ตรงกัน |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - subscribe store ใน component โดยไม่ unsubscribe (ไม่ใช้ `$` auto-subscription หรือ onDestroy) ทำให้เกิด memory leak
 - เขียน logic ของ service worker ปนอยู่ใน component โดยตรงแทนที่จะแยกเป็น store/module ทำให้ reuse ข้ามหน้าไม่ได้
 - ไม่เช็คว่าโค้ดรันฝั่ง client จริง (SvelteKit SSR) ก่อนเข้าถึง `navigator.serviceWorker` ทำให้ build พังตอน SSR
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Vite PWA ecosystem (SvelteKit)** — ใช้ store pattern ครอบ `virtual:pwa-register/svelte` ให้ UI reactive ต่อ update state ได้ทันที
 >

@@ -11,7 +11,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## ตั้งค่า `@vite-pwa/sveltekit`
 
-แพ็กเกจ `@vite-pwa/sveltekit` ห่อ Workbox ไว้ใน Vite plugin ที่เชื่อมกับ build pipeline ของ SvelteKit มันสร้าง service worker, ฉีด precache manifest, และสร้าง web app manifest — ทั้งหมดนี้จาก plugin call เดียว
+แพ็กเกจ `@vite-pwa/sveltekit` ห่อ Workbox ไว้ใน Vite plugin ที่เชื่อมกับ build pipeline ของ SvelteKit โดย plugin ตัวนี้สร้าง service worker, ฉีด precache manifest, และสร้าง web app manifest — ทั้งหมดนี้จาก plugin call เดียว
 
 ### การติดตั้ง
 
@@ -114,23 +114,23 @@ SvelteKitPWA({
 ```
 
 <Callout title="Key point">
-เพิ่ม `SvelteKitPWA()` ใน Vite plugins ของคุณ — มันสร้าง service worker และ manifest สำหรับ SvelteKit build ใช้ `registerType: 'prompt'` ใน production เพื่อให้ผู้ใช้ควบคุมเวลาที่จะ apply การอัปเดต
+เพิ่ม `SvelteKitPWA()` ใน Vite plugins ของคุณ — plugin จะสร้าง service worker และ manifest สำหรับ SvelteKit build ใช้ `registerType: 'prompt'` ใน production เพื่อให้ผู้ใช้ควบคุมเวลาที่จะ apply การอัปเดต
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | ใช้ `@vite-pwa/sveltekit` | ตั้งค่า manifest+service worker ให้พร้อมใช้ในคำสั่งเดียว เข้ากับ adapter ของ SvelteKit | ผูกกับ ecosystem เฉพาะ ต้องตามอัปเดต plugin แยกจาก SvelteKit เอง |
 | เขียน setup เองแบบผสม `$service-worker` module ตรงๆ | ควบคุมทุกรายละเอียดโดยไม่ผ่าน plugin | ต้อง integrate กับ adapter (static/node/vercel) เองทั้งหมด เพิ่ม edge case |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ตั้งค่า plugin โดยไม่เช็คว่า adapter ที่ใช้อยู่ (adapter-static, adapter-node ฯลฯ) รองรับ service worker แบบที่ต้องการหรือไม่
 - ลืมเปิด `devOptions.enabled: true` แล้วสับสนว่าทำไม service worker ไม่ register ตอน dev
 - ไม่ทดสอบบน production build (`vite build && vite preview`) ทำให้พลาด bug ที่เกิดเฉพาะตอน build จริงเท่านั้น
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Vite PWA ecosystem** — `@vite-pwa/sveltekit` เป็นส่วนหนึ่งของ ecosystem เดียวกับ Elk (Mastodon client) ที่พอร์ตแนวคิดเดียวกันมาใช้กับ SvelteKit
 >

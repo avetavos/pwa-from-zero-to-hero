@@ -12,7 +12,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การ register service worker
 
-ก่อนที่ service worker จะดักจับ request ใด ๆ ได้ หน้าเว็บต้อง **register** มันเสียก่อน การ register เป็นการบอก browser ว่าจะหาไฟล์ service worker ได้ที่ไหน และมันควรควบคุม URL ใดบ้าง
+ก่อนที่ service worker จะดักจับ request ใด ๆ ได้ หน้าเว็บต้อง **register** service worker เสียก่อน การ register เป็นการบอก browser ว่าจะหาไฟล์ service worker ได้ที่ไหน และควรควบคุม URL ใดบ้าง
 
 ### การเรียก register
 
@@ -94,23 +94,23 @@ self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request)); });`,
 <PwaPlayground files={proj} />
 
 <Callout title="ประเด็นสำคัญ">
-service worker ที่ `/sw.js` จะควบคุมทั้ง origin — scope เริ่มต้นของมันคือ `/` วางไฟล์ไว้ที่ root ของเว็บไซต์เพื่อให้ครอบคลุมทั้งหมด การย้ายมันเข้าไปในไดเรกทอรีย่อยจะจำกัด scope ให้แคบลงเหลือเพียงไดเรกทอรีย่อยนั้นแบบเงียบ ๆ
+service worker ที่ `/sw.js` จะควบคุมทั้ง origin — scope เริ่มต้นของตัวเองคือ `/` วางไฟล์ไว้ที่ root ของเว็บไซต์เพื่อให้ครอบคลุมทั้งหมด การย้ายไฟล์เข้าไปในไดเรกทอรีย่อยจะจำกัด scope ให้แคบลงเหลือเพียงไดเรกทอรีย่อยนั้นแบบเงียบ ๆ
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
-| Register service worker ตั้งแต่ตอน page load | cache และ offline support พร้อมใช้งานเร็วที่สุด | เพิ่มงานให้ main thread ตอน load ครั้งแรกซึ่งเป็นช่วงที่ user รอ critical content |
+| Register service worker ตั้งแต่ตอน page load | cache และ offline support พร้อมใช้งานเร็วที่สุด | เพิ่มงานให้ main thread ตอน load ครั้งแรกที่เป็นช่วงที่ user รอ critical content |
 | Register หลัง load event (deferred) | ไม่แย่ง resource กับ critical rendering path ตอนโหลดหน้าแรก | ผู้ใช้ที่ปิดหน้าเร็วเกินไปอาจไม่ทัน register เลยสักครั้ง |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - Register service worker path ที่ผิด scope ทำให้ควบคุมได้แค่บาง path แทนที่จะเป็นทั้งเว็บไซต์
 - ไม่ check `if ('serviceWorker' in navigator)` ก่อน register ทำให้ browser เก่าที่ไม่รองรับโยน error กลางหน้า
 - Register ซ้ำหลายครั้งโดยไม่ระวัง ทำให้เกิด service worker หลายเวอร์ชันแย่งกัน handle fetch event
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **web.dev checklist** — แนะนำให้ register service worker หลัง `load` event เสมอ เพื่อไม่ให้แย่ง bandwidth กับ critical resource ตอนโหลดหน้าแรก
 >
@@ -138,7 +138,7 @@ export const quizRegisterSw = [
     answer: 2,
   },
   {
-    q: 'คุณวาง sw.js ไว้ที่ /admin/sw.js scope เริ่มต้นของมันคืออะไร?',
+    q: 'คุณวาง sw.js ไว้ที่ /admin/sw.js scope เริ่มต้นของตัวเองคืออะไร?',
     options: ['/admin/', '/', '/admin/sw.js', 'ต้องตั้ง scope แบบชัดเจนเสมอ'],
     answer: 0,
   },

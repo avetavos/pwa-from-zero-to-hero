@@ -104,20 +104,20 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));`,
 `start_url` คือ URL ที่แอปจะเปิดเมื่อเปิดจากหน้าจอหลัก ตั้งค่าให้เป็น URL ที่ server ของคุณให้บริการจริง — `start_url` ที่ไม่ถูกต้องจะทำให้การติดตั้งล้มเหลว
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | กรอก field ที่จำเป็นครบตามสเปก (name, icons, start_url, display) | ผ่านเกณฑ์ installability ของทุก browser ทันที | ต้องเตรียม icon หลายขนาดและทดสอบให้ครบก่อน ship |
 | กรอกเฉพาะ field ขั้นต่ำที่ทำให้ build ผ่าน | เริ่มต้นได้เร็ว ไม่บล็อก development | Lighthouse อาจไม่ให้ผ่านเกณฑ์ installable เต็มรูปแบบ ต้องกลับมาแก้ทีหลัง |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ตั้ง start_url เป็น relative path ที่ไม่ resolve จาก root ทำให้เปิดแอปจาก home screen แล้วพาไปหน้าอื่นที่ไม่ตั้งใจ
 - ลืมใส่ short_name ทำให้ label ใต้ icon บน home screen ถูกตัดจนอ่านไม่รู้เรื่อง
 - ลิงก์ manifest ผิด MIME type หรือ path ทำให้ browser หา manifest.json ไม่เจอและไม่ถือว่า installable
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **Squoosh** — เขียน manifest ที่ครบทุก field จำเป็นตั้งแต่ต้น ทำให้ผ่าน Lighthouse PWA checklist แบบเต็มคะแนนโดยไม่ต้องแก้ทีหลัง
 >

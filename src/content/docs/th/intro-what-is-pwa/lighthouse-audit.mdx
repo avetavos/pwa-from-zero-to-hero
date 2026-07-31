@@ -12,9 +12,9 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 
 ## การ Audit PWA ด้วย Lighthouse
 
-Lighthouse คือเครื่องมือคุณภาพที่ built-in มากับ Chrome มันรัน automated check กับหน้าของคุณและสร้าง report แบบแยกหมวดหมู่พร้อมคะแนน ตั้งแต่ **Lighthouse 12** (ปี 2024 มากับ Chrome DevTools ราวๆ Chrome 126) report มีสี่หมวด: **Performance**, **Accessibility**, **Best Practices** และ **SEO** ส่วนหมวดเดิม **Progressive Web App** — ที่เคยแสดง pass/fail ของเกณฑ์ installability แต่ละข้อ — ถูก **ลบออกไปแล้ว** Lighthouse ไม่ให้คะแนนหมวด PWA อีกต่อไป การตรวจสอบ installability และเช็คเฉพาะทางของ PWA ย้ายไปอยู่ที่ **Application** panel ใน DevTools แทน
+Lighthouse คือเครื่องมือคุณภาพที่ built-in มากับ Chrome โดยรัน automated check กับหน้าของคุณแล้วสร้าง report แบบแยกหมวดหมู่พร้อมคะแนน ตั้งแต่ **Lighthouse 12** (ปี 2024 มากับ Chrome DevTools ราวๆ Chrome 126) report มีสี่หมวด: **Performance**, **Accessibility**, **Best Practices** และ **SEO** ส่วนหมวดเดิม **Progressive Web App** — ที่เคยแสดง pass/fail ของเกณฑ์ installability แต่ละข้อ — ถูก **ลบออกไปแล้ว** Lighthouse ไม่ให้คะแนนหมวด PWA อีกต่อไป การตรวจสอบ installability และเช็คเฉพาะทางของ PWA ย้ายไปอยู่ที่ **Application** panel ใน DevTools แทน
 
-การสร้างนิสัยในการเช็คแอปแต่เนิ่นๆ — ก่อนที่คุณจะเชื่อมต่อ caching strategy หรือ push notification — หมายความว่าคุณจับส่วนที่ขาดหายไปได้ในขณะที่ codebase ยังเล็กอยู่ Lighthouse ดูแลเรื่อง performance และ best practices ส่วน Application panel ดูแลเรื่อง installability
+การสร้างนิสัยในการเช็คแอปแต่เนิ่นๆ — ก่อนที่คุณจะเชื่อมต่อ caching strategy หรือ push notification — หมายความว่าคุณจับส่วนที่ขาดหายไปได้ตอนที่ codebase ยังเล็กอยู่ Lighthouse ดูแลเรื่อง performance และ best practices ส่วน Application panel ดูแลเรื่อง installability
 
 ### วิธีรัน Lighthouse
 
@@ -24,11 +24,11 @@ Lighthouse คือเครื่องมือคุณภาพที่ bu
 4. ภายใต้ **Categories** เลือกหมวดที่ต้องการ — **Performance**, **Accessibility**, **Best Practices**, **SEO**
 5. คลิก **Analyze page load**
 
-Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล และแสดง report พร้อมคะแนนแยกตามหมวด สังเกตว่า **ไม่มีหมวด Progressive Web App** ให้ติ๊กแล้ว — มันถูกลบไปใน Lighthouse 12 หากต้องการยืนยันว่าแอปติดตั้งได้ ให้ใช้ **Application** panel ที่อธิบายต่อจากนี้
+Lighthouse โหลดหน้าซ้ำ เก็บข้อมูล และแสดง report พร้อมคะแนนแยกตามหมวด สังเกตว่า **ไม่มีหมวด Progressive Web App** ให้ติ๊กแล้ว — หมวดนี้ถูกลบไปใน Lighthouse 12 หากต้องการยืนยันว่าแอปติดตั้งได้ ให้ใช้ **Application** panel ที่อธิบายต่อจากนี้
 
 ### ทัวร์ Application tab
 
-tab **Application** ใน DevTools คือที่ที่ installability ย้ายมาอยู่ตอนนี้ มันให้คุณตรวจสอบ state สดของ PWA ได้ตลอดเวลาโดยไม่ต้องโหลดซ้ำ
+tab **Application** ใน DevTools คือที่ที่ installability ย้ายมาอยู่ตอนนี้ คุณตรวจสอบ state สดของ PWA ได้ตลอดเวลาโดยไม่ต้องโหลดซ้ำ
 
 | Panel | สิ่งที่แสดง |
 |---|---|
@@ -37,7 +37,7 @@ tab **Application** ใน DevTools คือที่ที่ installability �
 | **Storage** | รายการ Cache Storage ที่สร้างโดย SW ของคุณ มีประโยชน์สำหรับการตรวจสอบ pre-cache list |
 | **Background Services** | Log สำหรับ Background Fetch, Background Sync, Push Messaging — มีประโยชน์เมื่อคุณเพิ่ม API เหล่านั้น |
 
-เปิด panel **Manifest** ก่อนเป็นอันดับแรกสำหรับ PWA ที่ไม่คุ้นเคย มันบอกได้ทันทีว่า browser ได้ parse manifest ที่ถูกต้องหรือไม่ และพบ icon อะไรบ้าง
+เปิด panel **Manifest** ก่อนเป็นอันดับแรกสำหรับ PWA ที่ไม่คุ้นเคย panel นี้บอกได้ทันทีว่า browser ได้ parse manifest ที่ถูกต้องหรือไม่ และพบ icon อะไรบ้าง
 
 ### เกณฑ์ installability (ตรวจสอบใน Application panel)
 
@@ -61,7 +61,7 @@ tab **Application** ใน DevTools คือที่ที่ installability �
 | `Manifest does not contain a 192px icon` | array icons ว่างเปล่าหรือ icon ทั้งหมดเล็กกว่า 192 px | เพิ่ม entry ที่มี `"sizes": "192x192"` และอีกอันที่มี `"sizes": "512x512"` |
 | `Page controlled by a service worker` ล้มเหลว | ไม่มี SW register, SW throw ระหว่าง install หรือ scope ของ SW ไม่ครอบคลุมหน้า | Register SW จาก root (`/sw.js`) และยืนยันว่า console ไม่แสดง registration error |
 | `Does not redirect HTTP to HTTPS` | Production server ไม่ enforce HTTPS | กำหนดค่า host หรือ CDN ของคุณให้ออก 301 redirect จาก `http://` ไปยัง `https://` |
-| `start_url does not respond with a 200` | `start_url` ชี้ไปยัง path ที่ return 404 หรือ SW ไม่จัดการ request นั้น | ตรวจสอบว่า `start_url` เป็น route จริงและ fetch handler ของ SW return บางอย่างสำหรับมัน |
+| `start_url does not respond with a 200` | `start_url` ชี้ไปยัง path ที่ return 404 หรือ SW ไม่จัดการ request นั้น | ตรวจสอบว่า `start_url` เป็น route จริงและ fetch handler ของ SW return บางอย่างให้ route นั้น |
 | `display is not one of standalone, fullscreen, minimal-ui` | `"display": "browser"` หรือ field ขาดหายไป | เปลี่ยนเป็น `"display": "standalone"` |
 
 ### ทดลองแบบ live
@@ -158,20 +158,20 @@ if ('serviceWorker' in navigator) {
 Lighthouse ไม่มีหมวด PWA อีกต่อไป (ถูกลบใน v12) — หมวดที่เหลือคือ Performance, Accessibility, Best Practices และ SEO ให้ตรวจสอบ installability แต่เนิ่นๆ ที่ **Application → Manifest** ซึ่งบอกคุณว่ายังขาดข้อใด
 </Callout>
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | รัน Lighthouse audit ใน CI ทุก PR | จับ regression ของ PWA checklist ได้ทันทีก่อน merge | เพิ่มเวลา build/CI และต้อง maintain threshold score |
 | รัน Lighthouse แบบ manual เป็นครั้งคราว | ไม่เพิ่ม overhead ให้ pipeline | พลาด regression ได้ง่าย เพราะไม่มีใครนึกจะรันจนกว่าจะมีปัญหา |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - อ่านแค่ตัวเลขคะแนนรวมโดยไม่ดู audit item ที่ fail จริง ทำให้แก้ปัญหาผิดจุด
 - รัน Lighthouse บน localhost ที่ไม่มี production build/caching จริง แล้วเข้าใจผิดว่าคะแนนใน production จะเหมือนกัน
 - ไม่รันซ้ำหลายรอบ — คะแนน performance ผันผวนตาม network throttling และ CPU ของเครื่องที่รัน
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **web.dev/measure** — ทีม Chrome ใช้ Lighthouse เป็นมาตรฐานกลางสำหรับ PWA checklist ที่นักพัฒนาทั่วโลกอ้างอิง
 >

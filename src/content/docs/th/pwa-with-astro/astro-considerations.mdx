@@ -82,7 +82,7 @@ export default defineConfig({
 
 ### islands hydration และพฤติกรรม offline
 
-Astro islands จะส่ง JavaScript ของแต่ละ component เป็น chunk แยกต่างหากใน `dist/` เนื่องจาก `@vite-pwa/astro` precache ทุกไฟล์ที่ตรงกับ `globPatterns` bundle JS ของ island ทั้งหมดจึงถูก cache โดยอัตโนมัติ island ที่ใช้ `client:visible` หรือ `client:idle` จะ hydrate ได้ถูกต้องแม้ offline ตราบที่ chunk ของมันอยู่ใน precache manifest ซึ่งจะเป็นเช่นนั้นหาก `globPatterns` ครอบคลุม `**/*.js`
+Astro islands จะส่ง JavaScript ของแต่ละ component เป็น chunk แยกต่างหากใน `dist/` เนื่องจาก `@vite-pwa/astro` precache ทุกไฟล์ที่ตรงกับ `globPatterns` bundle JS ของ island ทั้งหมดจึงถูก cache โดยอัตโนมัติ island ที่ใช้ `client:visible` หรือ `client:idle` จะ hydrate ได้ถูกต้องแม้ offline ตราบที่ chunk ของตัวเองอยู่ใน precache manifest ซึ่งจะเป็นเช่นนั้นหาก `globPatterns` ครอบคลุม `**/*.js`
 
 ไม่จำเป็นต้องกำหนดค่าพิเศษสำหรับ islands offline support ข้อจำกัดสำคัญคือข้อมูลของ island ต้องพร้อมใช้งาน offline ด้วย: หาก component นั้น fetch จาก API ที่ไม่ได้ cache ไว้ขณะ runtime ข้อมูลนั้นจะหายไปเมื่อ offline
 
@@ -103,20 +103,20 @@ npm run preview
 
 หลังเปิด preview URL ไปที่ **DevTools → Application → Service Workers** เพื่อยืนยันว่า SW registered และ active แล้ว ใช้ **Cache Storage** เพื่อตรวจสอบว่า precache manifest entries มีอยู่ครบถ้วน หากต้องการจำลองพฤติกรรม offline ให้ติ๊ก **Offline** ใน Network panel แล้ว reload
 
-## Trade-offs
+## ข้อแลกเปลี่ยน
 
 | ตัวเลือก | Benefit | Cost |
 |---|---|---|
 | Astro SSG (precache ผลลัพธ์ build ทั้งหมด) | offline ทำงานได้ทันทีหลัง build เพราะทุกหน้าเป็น static file อยู่แล้ว | เนื้อหาที่เปลี่ยนบ่อยต้อง rebuild+redeploy ใหม่ทุกครั้งถึงจะ cache ตัวใหม่ |
 | Astro + island architecture (partial hydration) | ส่ง JS ลง client น้อยกว่ามาก เหมาะกับ PWA ที่เน้นความเร็ว | ต้องระวัง service worker cache แยก JS ของแต่ละ island ให้ถูก scope |
 
-## Common Mistakes
+## ข้อผิดพลาดที่พบบ่อย
 
 - ลืมว่า Astro เป็น multi-page app โดย default ทำให้ navigation ระหว่างหน้าเป็น full page load ที่ service worker ต้อง handle ต่างจาก SPA
 - ไม่เผื่อ cache สำหรับหน้าที่ render แบบ SSR (ถ้าใช้ hybrid mode) ทำให้ offline fallback ใช้ไม่ได้กับหน้าที่ไม่ใช่ static
 - Precache ทุกหน้ารวมถึงหน้าที่แทบไม่มีคนเข้า ทำให้ storage โตเกินจำเป็นโดยไม่ได้ประโยชน์เพิ่ม
 
-> 💡 Real World Example
+> 💡 ตัวอย่างจากของจริง
 >
 > **VitePress / Astro documentation sites** — ใช้ SSG ร่วมกับ service worker precache ทำให้ documentation เปิดอ่านได้แบบ offline ทันทีหลังเข้าชมครั้งแรก
 >
