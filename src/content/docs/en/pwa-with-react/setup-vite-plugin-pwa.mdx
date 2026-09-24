@@ -80,6 +80,21 @@ The `registerType` option controls how the service worker handles updates when a
 `registerType: "autoUpdate"` ships updates silently; `"prompt"` lets you show a refresh button.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| `autoUpdate` registerType | Users automatically get the new version with no action needed | May reload mid-task if the UX around it is not handled carefully |
+| `prompt` registerType | The user controls when to update, safer | You must build the notification UI yourself, and users may ignore it and stay on the old version for a long time |
+
+## Common mistakes
+
+- Forgetting to set `devOptions.enabled: true` and being confused about why the service worker does nothing in dev mode (it is off by default).
+- Testing PWA behavior on `npm run dev`, assuming it behaves like production, when the service worker actually works differently there — always test against a real build.
+- Not building UI for the `needRefresh` state, so the user never finds out a new version is available.
+
+The Vite PWA ecosystem is a standard plugin that real projects like Elk (the Mastodon client) use to build a full PWA on Vite/React, and many VitePress sites use the same `vite-plugin-pwa` setup to turn thousands of documentation sites into installable PWAs with little effort.
+
 export const quizSetupVitePluginPwa = [
   {
     q: 'Which devDependency installs vite-plugin-pwa?',

@@ -114,6 +114,21 @@ Chrome on desktop requires at least one screenshot before it shows the rich inst
 `display: standalone` removes the browser address bar so the PWA feels like a native app. Use `display_override` to request newer display modes progressively — browsers that do not understand the override fall back to `display`.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| `display: "standalone"` | Feels fully native, no browser UI | Users lose the familiar back/forward buttons and address bar |
+| `display: "browser"` | Keeps normal browser behaviour, instantly familiar | Loses the "app" feeling the install prompt promised |
+
+## Common mistakes
+
+- Setting `theme_color` in the manifest only, without also setting `<meta name="theme-color">`, so colors mismatch between browser UI and standalone mode.
+- Choosing `display: "fullscreen"` for an ordinary app, so users lose the status bar and gesture navigation they rely on.
+- Not testing the theme in dark mode, so the background/theme colors clash with the user's system colors.
+
+**Twitter Lite** tuned its `theme_color` to match its brand color as part of its PWA rebuild, so the status bar blends with the UI the moment it is opened from the home screen ([web.dev/twitter](https://web.dev/twitter/)).
+
 export const quizDisplayTheme = [
   {
     q: 'Which display value removes all browser UI to create a fully immersive experience?',

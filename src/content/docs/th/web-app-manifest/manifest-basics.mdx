@@ -117,11 +117,7 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));`,
 - ลืมใส่ short_name ทำให้ label ใต้ icon บน home screen ถูกตัดจนอ่านไม่รู้เรื่อง
 - ลิงก์ manifest ผิด MIME type หรือ path ทำให้ browser หา manifest.json ไม่เจอและไม่ถือว่า installable
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Squoosh** — เขียน manifest ที่ครบทุก field จำเป็นตั้งแต่ต้น ทำให้ผ่าน Lighthouse PWA checklist แบบเต็มคะแนนโดยไม่ต้องแก้ทีหลัง
->
-> **Google I/O web app** — ใช้ manifest.json ที่มี short_name แยกจาก name ชัดเจน เพื่อให้อ่านง่ายบน home screen ของมือถือจอเล็ก
+Squoosh — PWA บีบอัดรูปภาพแบบ open source ของ Google Chrome Labs — เขียน manifest ที่ครบทุก field จำเป็นตั้งแต่ต้น ([source บน GitHub](https://github.com/GoogleChromeLabs/squoosh)) เป็นตัวอย่างที่ดีในการดู manifest จริงนอกเหนือจาก demo ในบทนี้
 
 export const quizManifestBasics = [
   {

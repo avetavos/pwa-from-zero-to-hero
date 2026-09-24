@@ -173,6 +173,21 @@ With `adapter-node` or `adapter-vercel`, only routes you explicitly prerender ar
 Keep PWA state — offline status, update availability, and install prompt — in Svelte stores so any component can react to it. Always guard browser-only APIs (`navigator`, `window`) with `typeof window !== 'undefined'` to prevent SSR crashes. Use `adapter-static` with `prerendered` assets for fully offline-capable apps.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Bind PWA state to a Svelte store | UI reacts to install/update state instantly, everywhere, through one store | Needs a well-designed store structure or state ends up scattered |
+| Manage PWA state as separate local component variables | Simpler for small cases, no store setup needed | Does not sync across components, so different parts of the UI can see mismatched state |
+
+## Common mistakes
+
+- Subscribing to a store in a component without unsubscribing (not using `$` auto-subscription or `onDestroy`), causing a memory leak.
+- Writing service worker logic directly inline in a component instead of a store/module, so it cannot be reused across pages.
+- Not checking that the code is actually running client-side (SvelteKit SSR) before touching `navigator.serviceWorker`, breaking the build during SSR.
+
+The Vite PWA ecosystem for SvelteKit wraps `virtual:pwa-register/svelte` in a store pattern so the UI can react to update state immediately, and a tool like Squoosh ported to SvelteKit would similarly keep installable/offline state in a Svelte store so every component reads the same value.
+
 export const quizSveltePatterns = [
   {
     q: 'Why must you call e.preventDefault() on the beforeinstallprompt event?',

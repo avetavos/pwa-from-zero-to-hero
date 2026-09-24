@@ -158,6 +158,21 @@ if ('serviceWorker' in navigator) {
 Lighthouse no longer has a PWA category (removed in v12) — its categories are Performance, Accessibility, Best Practices, and SEO. Verify installability early in **Application → Manifest**, which tells you exactly which box is unchecked.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Run a Lighthouse audit in CI on every PR | Catches PWA-checklist regressions immediately, before merge | Adds build/CI time and a score threshold to maintain |
+| Run Lighthouse manually now and then | No added overhead in the pipeline | Regressions slip through easily — nobody remembers to run it until something breaks |
+
+## Common mistakes
+
+- Reading only the overall score without looking at which specific audit item failed, and fixing the wrong thing as a result.
+- Running Lighthouse against `localhost` without a production build or real caching, then assuming production scores will match.
+- Not running it more than once — performance scores swing with network throttling and the CPU load of the machine running it.
+
+[web.dev/measure](https://web.dev/measure/) is Chrome's own hosted Lighthouse runner, and [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci) is Google's open-source tool for wiring a Lighthouse score budget into a build pipeline to catch regressions before they reach production.
+
 export const quizLighthouseAudit = [
   {
     q: 'Lighthouse removed its Progressive Web App category in v12. Where do you now verify a PWA\'s installability in Chrome DevTools?',

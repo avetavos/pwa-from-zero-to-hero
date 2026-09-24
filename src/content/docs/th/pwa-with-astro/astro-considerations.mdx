@@ -116,11 +116,7 @@ npm run preview
 - ไม่เผื่อ cache สำหรับหน้าที่ render แบบ SSR (ถ้าใช้ hybrid mode) ทำให้ offline fallback ใช้ไม่ได้กับหน้าที่ไม่ใช่ static
 - Precache ทุกหน้ารวมถึงหน้าที่แทบไม่มีคนเข้า ทำให้ storage โตเกินจำเป็นโดยไม่ได้ประโยชน์เพิ่ม
 
-> 💡 ตัวอย่างจากของจริง
->
-> **VitePress / Astro documentation sites** — ใช้ SSG ร่วมกับ service worker precache ทำให้ documentation เปิดอ่านได้แบบ offline ทันทีหลังเข้าชมครั้งแรก
->
-> **Astro blog starter ecosystem** — หลายเว็บบล็อกที่ build ด้วย Astro ใช้แนวทาง precache ทั้งเว็บเพราะขนาดไฟล์เล็กพอจะทำได้จริง
+Documentation site ที่ build ด้วย Astro หรือ static-site generator แบบเดียวกันมักผสาน SSG กับ service worker precache ทำให้ documentation เปิดอ่านได้แบบ offline ทันทีหลังเข้าชมครั้งแรก และเว็บบล็อกจำนวนมากที่ build ด้วย Astro ก็ใช้แนวทาง precache ทั้งเว็บเพราะขนาดไฟล์รวมเล็กพอจะทำได้จริง — trade-off เดียวกับตารางด้านบนนี้ใช้ได้กับทั้งสองกรณี
 
 export const quizAstroConsiderations = [
   {

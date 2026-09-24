@@ -117,6 +117,21 @@ If you prefer a static file over the generated one, place `manifest.webmanifest`
 Add `SvelteKitPWA()` to your Vite plugins — it generates the service worker and manifest for the SvelteKit build. Use `registerType: 'prompt'` in production to give users control over when updates apply.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Use `@vite-pwa/sveltekit` | Sets up manifest + service worker in one call, works with SvelteKit's adapters | Tied to a specific ecosystem, you keep the plugin updated separately from SvelteKit itself |
+| Write your own setup directly with the `$service-worker` module | Full control over every detail without a plugin | You handle integration with the adapter (static/node/vercel) entirely yourself, adding edge cases |
+
+## Common mistakes
+
+- Configuring the plugin without checking whether the adapter in use (`adapter-static`, `adapter-node`, etc.) supports the kind of service worker you want.
+- Forgetting to turn on `devOptions.enabled: true` and being confused about why the service worker does not register in dev.
+- Not testing against a production build (`vite build && vite preview`), missing bugs that only show up in the real build.
+
+`@vite-pwa/sveltekit` is part of the same Vite PWA ecosystem that Elk, the open-source Mastodon client, ports the same ideas to on SvelteKit, and many SvelteKit community starter templates use this plugin as their standard starting point for a SvelteKit PWA.
+
 export const quizSvelteKitPwaSetup = [
   {
     q: 'Where do you add SvelteKitPWA() in a SvelteKit project?',

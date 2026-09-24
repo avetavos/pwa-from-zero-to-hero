@@ -104,7 +104,7 @@ import { build, files, version, prerendered } from '$service-worker';
 declare const self: ServiceWorkerGlobalScope;
 
 const CACHE = `cache-\${version}`;
-// … ส่วนที่เหลือของไฟล์เหมือนกัน
+// … rest of the file is identical
 ```
 
 ### แล้ว `prerendered` ล่ะ?
@@ -128,11 +128,7 @@ const CACHE = `cache-\${version}`;
 - ไม่ใช้ `build` และ `files` ที่ export มาจาก module นี้ในการ precache ทำให้ต้อง list asset เองด้วยมือและหลุด sync กับ build จริง
 - ลืมว่า `version` จาก module นี้เปลี่ยนทุก build ทำให้ถ้าไม่ใช้ตั้งชื่อ cache จะ invalidate cache เก่าไม่ถูกจังหวะ
 
-> 💡 ตัวอย่างจากของจริง
->
-> **SvelteKit official service worker docs** — ใช้ `$service-worker` เป็นแนวทางมาตรฐานสำหรับทุกโปรเจกต์ SvelteKit ที่ต้องการ precache แบบ build-aware
->
-> **Vite PWA ecosystem (SvelteKit-based projects)** — โปรเจกต์จำนวนมากที่ใช้ SvelteKit ต่อยอดจาก module นี้เพื่อทำ offline-first app
+[เอกสาร service worker ทางการของ SvelteKit](https://svelte.dev/docs/kit/service-workers) เสนอ `$service-worker` เป็นแนวทางมาตรฐานสำหรับทุกโปรเจกต์ SvelteKit ที่ต้องการ precache แบบ build-aware และหลายโปรเจกต์ที่สร้างบน SvelteKit ก็ต่อยอดจาก module นี้เพื่อทำ offline-first app
 
 export const quizServiceWorkerModule = [
   {

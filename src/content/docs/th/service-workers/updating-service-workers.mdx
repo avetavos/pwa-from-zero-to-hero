@@ -145,11 +145,7 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
 - ไม่ตั้ง versioned cache name ทำให้ cache เก่ากับใหม่ปนกันตอน service worker คนละเวอร์ชันทำงานพร้อมกันชั่วคราว
 - ไม่ handle statechange event เพื่อบอกผู้ใช้ว่ามี update พร้อมใช้ ทำให้ผู้ใช้ไม่รู้ตัวว่าควร refresh
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Google Docs** — ใช้ update flow ที่ตรวจ service worker ใหม่เบื้องหลังแล้วแจ้งผู้ใช้ผ่าน UI แทนการ force reload กลางที่กำลังพิมพ์งาน
->
-> **Gmail** — ตรวจ update เป็นระยะด้วย `registration.update()` และให้ผู้ใช้เลือกเวลาที่จะรับเวอร์ชันใหม่เอง
+แอปประเภทเอกสารหรืออีเมลที่ต้องปกป้องงานที่ยังทำค้างอยู่ มักตรวจ service worker ใหม่เบื้องหลังแล้วแจ้งผ่าน UI แทนการ force reload กลางเซสชัน โดยเช็กเป็นระยะด้วย `registration.update()` แล้วให้ผู้ใช้เลือกเองว่าจะรับเวอร์ชันใหม่เมื่อไร — นี่คือ pattern เดียวกับที่สร้างไว้ด้านบน
 
 export const quizUpdatingSw = [
   {

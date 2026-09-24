@@ -172,11 +172,7 @@ Push notification ต้องการ backend server ของคุณต้�
 - ส่ง push notification บ่อยเกินไปจนผู้ใช้ revoke permission ทิ้งทั้งหมด
 - ไม่ encrypt payload ตามสเปก Web Push (VAPID + payload encryption) ทำให้ push provider บาง raw ปฏิเสธ request
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Facebook web push** — ใช้ Push API แจ้งเตือนข้อความและ activity ให้ผู้ใช้กลับมาที่เว็บแม้ปิด tab ไปแล้ว
->
-> **สายการบิน (check-in reminder)** — ส่ง push แจ้งเตือนเวลา check-in ล่วงหน้า ทำให้ผู้ใช้กลับเข้าแอปโดยไม่ต้องเปิดเองมาเช็ค
+แอปที่ขอ permission แจ้งเตือนเฉพาะหลังจาก action ที่เกี่ยวข้อง (เช่นส่งข้อความ) แทนที่จะขอตั้งแต่แรกเข้า และแอปที่ส่ง reminder ตามเวลา (เช่น check-in reminder ที่ผูกกับตอนจองตั๋ว) ล้วนใช้หลัก "ขอ ณ จังหวะที่เกี่ยวข้อง" แบบเดียวกับที่บทเรียนนี้แนะนำ
 
 export const quizPushApi = [
   {

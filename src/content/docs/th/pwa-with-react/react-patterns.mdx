@@ -150,11 +150,7 @@ Create React App ไม่ได้รับการดูแลรักษา
 - ไม่ cleanup event listener ใน useEffect cleanup function ทำให้เกิด listener ซ้อนหลายตัวเมื่อ component mount ใหม่
 - ผูก PWA install prompt state ไว้ใน local component state แทน global store ทำให้ปุ่มติดตั้งไม่ sync กันข้ามหลาย component
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem (Elk)** — ใช้ hook ครอบ virtual:pwa-register เพื่อให้ UI แจ้งเตือน update ได้แบบ declarative
->
-> **Squoosh** — ผูก service worker lifecycle เข้ากับ UI state เพื่อแจ้งผู้ใช้เมื่อมีเวอร์ชันใหม่พร้อมใช้
+Vite PWA ecosystem อย่างที่ Elk ใช้ ครอบ virtual:pwa-register ด้วย hook เพื่อให้ UI แจ้งเตือน update ได้แบบ declarative ส่วน Squoosh — PWA open source อีกตัวจาก Google Chrome Labs — ก็ผูก service worker lifecycle เข้ากับ UI state เพื่อแจ้งผู้ใช้เมื่อมีเวอร์ชันใหม่พร้อมใช้
 
 export const quizReactPatterns = [
   {

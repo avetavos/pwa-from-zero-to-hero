@@ -132,6 +132,21 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // check every hour
 `skipWaiting()` activates a new service worker immediately, which can leave an already-loaded page running against mismatched assets. Prompt the user to reload instead — let the update happen on a clean page load.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Prompt the user to click refresh to update | The user controls the timing, no interruption to work in progress | A user who never clicks refresh can stay on the old version for a long time |
+| Silent auto-update (`skipWaiting()` immediately) | The user gets fixes/features as fast as possible with no action needed | Risk of corrupted state if the reload happens mid-way through a form the user is filling in |
+
+## Common mistakes
+
+- Using a cache-first strategy for the HTML shell that traps users on an old version forever, because it never touches the network to check for updates.
+- Not versioning cache names, so old and new caches collide while two service worker versions are briefly running side by side.
+- Not handling the `statechange` event to tell the user an update is ready, so they never know they should refresh.
+
+Document- and mail-style apps that need to protect in-progress work typically check for a new service worker in the background and surface it through the UI instead of force-reloading mid-session, checking periodically with `registration.update()` and letting the user pick when to accept the new version — exactly the pattern built above.
+
 export const quizUpdatingSw = [
   {
     q: 'How does the browser determine that a service worker file has changed?',

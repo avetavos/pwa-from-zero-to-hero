@@ -119,11 +119,7 @@ export const pillarsDiagram = `flowchart TD
 - ทดสอบ Capable บน desktop Chrome อย่างเดียว โดยไม่เช็คว่า API ที่ใช้รองรับบน mobile browser หรือไม่
 - คิดว่า Installable แปลว่าต้องผ่าน app store — จริงๆ แล้ว install ได้ตรงจาก browser โดยไม่ต้องพึ่ง store เลย
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Twitter Lite** — โฟกัสที่ Reliable ก่อน ทำให้แอปใช้งานได้แม้เน็ตขาดหาย ก่อนค่อยเพิ่ม Installable ทีหลัง
->
-> **Starbucks** — ทำครบสามเสาหลัก ทำให้ผู้ใช้สั่งเมนูได้แม้สัญญาณอ่อนและติดตั้งไว้ที่หน้าจอหลักได้เหมือนแอป native
+**Twitter Lite** ทำ Reliable layer แบบ offline-first ก่อน แล้วค่อยเพิ่ม Installable ทีหลัง — สอดคล้องกับลำดับการ rollout service worker แบบค่อยเป็นค่อยไปที่ระบุไว้ใน case study ([web.dev/twitter](https://web.dev/twitter/))
 
 export const quizCapableReliableInstallable = [
   {

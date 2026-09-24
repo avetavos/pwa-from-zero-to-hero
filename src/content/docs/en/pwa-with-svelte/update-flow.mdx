@@ -167,6 +167,21 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // every hour
 With `@vite-pwa/sveltekit`, use the `virtual:pwa-register/svelte` API — it gives you `needRefresh` and `offlineReady` Svelte stores plus `updateServiceWorker()`. With the built-in SW, wire `updatefound` and `statechange` yourself and use `postMessage` to keep `skipWaiting()` user-driven.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Let a Svelte reactive statement (`$:`) watch update state from a store | UI updates instantly, declaratively, no manual DOM updates | Requires understanding Svelte's reactivity model well, or triggers fire at the wrong time |
+| Poll `registration.update()` manually on an interval | Clear, explicit control over the check timing | Adds unnecessary network requests if the interval is set too aggressively |
+
+## Common mistakes
+
+- Not fully handling the `updatefound` event, so the UI never learns that a new service worker version is installing in the background.
+- Reloading the page the instant state changes without asking the user first, wiping out work in progress in a form.
+- Not debouncing the update check, firing `registration.update()` far more often than necessary on every navigation within the app.
+
+The Vite PWA ecosystem for SvelteKit uses the `virtual:pwa-register/svelte` store to surface `needRefresh` so the UI can show a toast, the same standard pattern used on the React/Vue side, and Elk shows a prompt for the user to click reload themselves rather than force-reloading while someone is scrolling through their timeline.
+
 export const quizUpdateFlow = [
   {
     q: 'What does registerType: "autoUpdate" do when a new SW is installed?',

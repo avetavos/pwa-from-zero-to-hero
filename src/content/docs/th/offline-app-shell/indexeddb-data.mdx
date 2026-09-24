@@ -182,11 +182,7 @@ Cache Storage สำหรับ requests/responses; IndexedDB สำหรั�
 - ไม่ handle onupgradeneeded ให้ครบ ทำให้ schema migration พังตอนอัปเดต version ของ database
 - ไม่มี error handler บน transaction ทำให้ error เงียบหายไปโดยไม่มีใครรู้ว่า write ล้มเหลว
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Google Docs offline** — เก็บการแก้ไขเอกสารระหว่าง offline ไว้ใน IndexedDB แล้ว sync กลับ server ทันทีที่กลับมามีเน็ต
->
-> **Gmail** — cache อีเมลและ draft ไว้ใน IndexedDB ทำให้เปิดอ่าน/แก้ draft ได้แม้ไม่มีสัญญาณอินเทอร์เน็ต
+แอปประเภทอีเมลหรือเอกสารที่ต้องใช้งานได้ offline มักเก็บ draft และข้อมูลล่าสุดไว้ใน IndexedDB เพื่อให้ผู้ใช้ยังอ่านและแก้ไขต่อได้แม้ไม่มีการเชื่อมต่อ แล้ว sync กลับ server ทันทีที่กลับมามีเน็ต — เป็น pattern เดียวกับที่สร้างไว้ในบทเรียนนี้
 
 export const quizIdb = [
   {

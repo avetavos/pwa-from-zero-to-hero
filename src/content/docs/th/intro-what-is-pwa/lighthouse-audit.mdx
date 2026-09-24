@@ -171,11 +171,7 @@ Lighthouse ไม่มีหมวด PWA อีกต่อไป (ถูก�
 - รัน Lighthouse บน localhost ที่ไม่มี production build/caching จริง แล้วเข้าใจผิดว่าคะแนนใน production จะเหมือนกัน
 - ไม่รันซ้ำหลายรอบ — คะแนน performance ผันผวนตาม network throttling และ CPU ของเครื่องที่รัน
 
-> 💡 ตัวอย่างจากของจริง
->
-> **web.dev/measure** — ทีม Chrome ใช้ Lighthouse เป็นมาตรฐานกลางสำหรับ PWA checklist ที่นักพัฒนาทั่วโลกอ้างอิง
->
-> **Lighthouse CI ของ Google** — หลายทีมตั้ง budget คะแนนขั้นต่ำใน pipeline เพื่อกัน regression ก่อนขึ้น production
+[web.dev/measure](https://web.dev/measure/) เป็นเครื่องมือรัน Lighthouse ที่ Chrome ทำโฮสต์ไว้เอง ส่วน [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci) คือ open-source tool ของ Google สำหรับตั้ง budget คะแนน Lighthouse ใน pipeline เพื่อจับ regression ก่อนขึ้น production
 
 export const quizLighthouseAudit = [
   {

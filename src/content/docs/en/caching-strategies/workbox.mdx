@@ -136,6 +136,21 @@ export default defineConfig({
 Workbox encapsulates cache-first, network-first, and stale-while-revalidate strategies so you write less error-prone service worker code. `vite-plugin-pwa` goes further — it generates the entire SW file with precaching at build time.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Use Workbox instead of writing the service worker by hand | Much less boilerplate, ready-made strategies and routing | Adds a dependency and some bundle size, plus Workbox-specific config to learn |
+| Write a plain service worker by hand | Full control over every line, no abstraction in the way | You reinvent cache versioning, routing, and the precache manifest yourself |
+
+## Common mistakes
+
+- Using the wrong strategy for the wrong kind of route (e.g. `CacheFirst` for an API that changes often) because a config example was copied without understanding it.
+- Not regenerating the precache manifest after a build, so Workbox precaches an old file version whose hash no longer matches the real file.
+- Forgetting that Workbox still requires you to call `self.skipWaiting()` / `clients.claim()` yourself for auto-update — that is not the library's default behavior.
+
+Workbox is built and maintained by the Chrome team ([source on GitHub](https://github.com/GoogleChrome/workbox)), and `vite-plugin-pwa` uses it under the hood to generate the service worker and precaching manifest automatically on every build ([vite-pwa-org.netlify.app](https://vite-pwa-org.netlify.app/)).
+
 export const quizWorkbox = [
   {
     q: 'What does registerRoute() accept as its second argument?',

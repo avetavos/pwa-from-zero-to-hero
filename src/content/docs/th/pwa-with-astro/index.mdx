@@ -29,7 +29,7 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 // src/pages/index.astro
 import Counter from '../components/Counter.tsx';
 ---
-<h1>ยินดีต้อนรับ</h1>
+<h1>Welcome</h1>
 <Counter client:visible />
 ```
 
@@ -51,8 +51,8 @@ import AstroPWA from '@vite-pwa/astro';
 export default defineConfig({
   integrations: [
     AstroPWA({
-      // 'generateSW' (ค่าเริ่มต้น): Workbox เขียน SW ให้คุณ
-      // 'injectManifest': คุณเขียน SW เอง แล้ว Workbox ฉีด precache list ให้
+      // 'generateSW' (default): Workbox writes the SW for you
+      // 'injectManifest': you write the SW, Workbox injects the precache list
       strategies: 'generateSW',
       registerType: 'autoUpdate',
     }),

@@ -137,6 +137,21 @@ For Next.js App Router projects, the `virtual:pwa-register/react` hook is Vite-o
 Prefer Vite + `vite-plugin-pwa` for new React PWAs; for Next.js use a Workbox/serwist-based setup instead.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Bind PWA state (installable, update available) to React state/hooks | UI reacts to the service worker lifecycle immediately, written declaratively | Watch for unnecessary re-renders if the hook is not designed carefully |
+| Manage the service worker separately from the React tree (vanilla JS listeners) | Not tied to React's re-render cycle at all, simpler for trivial cases | You sync state back into React by hand yourself, adding a place for bugs |
+
+## Common mistakes
+
+- Calling service worker logic (register, event listeners) directly inside the render function instead of inside `useEffect`, so it runs again on every re-render.
+- Not cleaning up event listeners in the `useEffect` cleanup function, stacking up duplicate listeners every time the component remounts.
+- Keeping PWA install-prompt state in local component state instead of a global store, so the install button falls out of sync across multiple components.
+
+The Vite PWA ecosystem, as used by Elk (the open-source Mastodon client), wraps `virtual:pwa-register` in a hook so the update-available UI can stay fully declarative, and Squoosh — another open-source PWA from Google Chrome Labs — ties its service worker lifecycle into UI state to tell users when a new version is ready.
+
 export const quizReactPatterns = [
   {
     q: 'Which browser event fires before the install prompt is shown to the user?',

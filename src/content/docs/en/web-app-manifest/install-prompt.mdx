@@ -166,6 +166,21 @@ self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));`,
 You must call `event.preventDefault()` on `beforeinstallprompt` to suppress the browser's default install UI, and then call `deferredPrompt.prompt()` only from inside a user gesture (a click handler). Calling `prompt()` outside a user gesture throws an error.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Intercept `beforeinstallprompt` and show your own button | Full control over timing and UI, does not interrupt the user when they are not ready | You own the state and event lifecycle yourself, adding code complexity |
+| Let the browser show its own default install UI | No extra code, standard UI immediately | No control over timing — it can appear before the user is ready to decide |
+
+## Common mistakes
+
+- Calling `prompt()` outside a user-gesture handler (e.g. inside a React `useEffect` on mount), which the browser rejects with an error.
+- Not stashing `deferredPrompt` from the very first event, missing the chance to ever show the install button if you were not listening in time.
+- Forgetting that iOS Safari never fires `beforeinstallprompt` at all, and shipping an install UI that simply does not work for iOS users.
+
+Both `beforeinstallprompt` and `deferredPrompt.prompt()` are Chromium-only APIs (Chrome, Edge, Samsung Internet) — Firefox and Safari do not implement them ([MDN: making PWAs installable](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)). Waiting to show a custom install button until after the user has some engagement with the app — rather than on the very first page load — is itself a documented best practice for improving how often users accept it, independent of which specific app does it.
+
 export const quizInstallPrompt = [
   {
     q: 'What must you call on the beforeinstallprompt event to suppress the browser default install UI?',

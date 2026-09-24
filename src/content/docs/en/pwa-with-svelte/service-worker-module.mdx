@@ -115,6 +115,21 @@ If your app prerender pages (via `export const prerender = true` in route files 
 `$service-worker` gives you the exact list of built assets plus a version string — precache `build` and `files` on `install`, and delete every cache whose name does not match the current version in `activate`. No Workbox required.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Use SvelteKit's `$service-worker` module | Direct access to the build manifest (asset list, version) straight from SvelteKit itself | Tied to a SvelteKit-specific convention — moving to another framework means rewriting it |
+| Write a static service worker without relying on the SvelteKit module | Works even outside the SvelteKit build pipeline | You maintain the asset list yourself instead of letting the framework generate it |
+
+## Common mistakes
+
+- Importing `$service-worker` in the wrong context (outside the service worker file), causing a build error because the module only resolves when building the service worker.
+- Not using the `build` and `files` exports from this module for precaching, forcing you to list assets by hand and fall out of sync with the real build.
+- Forgetting that `version` from this module changes on every build, so if you do not use it in the cache name, old caches get invalidated at the wrong time.
+
+The [SvelteKit official service worker docs](https://svelte.dev/docs/kit/service-workers) present `$service-worker` as the standard approach for every SvelteKit project that needs build-aware precaching, and many projects built on SvelteKit extend this same module to build an offline-first app.
+
 export const quizServiceWorkerModule = [
   {
     q: 'What does the build export from $service-worker contain?',

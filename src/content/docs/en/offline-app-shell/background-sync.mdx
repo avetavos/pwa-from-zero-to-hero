@@ -334,6 +334,21 @@ self.addEventListener('fetch', (event) => {
 Background sync lets a user act offline and have it sent automatically when connectivity returns.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Use the Background Sync API | Retries failed requests automatically, even after the tab is closed | Only supported in some browsers (not Safari) — you need your own fallback |
+| Retry by hand once back online (foreground only) | Works in every browser, no special API needed | Misses the sync entirely if the user closes the tab before the network returns |
+
+## Common mistakes
+
+- Keeping mutations in memory instead of IndexedDB, so data disappears the moment the service worker is terminated.
+- Not implementing retry back-off, so the sync tag fires requests in rapid succession when the network returns but the server is still unstable.
+- Not handling a permanently failing sync, leaving the queue stuck retrying data that can never succeed.
+
+Apps that queue location updates or reports while offline — mapping and field-service apps are common examples — and apps that queue offline edits to sync back automatically both use this same queue-then-replay pattern, whether or not they use the Background Sync API specifically to implement it.
+
 export const quizBgSync = [
   {
     q: 'Which method does the page call to schedule a background sync?',

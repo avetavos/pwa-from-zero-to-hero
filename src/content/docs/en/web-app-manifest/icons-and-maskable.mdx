@@ -109,6 +109,21 @@ A recommended icon set:
 Always include a `"purpose": "maskable"` icon so Android can shape it without clipping your logo. Design the maskable variant with all artwork inside the central 80 % safe-zone circle.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Make a maskable icon separate from the regular icon | Icon does not get clipped oddly on Android's circular crop | Requires designing and exporting an extra icon file |
+| Use one icon file for every purpose | Fewer files to manage, simpler upkeep | Risk of a distorted crop on platforms that expect a maskable safe zone |
+
+## Common mistakes
+
+- Not including a `purpose: "maskable"` icon at all, so Android crops the regular icon into a circle and clips the logo.
+- Designing the logo to the full edge of the 512x512 canvas without leaving the central 80% safe zone the maskable icon spec requires.
+- Only providing one icon size (e.g. 192x192), forcing devices that need higher resolution to upscale it until it looks blurry.
+
+Squoosh designs a dedicated maskable icon for Android with the safe zone respected per spec, so the logo is not clipped when it is cropped into a circle ([source on GitHub](https://github.com/GoogleChromeLabs/squoosh) — it ships an `icon-large-maskable.png` asset). [Maskable.app](https://maskable.app/) is the standard preview tool PWA developers use to check the safe zone before shipping an icon — it is a community tool maintained by Tiger Oakes, not an official Google product.
+
 export const quizIconsMaskable = [
   {
     q: 'What is the minimum icon size required for Chrome to show the install prompt?',

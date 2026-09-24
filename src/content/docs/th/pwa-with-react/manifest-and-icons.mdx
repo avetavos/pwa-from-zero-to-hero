@@ -110,11 +110,7 @@ npx @vite-pwa/assets-generator --preset minimal logo.svg
 - ลืมตั้ง base path ให้ตรงกับที่ deploy จริง ทำให้ path ของ icon ใน manifest ผิดตอน production build
 - ไม่ generate maskable icon แยก ทำให้ icon โดน crop เพี้ยนบน Android เหมือนไม่ได้ตั้งค่าอะไรเลย
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem** — โปรเจกต์อย่าง Elk (Mastodon client) ใช้ vite-plugin-pwa generate manifest และ icon ชุดเต็มอัตโนมัติจาก config เดียว
->
-> **VitePress sites หลายเจ้า** — ใช้ plugin เดียวกันนี้ทำให้ documentation site ติดตั้งเป็น PWA ได้โดยแทบไม่ต้องเขียน manifest เอง
+Vite PWA ecosystem ที่ Elk (Mastodon client) ใช้จริงมี vite-plugin-pwa generate manifest และ icon ชุดเต็มอัตโนมัติจาก config เดียว ([Elk's `package.json` ระบุ `vite-plugin-pwa`](https://github.com/elk-zone/elk)) และ VitePress sites หลายเจ้าก็ใช้ plugin เดียวกันนี้ทำให้ documentation site ติดตั้งเป็น PWA ได้โดยแทบไม่ต้องเขียน manifest เอง
 
 export const quizManifestAndIcons = [
   {

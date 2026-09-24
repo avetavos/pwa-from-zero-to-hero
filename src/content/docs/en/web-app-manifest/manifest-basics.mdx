@@ -104,6 +104,21 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));`,
 `start_url` is where the app launches from when opened from the home screen. Always set it to a URL your server actually serves — an invalid `start_url` will cause the install to fail.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Fill in every field the spec recommends (name, icons, start_url, display) | Passes every browser's installability criteria immediately | Requires preparing multiple icon sizes and testing them all before shipping |
+| Fill in only the bare minimum fields that make the build pass | Fast to get started, does not block development | Lighthouse-era installability checks may not fully pass — you have to come back and fix it later |
+
+## Common mistakes
+
+- Setting `start_url` to a relative path that does not resolve from the root, so opening the app from the home screen lands on an unintended page.
+- Forgetting `short_name`, so the label under the home-screen icon gets truncated into something unreadable.
+- Linking the manifest with the wrong MIME type or path, so the browser cannot find it and the app is never considered installable.
+
+Squoosh — Google Chrome Labs' open-source image-compression PWA — ships a manifest with every required field filled in from the start ([source on GitHub](https://github.com/GoogleChromeLabs/squoosh)), which is a good example to model a real manifest on beyond this lesson's demo.
+
 export const quizManifestBasics = [
   {
     q: 'Which field is used to identify the app stably across start_url changes?',

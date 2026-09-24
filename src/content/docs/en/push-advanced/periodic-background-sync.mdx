@@ -108,7 +108,7 @@ await registration.periodicSync.unregister('refresh-news');
 | Constraint | Detail |
 |---|---|
 | **Installed PWA only** | Periodic sync requires the app to be installed to the home screen or desktop |
-| **Chromium only** | As of 2025 only Chromium-based browsers support PBS; Firefox and Safari do not |
+| **Chromium only** | As of 2026 only Chromium-based browsers support PBS; Firefox and Safari do not |
 | **Browser cadence** | The browser decides the actual firing interval based on battery, network, and site engagement — treat `minInterval` as a minimum, not a schedule |
 | **Network required** | The SW only runs the handler when the device has network connectivity |
 | **Engagement score** | Chrome tracks site engagement; low-engagement sites may have their PBS throttled or disabled |
@@ -150,6 +150,21 @@ async function loadArticles() {
 <Callout title="Key point">
 Periodic Background Sync only runs for installed PWAs and the browser decides the actual cadence — treat it as best-effort. Always implement a fallback that refreshes data on page load so your app degrades gracefully when the sync did not run.
 </Callout>
+
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Periodic Background Sync | Fresh data is already waiting when the user opens the app, no load wait | Requires the app to be installed and to clear the browser's own engagement heuristic before it is even granted |
+| Sync only when the app opens (on-demand) | Works in every browser, no special conditions | The user waits for data to load every time, even if they just opened it a moment ago |
+
+## Common mistakes
+
+- Setting a very short sync interval without realizing the browser adjusts the real interval based on user engagement anyway — whatever you set is only a minimum.
+- Not checking the `periodic-background-sync` permission before calling register, so the code throws on browsers that do not support it.
+- Using periodic sync to pull large amounts of data without regard for the user's mobile data usage, burning through their quota unnoticed.
+
+News apps and mapping apps that refresh cached content (headlines, traffic data) periodically in the background so it is ready the moment the app opens are the typical real-world use case for this API, whether or not a given app uses Periodic Background Sync specifically to do it.
 
 export const quizPeriodicSync = [
   {

@@ -24,24 +24,32 @@ npm install -D vite-plugin-pwa
 เพิ่ม `VitePWA` เข้าไปใน Vite plugins array ของคุณใน `vite.config.ts`:
 
 ```ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'My React PWA',
         short_name: 'ReactPWA',
-        description: 'A React PWA powered by vite-plugin-pwa',
+        description: 'A progressive web app built with Vite and React',
         theme_color: '#ffffff',
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
         ],
       },
       devOptions: {
@@ -49,7 +57,7 @@ export default defineConfig({
       },
     }),
   ],
-})
+});
 ```
 
 ## registerType
@@ -85,11 +93,7 @@ option `registerType` ควบคุมว่า service worker จัดกา
 - ทดสอบ PWA behavior บน `npm run dev` เพราะเข้าใจผิดว่าเหมือน production ทั้งที่ service worker ทำงานคนละแบบกัน ต้องทดสอบบน build จริง
 - ไม่ทำ UI สำหรับ needRefresh state ทำให้ผู้ใช้ไม่รู้เลยว่ามีเวอร์ชันใหม่พร้อมใช้งานอยู่
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem** — เป็น plugin มาตรฐานที่โปรเจกต์อย่าง Elk (Mastodon client) ใช้ทำ PWA เต็มรูปแบบบน Vite/React
->
-> **VitePress sites** — ใช้ vite-plugin-pwa setup เดียวกันนี้ทำให้ documentation site หลายพันเว็บกลายเป็น installable PWA ได้ง่าย
+Vite PWA ecosystem เป็น plugin มาตรฐานที่โปรเจกต์จริงอย่าง Elk (Mastodon client) ใช้ทำ PWA เต็มรูปแบบบน Vite/React ([Elk's `package.json` ระบุ `vite-plugin-pwa`](https://github.com/elk-zone/elk)) และหลาย VitePress sites ก็ใช้ setup เดียวกันนี้ทำให้ documentation site หลายพันเว็บกลายเป็น installable PWA ได้ง่าย
 
 export const quizSetupVitePluginPwa = [
   {

@@ -347,11 +347,7 @@ Background sync ให้ผู้ใช้ทำงาน offline ได้แ�
 - ไม่ทำ retry backoff ทำให้ sync tag ยิง request รัวๆ ซ้ำเมื่อ network กลับมาแต่ server ยัง unstable
 - ไม่ handle กรณี sync ล้มเหลวซ้ำ (permanent failure) ทำให้ queue ค้างพยายาม sync ข้อมูลที่ไม่มีทาง sync สำเร็จตลอดไป
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Google Maps** — คิว location update และ report ไว้ผ่าน Background Sync แล้วส่งอัตโนมัติทันทีที่กลับมามีสัญญาณ
->
-> **Notion offline** — เก็บการแก้ไขที่ทำตอน offline ไว้ในคิว แล้ว sync กลับ server อัตโนมัติด้วยกลไกคล้าย background sync เมื่อกลับมา online
+แอปประเภทแผนที่หรือ field-service ที่คิว location update/report ไว้ตอน offline และแอปเอกสาร/productivity ที่คิวการแก้ไขไว้แล้ว sync กลับอัตโนมัติเมื่อกลับมา online ล้วนใช้ pattern คิวแล้ว replay แบบเดียวกันนี้ ไม่ว่าจะใช้ Background Sync API โดยตรงหรือกลไกอื่นที่คล้ายกันก็ตาม
 
 export const quizBgSync = [
   {

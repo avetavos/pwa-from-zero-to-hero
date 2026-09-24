@@ -127,11 +127,7 @@ Chrome บนเดสก์ท็อปต้องการ screenshot อย�
 - เลือก display: "fullscreen" สำหรับแอปทั่วไป ทำให้ผู้ใช้เสีย status bar และ gesture navigation จนใช้งานยาก
 - ไม่ทดสอบ theme บน dark mode ทำให้สี background/theme ขัดกับสีระบบของผู้ใช้
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Spotify Web Player** — ใช้ display: "standalone" คู่กับ theme_color สีดำ ให้ความรู้สึกเหมือนแอป desktop native ตั้งแต่วินาทีแรกที่เปิด
->
-> **Twitter Lite** — ปรับ theme_color ให้ตรงกับ brand color ทำให้ status bar กลมกลืนกับ UI ทันทีที่เปิดจาก home screen
+**Twitter Lite** ปรับ `theme_color` ให้ตรงกับ brand color ของตัวเองตอนสร้าง PWA ใหม่ ทำให้ status bar กลมกลืนกับ UI ทันทีที่เปิดจาก home screen ([web.dev/twitter](https://web.dev/twitter/))
 
 export const quizDisplayTheme = [
   {

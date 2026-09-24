@@ -208,6 +208,21 @@ A good offline fallback page should:
 Handle navigation requests specially — serve a cached page or an offline fallback so users never see the dino.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Serve a custom-designed offline fallback page | Much better UX — the user understands the state and can still act (e.g. browse cached content) | One more page to design and maintain |
+| Let the browser show its standard error page (Chrome's dino game) | No extra work | The user has no idea what the app can still do offline — a noticeably worse experience |
+
+## Common mistakes
+
+- Not precaching the offline fallback page itself, so when the network genuinely fails, the fallback fails to load too (a chicken-and-egg problem).
+- Showing the same generic fallback on every route without telling the user what it was trying to load.
+- Never testing the fallback against a "very slow" network, only a fully "disconnected" one, so the UX breaks when the connection is merely bad rather than gone.
+
+Chrome's own offline error page — the dino game — is the built-in browser fallback, and it is a good illustration of just how much worse "nothing to do" feels compared to an app that ships its own offline page with a clear message and a way to retry or browse cached content.
+
 export const quizFallback = [
   {
     q: 'Which event.request.mode value identifies a top-level page navigation?',

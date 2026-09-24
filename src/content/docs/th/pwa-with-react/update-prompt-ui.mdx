@@ -126,11 +126,7 @@ export default function App() {
 - ปิด prompt ทิ้งโดยไม่เก็บ state ทำให้ผู้ใช้กดปิดไปแล้วแอปไม่มีทางเตือนซ้ำอีกเลยแม้จะยังใช้เวอร์ชันเก่าอยู่
 - ไม่ผูกปุ่ม "Update" เข้ากับ `updateServiceWorker()` ของ plugin จริงๆ ทำให้กดแล้วไม่มีอะไรเกิดขึ้น
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem (Elk)** — ใช้ virtual:pwa-register hook แสดง toast "New content available, click to reload" เป็น pattern มาตรฐาน
->
-> **Google Docs** — แสดง banner แจ้งเตือนอัปเดตให้ผู้ใช้กดเองแทนที่จะ force reload ระหว่างที่กำลังแก้เอกสารอยู่
+Vite PWA ecosystem อย่างที่ Elk ใช้อยู่ แสดง toast "New content available, click to reload" ผ่าน hook `virtual:pwa-register` เป็น pattern มาตรฐาน — แอปประเภทเอกสารหรืออีเมลที่ต้องปกป้องงานที่ยังทำค้างอยู่ มักใช้ banner แบบไม่รบกวนคล้ายกันนี้แทนการ force reload กลางเซสชัน
 
 export const quizUpdatePromptUi = [
   {

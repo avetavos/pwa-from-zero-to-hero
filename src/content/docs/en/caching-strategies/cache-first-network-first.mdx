@@ -125,6 +125,21 @@ self.addEventListener('fetch', function(e) {
 Cache-first is fast but can serve stale assets — version your cache name (e.g. `app-v2`) and delete old caches in the `activate` event whenever you deploy new assets.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Cache-first | Fastest possible load, good for static assets that rarely change | Risk of serving stale content if an asset changes but the cache is not invalidated |
+| Network-first | Always fresh data when the network is available | Slower than cache-first on every request, since it always waits on a network round-trip first |
+
+## Common mistakes
+
+- Using cache-first for API responses that change frequently, so the user sees stale data without realizing it.
+- Using network-first for large static assets, wasting load time unnecessarily when the asset barely ever changes.
+- Not setting a timeout for network-first, so the user waits on a very slow network instead of falling back to cache sooner.
+
+Twitter Lite's PWA rebuild used an incremental strategy that mixes cache-first for static assets with fresher, network-touching requests for feed data — matching the split described above ([web.dev/twitter](https://web.dev/twitter/)). Many news and e-commerce sites use the same split: network-first for time-sensitive content, cache-first for layout and assets, for the same reasons.
+
 export const quizCacheFirstNetworkFirst = [
   {
     q: 'Which strategy tries the network first and only falls back to cache on failure?',

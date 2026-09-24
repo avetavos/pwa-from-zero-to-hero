@@ -172,11 +172,7 @@ Badging และ Web Share Target ทำให้ PWA ที่ install แล�
 - ตั้ง share_target ผิด method/enctype ใน manifest ทำให้ OS ส่ง data มาแบบที่แอป parse ไม่ได้
 - ลืมว่า Badging API ไม่มีบน iOS Safari เลย แล้วออกแบบ flow ที่พึ่งพา badge เป็นทางเดียวในการแจ้งเตือน
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Facebook Messenger PWA** — ใช้ App Badging แสดงจำนวนข้อความที่ยังไม่อ่านบน icon ทันที เหมือนแอป native
->
-> **Squoosh** — implement Share Target ให้ผู้ใช้แชร์รูปจากแอปอื่นเข้ามาบีบอัดได้ทันทีโดยไม่ต้องเปิดเว็บแล้วอัปโหลดเอง
+แอปแชทที่ใช้ App Badging แสดงจำนวนข้อความที่ยังไม่อ่านบน icon ทันทีเหมือนแอป native และเครื่องมือที่ implement Share Target ให้ผู้ใช้แชร์รูปจากแอปอื่นเข้ามาประมวลผลได้ทันที ล้วนเป็นการใช้งานจริงทั่วไปของสอง API นี้
 
 export const quizBadgingShareTarget = [
   {

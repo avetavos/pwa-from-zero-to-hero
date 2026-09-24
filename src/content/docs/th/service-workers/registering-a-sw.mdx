@@ -110,11 +110,7 @@ service worker ที่ `/sw.js` จะควบคุมทั้ง origin �
 - ไม่ check `if ('serviceWorker' in navigator)` ก่อน register ทำให้ browser เก่าที่ไม่รองรับโยน error กลางหน้า
 - Register ซ้ำหลายครั้งโดยไม่ระวัง ทำให้เกิด service worker หลายเวอร์ชันแย่งกัน handle fetch event
 
-> 💡 ตัวอย่างจากของจริง
->
-> **web.dev checklist** — แนะนำให้ register service worker หลัง `load` event เสมอ เพื่อไม่ให้แย่ง bandwidth กับ critical resource ตอนโหลดหน้าแรก
->
-> **Twitter Lite** — register service worker แบบ deferred ทำให้ time-to-interactive ของหน้าแรกไม่ถูกกระทบจากการติดตั้ง worker
+PWA checklist ของ web.dev เองแนะนำให้ register service worker หลัง `load` event เสมอ เพื่อไม่ให้แย่ง bandwidth กับ critical resource ตอนโหลดหน้าแรก case study ของ Twitter ก็อธิบาย rollout service worker แบบ deferred ในลักษณะเดียวกัน ([web.dev/twitter](https://web.dev/twitter/))
 
 export const quizRegisterSw = [
   {

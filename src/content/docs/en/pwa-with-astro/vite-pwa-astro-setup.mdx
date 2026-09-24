@@ -108,6 +108,21 @@ AstroPWA({
 Add the integration to `astro.config.mjs` `integrations` — it wires the SW + manifest into Astro's build.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Use the full `@vite-pwa/astro` package | Sets up service worker + manifest in one step, plugs straight into Astro's build pipeline | Ties you to the Vite PWA ecosystem, you have to keep the plugin updated yourself |
+| Configure the service worker manually in Astro | Not tied to a specific plugin, full control | You must integrate with Astro's build output entirely by hand, risking bugs from asset hashes falling out of sync |
+
+## Common mistakes
+
+- Forgetting to turn on `devOptions.enabled: true`, so the service worker cannot be tested on the dev server at all, leading to a false impression that the setup is broken.
+- Not realizing Astro defaults to SSG, so precaching only really happens at build time — testing in dev mode and being confused about why nothing is cached.
+- Setting `registerType` to the wrong value for the intended UX (e.g. `autoUpdate` when you actually wanted a user-facing prompt), so the update experience does not match what was designed.
+
+`@vite-pwa/astro` is part of the same Vite PWA ecosystem that Elk, the open-source Mastodon client, uses on its own stack ([Elk's `package.json` lists `vite-plugin-pwa`](https://github.com/elk-zone/elk)), and many VitePress and Astro documentation sites use the same kind of setup to become installable in just a few lines of config.
+
 export const quizVitePwaAstroSetup = [
   {
     q: 'Which command installs the @vite-pwa/astro package as a dev dependency using npm?',

@@ -106,6 +106,21 @@ export const pillarsDiagram = `flowchart TD
 "Reliable" means it loads even on a flaky network — that is what the service worker and cache buy you.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Invest in all three pillars (Capable/Reliable/Installable) | Users get a close to fully native-like experience | More development and testing time than a plain website |
+| Ship Reliable (offline) only, skip Installable | Every user reaches the app instantly via URL, no install step | Loses the engagement that comes from a home-screen icon and standalone mode |
+
+## Common mistakes
+
+- Treating a PWA as "just add a manifest" — without a genuinely reliable service worker, the app installs but does not work offline.
+- Testing Capable features only on desktop Chrome, without checking whether the same APIs are supported on mobile browsers.
+- Assuming Installable means going through an app store — in reality, users install straight from the browser with no store involved.
+
+**Twitter Lite** shipped its offline-first Reliable layer first, then added Installable — reflecting the incremental service-worker rollout documented in the case study ([web.dev/twitter](https://web.dev/twitter/)).
+
 export const quizCapableReliableInstallable = [
   {
     q: 'Which API enables a PWA to access the device camera?',

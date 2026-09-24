@@ -237,6 +237,21 @@ self.addEventListener('fetch', function(event) {
 
 <PwaPlayground client:visible files={proj} openFile="sw.js" />
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Manage the Cache Storage API directly by hand | Full control over every detail of the logic, no library dependency | More boilerplate to write and maintain, risk of bugs from handling edge cases yourself |
+| Use a wrapper library (e.g. Workbox) | Shorter code, less boilerplate, cache versioning handled for you | Adds a dependency and a library API to learn |
+
+## Common mistakes
+
+- Not naming caches with a version (e.g. `app-v1`), making it impossible to safely delete old caches during `activate`.
+- Forgetting to `caches.delete()` old caches in the `activate` event, so storage grows without bound.
+- Caching an opaque response (cross-origin without CORS) without realizing it counts against quota at full size even though its body cannot be read.
+
+Squoosh, Google Chrome Labs' open-source image-compression PWA, caches its app's assets at install time so it works fully offline from the very first visit ([source on GitHub](https://github.com/GoogleChromeLabs/squoosh)) — the same precache-everything pattern this lesson builds.
+
 export const quizCacheStorageApi = [
   {
     q: 'Which Cache Storage method atomically stores an array of URLs at install time?',

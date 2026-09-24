@@ -19,16 +19,11 @@ Since then, every major browser has added PWA support, and the capabilities have
 
 ## Real-world examples
 
-The proof is in production. Several high-traffic apps shipped PWAs and measured meaningful improvements:
+The proof is in production. The most thoroughly documented case is Twitter's:
 
-**Twitter Lite**
-Twitter rebuilt its mobile web experience as a PWA. The result: 65% increase in pages per session, 75% more tweets sent, and a 20% drop in bounce rate — all from a 600 KB download versus the multi-megabyte native app.
+**Twitter Lite** rebuilt Twitter's mobile web experience as a PWA using the app shell model. The published results: a 65% increase in pages per session, 75% more Tweets sent, and a 20% drop in bounce rate — all from a roughly 600 KB initial download versus a 23.5 MB native Android app (about 97% smaller). ([web.dev/twitter](https://web.dev/twitter/), verified 2026)
 
-**Starbucks**
-The Starbucks PWA is 99.84% smaller than the equivalent iOS app. It works offline, allowing customers to browse the menu and customize orders without a connection. Order data syncs when connectivity returns.
-
-**Pinterest**
-Pinterest rebuilt its mobile web site as a PWA and saw a 60% increase in core engagements, a 44% increase in user-generated ad revenue, and a 40% increase in time spent.
+Several other high-traffic retail, productivity, and news sites have since reported similar directional gains — smaller installs, faster repeat loads, and higher engagement — after adopting the same app-shell-plus-service-worker approach. Treat specific percentage claims from any single write-up with caution: verify against a live source before repeating a number, and prefer citing your own measurements once you ship.
 
 These gains came without publishing to an app store, without requiring a download, and without a separate development team for each platform.
 
@@ -52,16 +47,37 @@ A JSON file linked from `<head>` that describes how the app should appear when i
 <link rel="manifest" href="/manifest.webmanifest" />
 ```
 
-The manifest must include at minimum a `name` (or `short_name`), a `start_url`, a `display` mode of `standalone` or `fullscreen`, and at least one icon sized 192×192 or larger. Without a valid manifest the browser install prompt will not appear.
+The manifest must include at minimum a `name` (or `short_name`), a `start_url`, a `display` mode of `standalone` or `fullscreen`, and at least one icon sized 192×192 or larger:
+
+```json
+{
+  "name": "My PWA",
+  "short_name": "MyApp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5A0FC8",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+Without a valid manifest the browser install prompt will not appear.
 
 ### 3. A Registered Service Worker
 
-The page must successfully register a service worker that controls its scope. At minimum it must handle `fetch` events (even if the handler just passes requests through). A service worker that only handles `install` and `activate` satisfies the registration requirement but gives you no offline capability.
+The page must successfully register a service worker that controls its scope. At minimum it must handle `fetch` events (even if the handler just passes requests through) — this is the signal to the browser that the app has an offline strategy. A service worker that only handles `install` and `activate` satisfies the registration requirement but gives you no offline capability.
 
 ```js
-// Minimum viable service worker
+// sw.js — minimal service worker that qualifies a page as installable
 self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached ?? fetch(event.request);
+    })
+  );
 });
 ```
 
@@ -100,6 +116,19 @@ The most significant remaining gap is deep OS integration — lock-screen widget
 - **Firefox** — dropped its own install UI but still supports service workers and manifests; users can install via extensions.
 
 This means your PWA must always work well as a plain website. Enhanced installability is progressive — hence the name.
+
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| PWA (web-based) | Reachable through a single URL, no app-store gate before a user can try it | Access to some device APIs is more limited than a full native app |
+| Native app | Full access to hardware/OS APIs | Must go through an app store; users must download before trying it |
+
+## Common mistakes
+
+- Assuming "it has a manifest, so it's a PWA" — while it still lacks HTTPS or a successfully registered service worker.
+- Treating PWA and native app as mutually exclusive — many teams ship both (PWA for reach, native for power users).
+- Overlooking iOS Safari's limitations (no ambient install prompt, more restricted storage) and designing as if every platform behaves identically.
 
 export const quizWhatIsAPwa = [
   {

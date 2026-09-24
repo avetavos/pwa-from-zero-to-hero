@@ -169,6 +169,21 @@ export const idbDiagram = `sequenceDiagram
 Cache Storage is for requests/responses; IndexedDB is for app data — use both.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Store offline mutations/data in IndexedDB | Durable — survives service worker termination and browser restarts | API is much more complex than localStorage; you handle transactions/schema yourself |
+| Keep it temporarily in the service worker's memory | Simpler code, faster in the short term | Disappears the moment the browser terminates the service worker (common when idle) |
+
+## Common mistakes
+
+- Keeping offline mutations in a plain variable instead of IndexedDB, so data is lost when the service worker is killed.
+- Not fully handling `onupgradeneeded`, breaking schema migration when the database version is bumped.
+- Missing an error handler on a transaction, so a failed write disappears silently with nobody the wiser.
+
+Mail and document apps that need to work offline typically cache drafts and recent data in IndexedDB so a user can keep reading and editing without a connection, syncing back to the server once it returns — the same pattern built in this lesson.
+
 export const quizIdb = [
   {
     q: 'Which browser storage API is available inside a service worker?',

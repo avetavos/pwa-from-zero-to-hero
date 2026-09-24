@@ -121,6 +121,21 @@ export const strategyDiagram = `flowchart TD
 Use `generateSW` for standard caching, switch to `injectManifest` when you need custom service-worker logic.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| `generateSW` (Workbox generates it automatically) | Fastest to get started, no service worker to write yourself | Less room for custom logic than writing it by hand |
+| `injectManifest` (write the SW yourself, inject the precache list) | Full control over the logic, freely mix in custom behavior | You write and maintain the service worker file yourself, adding complexity |
+
+## Common mistakes
+
+- Choosing `generateSW` and then trying to add custom logic the mode does not support, forcing a later migration to `injectManifest` and wasted refactor time.
+- Not matching the strategy to the route type in Astro (static page vs. API endpoint), so the wrong kind of caching gets applied.
+- Forgetting that Astro's build output changes asset hashes on every build, so an old generated precache manifest no longer matches the real files if you do not rebuild.
+
+The `@vite-pwa/astro` ecosystem offers both modes; most documentation projects use `generateSW` because it is enough for a static site, while apps with complex custom offline logic choose `injectManifest` to mix a custom fetch handler with the precache list Workbox generates.
+
 export const quizSwAndStrategies = [
   {
     q: 'Which strategy lets Workbox generate the entire service worker file automatically from a config object?',

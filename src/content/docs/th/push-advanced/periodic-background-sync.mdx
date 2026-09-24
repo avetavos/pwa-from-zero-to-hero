@@ -108,7 +108,7 @@ await registration.periodicSync.unregister('refresh-news');
 | ข้อจำกัด | รายละเอียด |
 |---|---|
 | **ต้อง install PWA** | Periodic sync ต้องการให้แอปถูก install บน home screen หรือ desktop |
-| **เฉพาะ Chromium** | ณ ปี 2025 เฉพาะ browser ที่ใช้ Chromium เท่านั้นที่รองรับ PBS; Firefox และ Safari ไม่รองรับ |
+| **เฉพาะ Chromium** | ณ ปี 2026 เฉพาะ browser ที่ใช้ Chromium เท่านั้นที่รองรับ PBS; Firefox และ Safari ไม่รองรับ |
 | **Browser กำหนด cadence** | browser ตัดสินใจ firing interval จริงตามแบตเตอรี่, เครือข่าย และ site engagement — ถือ `minInterval` เป็นค่าต่ำสุด ไม่ใช่ตาราง |
 | **ต้องมีเครือข่าย** | SW จะรัน handler เฉพาะเมื่ออุปกรณ์มีการเชื่อมต่อเครือข่าย |
 | **Engagement score** | Chrome ติดตาม site engagement; เว็บไซต์ที่มี engagement ต่ำอาจมี PBS ถูก throttle หรือปิดใช้งาน |
@@ -164,11 +164,7 @@ Periodic Background Sync ทำงานได้เฉพาะกับ PWA �
 - ไม่ตรวจสิทธิ์ periodic-background-sync ก่อนเรียก register ทำให้โค้ด throw error บน browser ที่ยังไม่รองรับ
 - ใช้ periodic sync ดึงข้อมูลจำนวนมากโดยไม่สนใจ data usage ของผู้ใช้บนมือถือ ทำให้กิน quota โดยไม่รู้ตัว
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Google Maps** — ใช้ periodic sync อัปเดตข้อมูลจราจร/แผนที่ที่เคย cache ไว้ให้สดใหม่อยู่เสมอแม้ไม่ได้เปิดแอป
->
-> **แอปข่าวหลายเจ้า** — sync หัวข้อข่าวล่าสุดเบื้องหลังเป็นระยะ ให้พร้อมอ่านทันทีที่เปิดแอปโดยไม่ต้องรอโหลด
+แอปข่าวและแอปแผนที่ที่รีเฟรชเนื้อหาที่ cache ไว้ (หัวข้อข่าว, ข้อมูลจราจร) เป็นระยะเบื้องหลัง ให้พร้อมทันทีที่เปิดแอป คือ use case จริงทั่วไปของ API นี้ ไม่ว่าแอปนั้นจะใช้ Periodic Background Sync โดยตรงหรือกลไกอื่นก็ตาม
 
 export const quizPeriodicSync = [
   {

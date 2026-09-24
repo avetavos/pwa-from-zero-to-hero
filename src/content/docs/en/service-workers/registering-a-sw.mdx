@@ -97,6 +97,21 @@ self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request)); });`,
 A service worker at `/sw.js` controls the whole origin — its default scope is `/`. Place the file at the site root for full coverage. Moving it into a subdirectory silently narrows the scope to that subdirectory.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Register the service worker at page load | Cache and offline support are ready as fast as possible | Adds work on the main thread during the very first load, while the user is waiting for critical content |
+| Register after the `load` event (deferred) | Does not compete with the critical rendering path on first load | A user who closes the tab too quickly may never get registered at all |
+
+## Common mistakes
+
+- Registering the service worker at the wrong path for the desired scope, so it ends up controlling only part of the site instead of the whole thing.
+- Not checking `if ('serviceWorker' in navigator)` before registering, so older unsupported browsers throw an error mid-page.
+- Registering repeatedly without guarding against it, producing multiple service worker versions racing to handle fetch events.
+
+web.dev's own PWA checklist recommends registering the service worker after the `load` event so it does not compete for bandwidth with critical resources on first paint. Twitter's PWA case study describes a similar incremental, deferred rollout strategy for its service worker ([web.dev/twitter](https://web.dev/twitter/)).
+
 export const quizRegisterSw = [
   {
     q: 'What does navigator.serviceWorker.register() return?',

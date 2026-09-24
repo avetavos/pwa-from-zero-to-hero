@@ -98,6 +98,19 @@ self.addEventListener('activate', (event) => {
 A newly installed service worker waits until every tab using the old one closes — unless it calls `self.skipWaiting()`. Use `skipWaiting()` cautiously: if the old and new SW use different cache schemas, pages already loaded may request assets the new cache does not yet have.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| `skipWaiting()` + `clients.claim()` | Users get the new version immediately without closing every tab | Risk of a breaking change if the old and new versions are incompatible while pages are still open |
+| Let the default lifecycle wait (Waiting until every tab closes) | Safer — no version mismatch between client and server | Users can get stuck on the old version for a long time if they never close the tab |
+
+## Common mistakes
+
+- Forgetting that the install event must resolve successfully before entering Waiting — if `cache.addAll()` fails, the whole install fails silently.
+- Calling `skipWaiting()` without pairing it with a versioned cache name, so the client switches to the new service worker but still reads a mismatched old cache.
+- Not testing the "several tabs open at once" flow, missing the edge case where the old worker still controls some tabs mid-transition.
+
 export const quizLifecycle = [
   {
     q: 'What happens if the Promise passed to event.waitUntil() in the install handler rejects?',

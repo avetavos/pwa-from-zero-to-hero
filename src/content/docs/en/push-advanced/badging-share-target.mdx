@@ -159,6 +159,21 @@ async function shareFile(file) {
 Badging and Web Share Target make an installed PWA feel like a first-class native app — unread counts on the icon and a presence in the OS share sheet. They are zero-cost features: no server needed, just a manifest entry and two API calls.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| App Badging API | Shows an unread count natively without interrupting with a notification popup | Only supported on some platforms (desktop Chrome/Edge; not on iOS) |
+| Share Target API | Receives content shared from other apps like a native app can | Must be registered in the manifest and only works in browsers that implement it |
+
+## Common mistakes
+
+- Not calling `clearAppBadge()` once the user has read the content, so the badge keeps showing a stale number until users stop trusting it.
+- Setting the wrong `method`/`enctype` for `share_target` in the manifest, so the OS sends data in a shape the app cannot parse.
+- Forgetting that the Badging API does not exist on iOS Safari at all, and designing a flow that relies on the badge as the only notification mechanism.
+
+An app that uses App Badging to show an unread-message count on its icon instantly, the way native messaging apps do, and a tool that implements Share Target so users can share an image in from another app and have it processed immediately, are both typical, real applications of these two APIs.
+
 export const quizBadgingShareTarget = [
   {
     q: 'Which method clears the badge from an app icon?',

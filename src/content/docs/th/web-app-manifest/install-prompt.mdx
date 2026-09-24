@@ -20,11 +20,11 @@ import ProgressTracker from '../../../../components/ProgressTracker.tsx';
 let deferredPrompt = null;
 
 window.addEventListener('beforeinstallprompt', (event) => {
-  // ป้องกันเบราว์เซอร์แสดง mini-infobar ของตัวเอง
+  // Prevent the browser from showing its mini-infobar
   event.preventDefault();
-  // เก็บ event เพื่อเรียกใช้ในภายหลัง
+  // Save the event so we can trigger it later
   deferredPrompt = event;
-  // แสดงปุ่มติดตั้งของคุณเอง
+  // Show your own install button
   document.getElementById('install-btn').hidden = false;
 });
 ```
@@ -36,11 +36,11 @@ window.addEventListener('beforeinstallprompt', (event) => {
 ```js
 document.getElementById('install-btn').addEventListener('click', async () => {
   if (!deferredPrompt) return;
-  // แสดง install dialog ของเบราว์เซอร์
+  // Show the browser's install dialog
   deferredPrompt.prompt();
-  // รอการเลือกของผู้ใช้
+  // Wait for the user's choice
   const { outcome } = await deferredPrompt.userChoice;
-  console.log('User choice:', outcome); // 'accepted' หรือ 'dismissed'
+  console.log('User choice:', outcome); // 'accepted' or 'dismissed'
   deferredPrompt = null;
   document.getElementById('install-btn').hidden = true;
 });
@@ -179,11 +179,7 @@ self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request)));`,
 - ไม่เก็บ deferredPrompt ไว้ตั้งแต่ event แรก ทำให้พลาดโอกาสแสดงปุ่มติดตั้งไปเลยหากไม่ได้ดักจับทัน
 - ลืมว่า iOS Safari ไม่ยิง beforeinstallprompt เลย แล้วออกแบบ UI ติดตั้งที่ใช้ไม่ได้กับผู้ใช้ iOS
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Pinterest** — แสดงปุ่มติดตั้งของตัวเองหลังจากผู้ใช้มี engagement ระดับหนึ่งแล้ว แทนที่จะโชว์ตั้งแต่หน้าแรก ทำให้ conversion สูงขึ้น
->
-> **Starbucks** — ดักจับ beforeinstallprompt แล้วผูกกับปุ่ม "Add to Home Screen" ที่ออกแบบเข้ากับ branding ของแอปเอง
+ทั้ง `beforeinstallprompt` และ `deferredPrompt.prompt()` เป็น API เฉพาะ Chromium เท่านั้น (Chrome, Edge, Samsung Internet) — Firefox และ Safari ไม่ implement ทั้งคู่ ([MDN: making PWAs installable](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)) การรอแสดงปุ่มติดตั้งแบบกำหนดเองจนกว่าผู้ใช้จะมี engagement กับแอปบ้างแล้ว — แทนที่จะโชว์ตั้งแต่โหลดหน้าแรก — เป็น best practice ที่มีการบันทึกไว้จริงสำหรับเพิ่มอัตราที่ผู้ใช้กดยอมรับ install prompt ไม่ว่าจะเป็นแอปไหนก็ตาม
 
 export const quizInstallPrompt = [
   {

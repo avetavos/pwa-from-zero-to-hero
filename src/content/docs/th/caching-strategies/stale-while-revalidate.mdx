@@ -108,11 +108,7 @@ Stale-while-revalidate ให้การโหลดทันทีพร้อ
 - ใช้ SWR กับข้อมูลที่ต้องถูกต้อง 100% เสมอ (เช่นยอดเงินคงเหลือ) ทำให้ผู้ใช้เห็นตัวเลขเก่าโดยไม่รู้ตัว
 - ไม่ trim cache entry เก่าออก ทำให้ storage โตเรื่อยๆ เพราะทุก revalidate จะเขียนทับแต่ไม่เคย cleanup entry ที่ไม่ใช้แล้ว
 
-> 💡 ตัวอย่างจากของจริง
->
-> **HTTP Cache-Control: stale-while-revalidate** — เป็น pattern มาตรฐานที่ CDN อย่าง Cloudflare และ Fastly ใช้ก่อนที่ service worker จะยืมแนวคิดนี้มาใช้ฝั่ง client
->
-> **Workbox StaleWhileRevalidate strategy** — ใช้กันแพร่หลายในเว็บข่าวและ e-commerce ที่ต้องการทั้งความเร็วของหน้า listing และข้อมูลที่ไม่เก่าเกินไป
+HTTP `Cache-Control` directive `stale-while-revalidate` ([RFC 5861](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching); รองรับโดย CDN อย่าง Cloudflare และ Fastly) คือ pattern มาตรฐานที่ service worker เวอร์ชันในบทเรียนนี้ยืมชื่อและแนวคิดมา — ชั้น CDN ทำแบบนี้มาก่อน ก่อนที่ service worker จะนำแนวคิดเดียวกันมาใช้ฝั่ง client Workbox StaleWhileRevalidate strategy ก็ใช้แนวคิดเดียวกันนี้ และใช้กันแพร่หลายในเว็บข่าวและ e-commerce ที่ต้องการทั้งความเร็วของหน้า listing และข้อมูลที่ไม่เก่าเกินไป
 
 export const quizStaleWhileRevalidate = [
   {

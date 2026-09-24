@@ -168,6 +168,21 @@ self.addEventListener('notificationclick', (event) => {
 Always show notifications from the service worker via `registration.showNotification()` rather than `new Notification()`. Notifications from the SW are delivered reliably even when no tab is open, and they support action buttons and `notificationclick` handling in the SW.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Ask for permission contextually (after the user is already engaged) | Higher grant rate, users understand the reason before deciding | Requires designing the right trigger point — more UX design work |
+| Ask for permission immediately on first load | Simplest code | Very high block rate — users deny before they have seen any value in the app |
+
+## Common mistakes
+
+- Asking for notification permission the instant the page loads, so most users block it before they even know what the app does.
+- Not handling a permanent "denied" state, so the code keeps trying to ask again with no way to recover.
+- Showing notifications without a proper icon/tag, so the same notification stacks up multiple times instead of replacing the previous one.
+
+Apps that request permission only after a related action — sending a message, for instance — rather than on entry, and services that time a reminder to a relevant moment (like a check-in reminder tied to booking a ticket), both apply the same "ask at the moment of relevance" principle.
+
 export const quizNotifications = [
   {
     q: 'What does Notification.requestPermission() return?',

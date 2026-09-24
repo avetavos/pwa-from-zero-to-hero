@@ -149,11 +149,7 @@ Workbox ห่อหุ้ม strategy แบบ cache-first, network-first, แ
 - ไม่ regenerate precache manifest หลัง build ทำให้ Workbox precache ไฟล์เวอร์ชันเก่าที่ hash ไม่ตรงกับไฟล์จริง
 - ลืมว่า Workbox ยังต้องเรียก `self.skipWaiting()` / `clients.claim()` เองถ้าต้องการ auto-update ไม่ใช่ default ของ library
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Twitter Lite / Pinterest** — เป็นสองเคสที่ทีม Google อ้างถึงบ่อยที่สุดว่าใช้ Workbox จัดการ caching strategy ระดับ production
->
-> **Google I/O web app** — ใช้ Workbox precaching ร่วมกับ build tool เพื่อให้ asset ทุกตัว versioned อัตโนมัติทุกครั้งที่ deploy
+Workbox สร้างและดูแลโดยทีม Chrome เอง ([source บน GitHub](https://github.com/GoogleChrome/workbox)) และ `vite-plugin-pwa` ก็ใช้ Workbox อยู่เบื้องหลังเพื่อสร้าง service worker และ precaching manifest ให้อัตโนมัติทุกครั้งที่ build ([vite-pwa-org.netlify.app](https://vite-pwa-org.netlify.app/))
 
 export const quizWorkbox = [
   {

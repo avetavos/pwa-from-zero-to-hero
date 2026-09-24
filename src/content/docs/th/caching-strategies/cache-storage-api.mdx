@@ -250,11 +250,7 @@ self.addEventListener('fetch', function(event) {
 - ลืม cache.delete() cache เก่าตอน activate event ทำให้ storage โตขึ้นเรื่อยๆ ไม่มีที่สิ้นสุด
 - cache response ที่เป็น opaque (cross-origin แบบไม่มี CORS) โดยไม่รู้ตัวว่ากิน quota เท่ากับไฟล์เต็มแม้จะอ่าน body ไม่ได้
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Wikipedia** — ใช้ Cache Storage API เก็บบทความที่เคยอ่านไว้ ทำให้เปิดซ้ำได้แบบ offline โดยไม่ต้องโหลดใหม่
->
-> **Squoosh** — cache ทุก asset ของแอปไว้ตั้งแต่ install ทำให้ใช้งานได้แบบ offline-first ตั้งแต่ครั้งแรกที่เปิด
+Squoosh PWA บีบอัดรูปภาพแบบ open source ของ Google Chrome Labs cache asset ทุกตัวของแอปไว้ตั้งแต่ install ทำให้ใช้งานได้แบบ offline-first ตั้งแต่ครั้งแรกที่เปิด ([source บน GitHub](https://github.com/GoogleChromeLabs/squoosh)) — เป็น pattern precache-ทุกอย่างแบบเดียวกับที่บทเรียนนี้สร้างขึ้น
 
 export const quizCacheStorageApi = [
   {

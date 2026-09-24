@@ -98,7 +98,7 @@ field ชื่อ `purpose` มีความหมายสำคัญ:
 
 ```ts
 pwaAssets: {
-  image: 'public/logo.svg',   // SVG หรือ PNG ความละเอียดสูง
+  image: 'public/logo.svg',   // SVG or high-res PNG source
 },
 ```
 
@@ -134,11 +134,7 @@ Configure the manifest once in `astro.config.mjs`; the integration emits it and 
 - ไม่ generate icon ผ่าน plugin ทำให้ขนาด icon ไม่ครบตามที่ store/Android ต้องการ
 - ลืมว่า config เปลี่ยนต้อง rebuild ใหม่เสมอ ไม่ hot-reload เหมือนโค้ด component ปกติ
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Astro documentation site เอง** — ใช้ @vite-pwa/astro ตั้งค่า manifest ผ่าน config ให้ sync กับ build pipeline อัตโนมัติ
->
-> **VitePress sites** — ใช้แนวทาง config-driven manifest คล้ายกันทำให้ documentation หลายพันเว็บติดตั้งเป็น PWA ได้โดยไม่ต้องเขียน manifest.json เอง
+Astro documentation site เองใช้ `@vite-pwa/astro` ตั้งค่า manifest ผ่าน config ให้ sync กับ build pipeline อัตโนมัติ และ VitePress sites หลายเว็บก็ใช้แนวทาง config-driven manifest คล้ายกันทำให้ documentation หลายพันเว็บติดตั้งเป็น PWA ได้โดยไม่ต้องเขียน manifest.json เอง
 
 export const quizManifestConfig = [
   {

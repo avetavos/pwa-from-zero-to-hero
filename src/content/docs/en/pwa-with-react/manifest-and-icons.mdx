@@ -97,6 +97,21 @@ The `favicon.ico` file follows the same rule — it lives in `public/` and shoul
 Let the plugin own the manifest and precache so your `dist/` is install-ready with no manual SW.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Define the manifest through vite-plugin-pwa's config | Generates multiple icon sizes automatically, no manifest.json file to maintain by hand | Tied to the plugin's specific config syntax, one more option surface to learn |
+| Write a static `manifest.json` yourself | Direct control, no plugin abstraction in the way | You maintain every icon size and keep it in sync with the build entirely by hand |
+
+## Common mistakes
+
+- Providing only a single icon size in the config, so the plugin cannot generate the full set Android/iOS expect.
+- Forgetting to set the base path to match the real deployment target, breaking icon paths in the manifest at production build time.
+- Not generating a separate maskable icon, so the icon gets clipped oddly on Android as if nothing had been configured at all.
+
+The Vite PWA ecosystem is used by real projects like Elk, the open-source Mastodon client, which generates its manifest and full icon set from a single `vite-plugin-pwa` config ([Elk's `package.json` lists `vite-plugin-pwa`](https://github.com/elk-zone/elk)), and many VitePress sites use the same plugin to make their documentation installable with barely any manifest code of their own.
+
 export const quizManifestAndIcons = [
   {
     q: 'Where do you define the manifest when using vite-plugin-pwa?',

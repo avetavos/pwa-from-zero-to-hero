@@ -123,11 +123,7 @@ Add the integration to `astro.config.mjs` `integrations` — it wires the SW + m
 - ไม่รู้ว่า Astro เป็น SSG default ทำให้ precache ทำงานเฉพาะตอน build จริง ทดสอบใน dev mode แล้วสับสนว่าทำไมไม่ cache อะไรเลย
 - ตั้ง registerType ผิดกับที่ต้องการ (เช่นตั้ง autoUpdate ทั้งที่อยากให้ผู้ใช้กด prompt เอง) ทำให้ UX อัปเดตไม่ตรงกับที่ออกแบบไว้
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem** — @vite-pwa/astro เป็นส่วนหนึ่งของ ecosystem เดียวกับที่ Elk (Mastodon client) ใช้บน Vue/React
->
-> **VitePress / Astro doc sites** — ใช้ setup แบบเดียวกันนี้ทำให้ documentation site ติดตั้งเป็น PWA ได้ในไม่กี่บรรทัด config
+@vite-pwa/astro เป็นส่วนหนึ่งของ Vite PWA ecosystem เดียวกับที่ Elk (Mastodon client) ใช้บนสแตกของตัวเอง ([Elk's `package.json` ระบุ `vite-plugin-pwa`](https://github.com/elk-zone/elk)) และ VitePress / Astro doc sites หลายเว็บก็ใช้ setup แบบเดียวกันนี้ทำให้ documentation site ติดตั้งเป็น PWA ได้ในไม่กี่บรรทัด config
 
 export const quizVitePwaAstroSetup = [
   {

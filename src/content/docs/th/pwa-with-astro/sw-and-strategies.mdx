@@ -134,11 +134,7 @@ export const strategyDiagram = `flowchart TD
 - ไม่ตั้ง strategy ให้ตรงกับประเภท route ของ Astro (static page vs API endpoint) ทำให้ cache ผิดประเภท
 - ลืมว่า Astro build output เปลี่ยน asset hash ทุกครั้ง ทำให้ precache manifest เก่าที่ generate ไว้ไม่ตรงกับไฟล์จริงถ้าไม่ rebuild
 
-> 💡 ตัวอย่างจากของจริง
->
-> **@vite-pwa/astro ecosystem** — ให้ทั้งสอง mode นี้เป็นทางเลือก โปรเจกต์ documentation ส่วนใหญ่ใช้ generateSW เพราะพอสำหรับ static site
->
-> **แอปที่มี custom offline logic ซับซ้อน** — เลือก injectManifest เพื่อผสม custom fetch handler เข้ากับ precache list ที่ Workbox generate ให้
+`@vite-pwa/astro` ecosystem ให้ทั้งสอง mode นี้เป็นทางเลือก โปรเจกต์ documentation ส่วนใหญ่ใช้ generateSW เพราะพอสำหรับ static site ส่วนแอปที่มี custom offline logic ซับซ้อนมักเลือก injectManifest เพื่อผสม custom fetch handler เข้ากับ precache list ที่ Workbox generate ให้
 
 export const quizSwAndStrategies = [
   {

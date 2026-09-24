@@ -95,6 +95,21 @@ This is useful in frameworks where the component can re-render when fresh data a
 Stale-while-revalidate gives instant loads with eventual freshness — great for avatars, feeds, and CSS. The user never waits for the network, but will always be at most one version behind.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Stale-while-revalidate | Instant response from cache with a background update — speed now, freshness next round | The user always sees data that is one round behind; not suitable for data that must be real-time |
+| Pure cache-first | Simpler, no background fetch to manage | No auto-refresh mechanism — data stays stale until the cache is invalidated another way |
+
+## Common mistakes
+
+- Not awaiting the background cache update (a mistimed fire-and-forget), so the browser can terminate the service worker before the fetch finishes — wrap it in `event.waitUntil()`.
+- Using SWR for data that must always be 100% correct (an account balance, say), so the user sees an old number without realizing it.
+- Never trimming old cache entries, so storage grows forever because every revalidation overwrites but nothing ever cleans up unused entries.
+
+The `stale-while-revalidate` HTTP `Cache-Control` directive ([RFC 5861](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching); supported by CDNs including Cloudflare and Fastly) is the standard pattern this lesson's service-worker version borrows its name and idea from — the CDN layer did it first, before service workers brought the same idea to the client.
+
 export const quizStaleWhileRevalidate = [
   {
     q: 'In stale-while-revalidate, when is the cache updated?',

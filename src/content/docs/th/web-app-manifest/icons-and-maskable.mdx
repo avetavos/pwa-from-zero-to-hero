@@ -122,11 +122,7 @@ export const safeZoneDiagram = `flowchart TB
 - ออกแบบโลโก้เต็มขอบไฟล์ 512x512 โดยไม่เผื่อ safe zone กลาง 80% ตามสเปก maskable icon
 - ใส่ icon แค่ขนาดเดียว (เช่น 192x192) ทำให้ device ที่ต้องการ resolution สูงกว่าต้อง upscale จนภาพแตก
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Squoosh** — ออกแบบ maskable icon เฉพาะสำหรับ Android โดยเว้น safe zone ตรงกลางตามสเปก ทำให้โลโก้ไม่โดนตัดเมื่อถูก crop เป็นวงกลม
->
-> **Maskable.app (เครื่องมือของ Google)** — เป็นเครื่องมือ preview มาตรฐานที่นักพัฒนา PWA ใช้ตรวจ safe zone ก่อน ship icon จริง
+Squoosh ออกแบบ maskable icon เฉพาะสำหรับ Android โดยเว้น safe zone ตรงกลางตามสเปก ทำให้โลโก้ไม่โดนตัดเมื่อถูก crop เป็นวงกลม ([source บน GitHub](https://github.com/GoogleChromeLabs/squoosh) — มีไฟล์ `icon-large-maskable.png` อยู่จริง) ส่วน [Maskable.app](https://maskable.app/) เป็นเครื่องมือ preview มาตรฐานที่นักพัฒนา PWA ใช้ตรวจ safe zone ก่อน ship icon จริง — เป็นเครื่องมือของชุมชนที่ดูแลโดย Tiger Oakes ไม่ใช่ผลิตภัณฑ์ทางการของ Google
 
 export const quizIconsMaskable = [
   {

@@ -15,12 +15,18 @@ Service worker และ API อื่นๆ ของ PWA ทำงานเฉ
 
 ### Secure context คืออะไร
 
-**Secure context** คือ environment ที่ตรงตามมาตรฐานขั้นต่ำของการรับรองความถูกต้องและความลับ ตามที่กำหนดโดย W3C ในทางปฏิบัติ หน้าจะอยู่ใน secure context เมื่อ:
+**Secure context** คือ `Window` หรือ `Worker` ที่ origin ถูกส่งมาผ่าน secure transport Browser เปิด boolean ให้ตรวจสอบได้ตลอดเวลา:
 
-- ถูก serve ผ่าน **HTTPS** (เช่น `https://example.com`)
-- หรือทำงานบน **`localhost`** หรือ `127.0.0.1` (ข้อยกเว้นพิเศษสำหรับการพัฒนา)
+```js
+console.log(window.isSecureContext); // true or false
+```
 
-หน้าที่ถูก serve ผ่าน `http://` ในทุกโดเมนอื่นนอกจาก localhost ไม่ใช่ secure context ไม่ว่าจะ deploy ที่ไหน
+Browser จะตั้ง `window.isSecureContext` เป็น `true` เมื่อ:
+
+- หน้าถูกโหลดผ่าน **`https://`** พร้อม TLS certificate ที่ valid
+- หน้าถูกโหลดจาก **`http://localhost`**, **`http://127.0.0.1`** หรือ **`http://[::1]`** — loopback address เหล่านี้ได้รับการยกเว้นโดย spec โดยตรง และ browser สมัยใหม่ทุกตัวถือว่าปลอดภัย
+
+สำหรับ origin `http://` อื่นใด `window.isSecureContext` จะเป็น `false` และการ register service worker จะ throw `SecurityError` หรือล้มเหลวแบบเงียบๆ
 
 ### ทำไม service worker จึงต้องการ secure context
 
@@ -32,45 +38,75 @@ Service worker เป็น proxy ที่ทรงพลัง สามาร
 
 การกำหนดให้ต้อง HTTPS จะทำให้แน่ใจว่า service worker ที่ browser รัน เป็นของจริงและไม่ถูกดัดแปลง
 
-### การตรวจสอบ window.isSecureContext
-
-Browser เปิดเผย flag boolean ที่คุณสามารถตรวจสอบได้ตลอดเวลา:
-
 ```js
-if (window.isSecureContext) {
-  console.log('Running in a secure context — service worker APIs available.');
-} else {
-  console.warn('Not a secure context. PWA features will be unavailable.');
+// Always guard registration with a secure-context check
+if ('serviceWorker' in navigator) {
+  if (!window.isSecureContext) {
+    console.warn('Not a secure context — service worker will not register.');
+  } else {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => console.log('Registered, scope:', reg.scope))
+      .catch((err) => console.error('Registration failed:', err));
+  }
 }
 ```
 
-ตรวจสอบ flag นี้ก่อนที่จะพยายาม register service worker หรือใช้ API อื่นๆ ที่ต้องการ secure context (Push, Notifications, Web Authentication, Web Crypto) เพื่อให้ message error ที่ชัดเจนแก่ผู้ใช้แทนที่จะเห็น exception ที่ไม่ได้จัดการ
-
 ### Mixed content blocking
 
-แม้ว่า origin หลักของคุณจะเป็น HTTPS แต่ browser จะบล็อก **mixed content** — resource ที่โหลดผ่าน HTTP จากหน้า HTTPS
+หน้าจะถือว่าปลอดภัยก็ต่อเมื่อ**ทุก resource ที่โหลด**มาจาก secure origin เท่านั้น การโหลด `http://` subresource แม้เพียงตัวเดียวจากหน้า `https://` จะสร้าง **mixed content** ซึ่ง browser จะบล็อกหรือลดระดับ
 
-- **Active mixed content** (scripts, stylesheets, iframes) ถูกบล็อกโดยค่าเริ่มต้นในทุก browser สมัยใหม่
-- **Passive mixed content** (images, audio, video) อาจถูกบล็อกหรือแสดง warning เช่นกัน ขึ้นอยู่กับการตั้งค่า browser
+Mixed content มีผลกับ PWA ในสองทางที่สำคัญ:
 
-หากหน้า HTTPS ของคุณโหลด resource ผ่าน `http://` การ register service worker อาจยังคงทำงานได้ แต่ resource เหล่านั้นจะถูกบล็อกหรือทำให้ lock indicator ใน address bar เสียหาย ตรวจสอบ DevTools Console และ Network tab เพื่อค้นหาคำเตือน mixed content
+1. **Active mixed content** (script, service worker, iframe ผ่าน `http://`) ถูกบล็อกเสมอ `sw.js` ของคุณเองต้อง serve ผ่าน `https://` เท่านั้น
+2. **Passive mixed content** (image, audio, video ผ่าน `http://`) จะขึ้น warning และในบาง config อาจบังคับให้ `window.isSecureContext` เป็น `false` จนทำให้ register SW ไม่ได้
+
+วิธีแก้ตรงไปตรงมา: ตรวจสอบ URL ของ resource ทุกตัวในแอป ย้ายทั้งหมดไปที่ `https://` และใช้ Content Security Policy header เพื่อบังคับต่อไป หากหน้า HTTPS ของคุณโหลด resource ผ่าน `http://` การ register service worker อาจยังคงทำงานได้ แต่ resource เหล่านั้นจะถูกบล็อกหรือทำให้ lock indicator ใน address bar เสียหาย ตรวจสอบ DevTools Console และ Network tab เพื่อค้นหาคำเตือน mixed content
 
 ### กฎ scope ของ service worker
 
-Service worker ควบคุม URL ภายใน **scope** ของตัวเอง ซึ่งค่าเริ่มต้นคือ directory ที่ script ของ SW อยู่ Scope นี้ถูกจำกัดโดย HTTPS อีกชั้น:
+**Scope** ของ service worker กำหนดว่ามันควบคุมหน้าใดบ้าง ค่าเริ่มต้นคือ directory ที่ไฟล์ SW อยู่:
 
-- SW ที่ serve จาก `https://example.com/app/sw.js` ควบคุมเฉพาะ URL ภายใต้ `/app/`
-- SW ไม่สามารถยกระดับ scope ของตัวเองให้สูงกว่า path ของไฟล์ SW ได้ ยกเว้นจะมี `Service-Worker-Allowed` response header
-- ใน HTTPS ทั้งหมดนี้ถูก enforce อย่างเคร่งครัด — ไม่มี loophole ใดที่จะอนุญาตให้ SW ที่ไม่น่าเชื่อถือ intercept traffic ที่ไม่ได้ตั้งใจให้ SW ตัวนั้นเข้าถึง
+| SW file path | Scope เริ่มต้น | ควบคุม |
+|---|---|---|
+| `/sw.js` | `/` | ทั้ง origin |
+| `/app/sw.js` | `/app/` | เฉพาะ `/app/` และด้านล่าง |
+| `/shop/checkout/sw.js` | `/shop/checkout/` | เฉพาะ `/shop/checkout/` และด้านล่าง |
+
+คุณสามารถทำให้ scope แคบลงได้โดยส่ง option `scope` ให้ `register()` แต่จะขยายให้กว้างกว่า directory ของไฟล์ SW ไม่ได้ — เว้นแต่ server จะส่ง response header `Service-Worker-Allowed` บนไฟล์ SW พร้อม scope ที่ต้องการ:
+
+```http
+Service-Worker-Allowed: /
+```
+
+```js
+// Widen the scope with the header above set on /app/sw.js
+navigator.serviceWorker.register('/app/sw.js', { scope: '/' });
+```
+
+หากไม่มี header นั้น การพยายาม register scope ที่กว้างกว่า directory ของไฟล์ SW จะ throw `SecurityError` ทั้งหมดนี้ถูก enforce อย่างเคร่งครัดภายใต้ HTTPS — ไม่มี loophole ใดที่จะอนุญาตให้ SW ที่ไม่น่าเชื่อถือ intercept traffic ที่ไม่ได้ตั้งใจให้ SW ตัวนั้นเข้าถึง
 
 ### ข้อยกเว้น localhost
 
-`localhost` และ `127.0.0.1` ได้รับการยกเว้นโดยทั้ง spec และ browser ว่าเป็น secure context แม้ว่าจะ serve ผ่าน `http://` ก็ตาม เหตุผลคือ traffic บน localhost ไม่เคยผ่านเครือข่าย ดังนั้นความเสี่ยงจาก man-in-the-middle จึงไม่มี
+ระหว่างพัฒนาคุณไม่จำเป็นต้องมี self-signed certificate หรือ tunnel ใดๆ browser สมัยใหม่ทุกตัวถือว่า `localhost`, `127.0.0.1` และ `::1` เป็น secure origin เพราะ traffic บน loopback ไม่เคยผ่านเครือข่ายจริง จึงไม่มีความเสี่ยงจาก man-in-the-middle คุณจึง register service worker, ใช้ Push API, เข้าถึงกล้อง และทดสอบ installability flow ทั้งหมดได้บน `http://localhost` เดฟเซิร์ฟเวอร์ธรรมดา
 
-ในทางปฏิบัติ:
-- server dev ท้องถิ่นของคุณบน `http://localhost:5173` เป็น secure context ที่สมบูรณ์
-- Service worker, Push API และ Web Authentication ทั้งหมดทำงานได้บน localhost โดยไม่ต้องมี TLS certificate
-- เมื่อ deploy เป็น production ต้องใช้ HTTPS จริง — ข้อยกเว้น localhost ไม่ครอบคลุม IP หรือ hostname อื่น
+```js
+// Full secure-context diagnostic you can drop into DevTools
+(function diagnose() {
+  const results = {
+    isSecureContext: window.isSecureContext,
+    protocol: location.protocol,
+    hostname: location.hostname,
+    serviceWorkerSupported: 'serviceWorker' in navigator,
+  };
+  console.table(results);
+  if (!results.isSecureContext) {
+    console.warn(
+      'Secure context required. Deploy over HTTPS or use localhost.'
+    );
+  }
+})();
+```
 
 ```js
 // Safe registration pattern — checks secure context first
@@ -111,11 +147,7 @@ Service worker และ PWA API อื่นๆ ทำงานได้เฉ�
 - ตั้ง redirect จาก HTTP ไป HTTPS ที่ระดับ app แทนที่จะทำที่ edge/CDN ทำให้ยังมี window ที่ request แรกไม่ปลอดภัย
 - ไม่ต่ออายุ TLS certificate ทันเวลา ทำให้ service worker ที่เคยลงทะเบียนไว้ใช้งานไม่ได้ทันทีที่ cert หมดอายุ
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Google Chrome** — ตั้งแต่ปี 2018 เริ่มขึ้น label "Not Secure" ให้ทุกเว็บที่ไม่ใช่ HTTPS บังคับให้ทั้งอุตสาหกรรมย้ายมาใช้ TLS
->
-> **Let's Encrypt** — ให้ TLS certificate ฟรีอัตโนมัติ ทำให้ต้นทุนของการทำ HTTPS ทุก origin ลดลงจนแทบไม่มีข้อแก้ตัวที่จะไม่ทำ
+Chrome เริ่มติด label "Not Secure" ให้ทุกหน้าที่เป็น HTTP ธรรมดาตั้งแต่ปี 2018 ผลักดันให้อุตสาหกรรมส่วนใหญ่ย้ายไปใช้ TLS ([Chromium Blog, "A secure web is here to stay," ก.พ. 2018](https://blog.chromium.org/2018/02/a-secure-web-is-here-to-stay.html)) ส่วน TLS certificate ฟรีแบบอัตโนมัติจาก [Let's Encrypt](https://letsencrypt.org/) ก็ตัดข้อแก้ตัวเรื่องต้นทุนที่เหลืออยู่ของการทำ HTTPS ทุก origin ไปเกือบหมด
 
 export const quizHttpsSecureContext = [
   {

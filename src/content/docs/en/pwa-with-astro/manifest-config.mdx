@@ -121,6 +121,21 @@ The `display` field controls how much browser chrome is shown when the PWA is la
 Configure the manifest once in `astro.config.mjs`; the integration emits it and links it for you.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Configure the manifest through `astro.config.mjs` (`@vite-pwa/astro`) | Manifest is generated automatically at build time, always in sync with one config | Have to learn Astro-specific plugin options instead of just writing plain JSON |
+| Put `manifest.json` directly in `public/` | You can see and edit the file directly, no config abstraction in the way | Must sync it by hand with the build output yourself, risking a manifest that does not match the real assets |
+
+## Common mistakes
+
+- Setting `scope`/`start_url` that does not match the actual deployed base path (e.g. deploying to a sub-path but leaving `start_url` as `"/"`).
+- Not generating icons through the plugin, so icon sizes fall short of what stores/Android expect.
+- Forgetting that a config change always needs a rebuild — it does not hot-reload the way normal component code does.
+
+Astro's own documentation site uses `@vite-pwa/astro` to configure its manifest through config so it stays in sync with the build pipeline automatically, and many VitePress sites take the same config-driven approach so thousands of documentation sites can install as a PWA without hand-writing a `manifest.json`.
+
 export const quizManifestConfig = [
   {
     q: 'Where do you configure the web app manifest when using the AstroPWA integration?',

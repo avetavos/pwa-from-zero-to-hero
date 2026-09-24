@@ -44,7 +44,7 @@ export const online = readable(
 </script>
 
 {#if !$online}
-  <div class="offline-banner">คุณออฟไลน์อยู่ — กำลังแสดงเนื้อหาจาก cache</div>
+  <div class="offline-banner">You are offline — showing cached content.</div>
 {/if}
 ```
 
@@ -67,7 +67,7 @@ export const installPromptEvent = writable<BeforeInstallPromptEvent | null>(null
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault(); // ป้องกัน mini-infobar
+    e.preventDefault(); // Prevent the mini-infobar
     installPromptEvent.set(e as BeforeInstallPromptEvent);
   });
 }
@@ -85,7 +85,7 @@ Component ที่ใช้ store เพื่อแสดง install button:
     await $installPromptEvent.prompt();
     const { outcome } = await $installPromptEvent.userChoice;
     if (outcome === 'accepted') {
-      installPromptEvent.set(null); // ซ่อน button หลังจากติดตั้ง
+      installPromptEvent.set(null); // hide the button after install
     }
   }
 </script>
@@ -149,8 +149,8 @@ export function applyUpdate() {
 
 {#if $updateAvailable}
   <div class="update-banner">
-    มีเวอร์ชันใหม่พร้อมใช้งาน
-    <button on:click={applyUpdate}>อัปเดตตอนนี้</button>
+    A new version is available.
+    <button on:click={applyUpdate}>Update now</button>
   </div>
 {/if}
 ```
@@ -163,7 +163,7 @@ Service worker ทำงานได้เฉพาะใน browser เท่�
 2. **`adapter-static` สำหรับแอปที่ offline ทั้งหมด** หากต้องการให้ผู้ใช้เปิดทุกหน้าขณะ offline ทุก route ต้องถูก prerender ตั้งค่า `export const prerender = true` ใน root `+layout.js` (หรือใช้ `adapter-static` ซึ่งบังคับ prerendering) SW จะ precache หน้าที่ prerender แล้วทั้งหมดผ่าน export `prerendered` จาก `$service-worker`
 
 ```ts
-// src/routes/+layout.js — opt ทั้งแอปเข้าสู่ prerendering
+// src/routes/+layout.js — opt entire app into prerendering
 export const prerender = true;
 ```
 
@@ -186,11 +186,7 @@ export const prerender = true;
 - เขียน logic ของ service worker ปนอยู่ใน component โดยตรงแทนที่จะแยกเป็น store/module ทำให้ reuse ข้ามหน้าไม่ได้
 - ไม่เช็คว่าโค้ดรันฝั่ง client จริง (SvelteKit SSR) ก่อนเข้าถึง `navigator.serviceWorker` ทำให้ build พังตอน SSR
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem (SvelteKit)** — ใช้ store pattern ครอบ `virtual:pwa-register/svelte` ให้ UI reactive ต่อ update state ได้ทันที
->
-> **เครื่องมือแบบ Squoosh ที่พอร์ตมาเป็น SvelteKit** — ใช้ Svelte store เก็บสถานะ installable/offline ให้ทุก component อ่านค่าเดียวกัน
+Vite PWA ecosystem ฝั่ง SvelteKit ใช้ store pattern ครอบ `virtual:pwa-register/svelte` ให้ UI reactive ต่อ update state ได้ทันที และเครื่องมือแบบ Squoosh ที่พอร์ตมาเป็น SvelteKit ก็จะใช้ Svelte store เก็บสถานะ installable/offline แบบเดียวกันให้ทุก component อ่านค่าเดียวกัน
 
 export const quizSveltePatterns = [
   {

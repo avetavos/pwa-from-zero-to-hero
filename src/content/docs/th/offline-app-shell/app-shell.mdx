@@ -66,7 +66,7 @@ const CONTENT_CACHE = 'content-v1';
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Shell assets: cache-first (เร็ว, offline-safe)
+  // Shell assets: cache-first (fast, offline-safe)
   if (SHELL_ASSETS.includes(url.pathname)) {
     event.respondWith(
       caches.match(event.request).then((cached) => cached || fetch(event.request))
@@ -88,7 +88,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation: serve shell, ให้ SPA router จัดการ route
+  // Navigation: serve shell, let the SPA router handle the route
   if (event.request.mode === 'navigate') {
     event.respondWith(
       caches.match('/').then((cached) => cached || fetch(event.request))
@@ -255,11 +255,7 @@ self.addEventListener('fetch', (event) => {
 - ทำ shell ใหญ่เกินไปจนแทบเท่าทั้งหน้า ทำให้เสียประโยชน์ของการแยก shell ออกจาก content
 - ไม่ versioned shell cache ทำให้ deploy ใหม่แล้ว shell เก่ายังค้างอยู่ ผู้ใช้เห็น UI เก่าปนกับ data ใหม่
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Google Developers site** — เป็นตัวอย่างต้นแบบของ app shell model ที่ Google ใช้สอนแนวคิดนี้ตั้งแต่แรกเริ่ม
->
-> **Twitter Lite** — แยก shell (navigation, layout) ออกจาก timeline content ทำให้เปิดแอปได้ทันทีแม้เน็ตช้าก่อนค่อยโหลด tweet
+PWA ของ Twitter Lite เป็นตัวอย่างจริงที่มีเอกสารยืนยันของการแบ่งแบบนี้พอดี: แยก shell (navigation, layout) ออกจาก timeline content ทำให้เปิดแอปได้ทันทีแม้เน็ตช้าก่อนค่อยโหลด tweet ([web.dev/twitter](https://web.dev/twitter/))
 
 export const quizAppShell = [
   {

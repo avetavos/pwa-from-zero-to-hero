@@ -139,11 +139,7 @@ self.addEventListener('fetch', (event) => {
 - cache response ของ POST/PUT request ที่ไม่ควร cache ทำให้ mutation ทำงานผิดพลาดตอน replay จาก cache
 - ไม่เช็ค request.mode หรือ request.method ก่อน intercept ทำให้ fetch handler ไปยุ่งกับ request ที่ควรปล่อยผ่าน เช่น cross-origin analytics call
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Gmail** — fetch handler ของ service worker แยก strategy ระหว่าง static asset กับ API call ของอีเมลอย่างชัดเจน ทำให้ offline ยังเปิดอีเมลที่เคยอ่านได้
->
-> **Google Docs** — intercept fetch event เพื่อ serve เอกสารจาก cache ทันทีเมื่อออฟไลน์ แล้ว sync การแก้ไขกลับตอนกลับมา online
+แอปประเภทอีเมลหรือเอกสารที่ต้องใช้งานได้แม้ offline มักแยก fetch strategy ตามประเภท request — static asset ใช้ cache-first ส่วน API/data call ที่เคยโหลดมาแล้วจะ serve จาก cache เป็น fallback แล้ว sync กลับตอนกลับมามีเน็ต ซึ่งเป็น pattern เดียวกับกลยุทธ์ที่อธิบายไว้ด้านบนนี้เอง — ส่วนแอปตัวไหนทำแบบนี้จริงสำคัญน้อยกว่าการ implement การแยก strategy นี้ให้ถูกต้องใน service worker ของคุณเอง
 
 export const quizFetchEvent = [
   {

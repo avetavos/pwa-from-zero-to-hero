@@ -17,11 +17,11 @@ Google แนะนำคำว่า **Progressive Web App** ในปี 2015 
 
 ## ตัวอย่างในโลกจริง
 
-ผลกระทบของ PWA นั้นวัดได้จริง บางกรณีที่มีการรายงานกันอย่างกว้างขวาง:
+ผลกระทบของ PWA วัดได้จริง กรณีที่มีเอกสารยืนยันชัดเจนที่สุดคือของ Twitter:
 
-- **Twitter Lite** — Twitter สร้าง PWA เพื่อแทนแอป Android ที่หนักกว่า ขนาดลดลง 97% เมื่อเทียบกับแอป native ส่วน tweet จากหน้าหลักเพิ่มขึ้น 75% หลังจากเปิดตัว
-- **Starbucks** — PWA ของ Starbucks ทำให้ผู้ใช้สั่งซื้อและปรับแต่งเมนูได้แม้ไม่มีสัญญาณ เมื่อเปิดตัว PWA จำนวนผู้ใช้ active รายวันเพิ่มขึ้นเป็นสองเท่า
-- **Pinterest** — การรีสร้างเป็น PWA ส่งผลให้การมีส่วนร่วมเพิ่มขึ้น 60% และรายได้จากโฆษณาหลักเพิ่มขึ้น 44%
+**Twitter Lite** สร้าง PWA แทนเว็บมือถือเดิมโดยใช้ app shell model ผลลัพธ์ที่เผยแพร่: pages per session เพิ่มขึ้น 65%, tweet ที่ส่งเพิ่มขึ้น 75%, bounce rate ลดลง 20% — ทั้งหมดนี้จากการดาวน์โหลดเริ่มต้นราว 600 KB เทียบกับแอป Android แบบ native ที่ 23.5 MB (เล็กกว่าประมาณ 97%) ([web.dev/twitter](https://web.dev/twitter/), ตรวจสอบล่าสุดปี 2026)
+
+เว็บไซต์ retail, productivity และข่าวรายใหญ่อื่นๆ อีกหลายเจ้ารายงานผลในทิศทางเดียวกัน — ติดตั้งเบากว่า โหลดซ้ำเร็วกว่า และมี engagement สูงขึ้น — หลังจากใช้แนวทาง app shell ร่วมกับ service worker แบบเดียวกัน แต่ตัวเลขเปอร์เซ็นต์เฉพาะจากบทความใดบทความหนึ่งควรระวัง — ตรวจสอบกับแหล่งที่ยัง live อยู่ก่อนนำไปอ้างซ้ำ และควรอ้างอิงผลวัดของทีมตัวเองหลัง ship จริงจะน่าเชื่อถือกว่า
 
 สิ่งที่ทำให้กรณีเหล่านี้มีความสำคัญไม่ใช่เทคโนโลยีเฉพาะตัว — แต่คือการที่เว็บ URL เดียวสามารถเข้าถึงผู้ใช้ทั่วโลกได้ ขณะที่ยังมอบประสบการณ์เทียบเท่า native app
 
@@ -35,7 +35,13 @@ Service worker ทำหน้าที่เป็น network proxy ที่�
 
 ### 2. มี Web App Manifest
 
-ไฟล์ JSON ที่ลิงก์จาก HTML ด้วย `<link rel="manifest">` ซึ่งอธิบายแอปของคุณ: ชื่อ, ชุด icon, สีธีม, `start_url`, และ `display` mode เป็นอย่างน้อย
+ไฟล์ JSON ที่ลิงก์จาก `<head>` ซึ่งอธิบายว่าแอปควรแสดงผลอย่างไรเมื่อถูกติดตั้ง:
+
+```html
+<link rel="manifest" href="/manifest.webmanifest" />
+```
+
+manifest ต้องมีอย่างน้อย `name` (หรือ `short_name`), `start_url`, `display` mode เป็น `standalone` หรือ `fullscreen`, และ icon อย่างน้อยหนึ่งขนาดที่ 192×192 ขึ้นไป:
 
 ```json
 {
@@ -54,10 +60,10 @@ Service worker ทำหน้าที่เป็น network proxy ที่�
 
 ### 3. มี Service Worker ที่ลงทะเบียนแล้ว
 
-Service worker ต้องมี `fetch` event handler อยู่ด้วย แม้จะเป็นแค่ handler ที่ pass-through ก็ตาม นี่คือสัญญาณบอก browser ว่าแอปมีกลยุทธ์สำหรับ offline request
+Service worker ต้องมี `fetch` event handler อยู่ด้วย แม้จะเป็นแค่ handler ที่ pass-through ก็ตาม นี่คือสัญญาณบอก browser ว่าแอปมีกลยุทธ์สำหรับ offline request Service worker ที่ handle แค่ `install` กับ `activate` ก็ผ่านเกณฑ์การลงทะเบียนได้ แต่จะไม่ได้ความสามารถ offline ใดๆ
 
 ```js
-// sw.js — minimal service worker ที่เป็น installable
+// sw.js — minimal service worker that qualifies a page as installable
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
@@ -71,24 +77,39 @@ self.addEventListener('fetch', (event) => {
 
 ## PWA ทำได้และทำไม่ได้อะไรบ้างเมื่อเทียบกับ native?
 
-| ความสามารถ | PWA | Native App |
-|---|---|---|
-| ทำงานได้ offline | ใช่ (ผ่าน service worker) | ใช่ |
-| Push notifications | ใช่ (ผ่าน Push API) | ใช่ |
-| เข้าถึง camera / microphone | ใช่ (ผ่าน MediaDevices) | ใช่ |
-| Geolocation | ใช่ | ใช่ |
-| Bluetooth / NFC | บางส่วน (ขึ้นอยู่กับ browser) | ใช่ (เต็มรูปแบบ) |
-| Background execution | จำกัด (Background Sync, Periodic Sync) | ใช่ (เต็มรูปแบบ) |
-| เข้าถึง contacts / SMS ของอุปกรณ์ | ไม่ได้ (Contact Picker API อยู่ระหว่างพัฒนา) | ใช่ |
-| App store listing | ทางเลือก (สามารถส่งได้) | จำเป็น |
-| URL / ค้นพบผ่าน search | ใช่ | ไม่ |
-| ไม่ต้องติดตั้งก่อนใช้งาน | ใช่ | ไม่ |
+PWA ครอบคลุมสิ่งที่ native app ทำได้มากกว่าที่หลายคนคิด ตารางด้านล่างสะท้อนสถานะ browser API ปี 2026 "จำกัด" หมายถึง API มีอยู่แต่ยังมีช่องว่างระหว่าง platform (ปกติ iOS/Safari ตามหลัง Chrome/Android)
 
-ช่องว่างระหว่าง PWA กับ native app แคบลงเรื่อยๆ ในแต่ละปีเมื่อ browser เพิ่ม API ใหม่ สำหรับ app ส่วนใหญ่ที่ต้องการข้อมูล, การแจ้งเตือน, และ offline basic แล้ว PWA ก็เพียงพอสมบูรณ์แบบ
+| ความสามารถ | PWA | Native | หมายเหตุ |
+|---|---|---|---|
+| **Offline access** | ได้ | ได้ | ผ่าน Cache API และ service worker |
+| **ติดตั้งที่ home screen** | ได้ | ได้ | PWA ไม่ต้องผ่านการ review ของ app store |
+| **Push notifications** | ได้ | ได้ | จำกัดบน iOS Safari ก่อนเวอร์ชัน 16.4 |
+| **Camera / microphone** | ได้ | ได้ | ผ่าน `getUserMedia` — ต้องขอ permission |
+| **Background sync** | ได้ | ได้ | `BackgroundSyncManager`; จำกัดบน iOS |
+| **File system access** | ได้ | ได้ | File System Access API; ไม่มีบน Firefox |
+| **Payments** | ได้ | ได้ | Payment Request API |
+| **Bluetooth** | จำกัด | ได้ | Web Bluetooth API; ไม่มีบน Firefox หรือ iOS |
+| **NFC** | จำกัด | ได้ | Web NFC; เฉพาะ Chrome บน Android |
+| **SMS / โทรออก** | ไม่ได้ | ได้ | ไม่มี web API ที่เทียบเท่า |
+| **App store listing** | ทางเลือก | จำเป็น | PWA Builder ห่อ PWA ขึ้น store ได้ |
+| **Auto-update** | ได้ | ต้องกดเอง | service worker เวอร์ชันใหม่ activate แบบเงียบๆ |
+| **Deep OS integration** | จำกัด | ได้ | มี shortcuts, share target, protocol handler แล้ว; lock-screen widget ยังไม่มี |
+
+ช่องว่างที่เหลือใหญ่ที่สุดคือ deep OS integration — lock-screen widget, background process ที่ทำงานตลอดเวลา และ hardware access ระดับต่ำ (NFC บน iOS, Bluetooth บน Firefox) สำหรับ use case ส่วนใหญ่ — content, commerce, productivity — PWA ครอบคลุมสิ่งที่ผู้ใช้ต้องการได้ครบแล้ว
 
 <Callout title="ข้อกำหนดบังคับสามประการ">
 เกณฑ์บังคับสามข้อ: ให้บริการผ่าน HTTPS, มี web app manifest และมี service worker ที่ลงทะเบียนแล้ว
 </Callout>
+
+## เกณฑ์ installability ในทางปฏิบัติ
+
+"Installable" ไม่ใช่มาตรฐานเดียวที่ใช้ทั่วโลก แต่ละ browser engine มี heuristic ของตัวเองที่เพิ่มเข้ามาบนสามข้อกำหนดบังคับ:
+
+- **Chromium (Chrome, Edge, Samsung Internet)** — แสดง install prompt เมื่อครบสามข้อกำหนดและผู้ใช้มี interaction กับหน้าเว็บแล้ว เกณฑ์ engagement ที่แน่นอนตั้งใจให้คลุมเครือและเปลี่ยนไปเรื่อยๆ
+- **Safari (iOS และ macOS)** — ไม่แสดง install prompt แบบ ambient ผู้ใช้ต้องกด share sheet แล้วเลือก "Add to Home Screen" เอง
+- **Firefox** — เลิกมี install UI ของตัวเองแล้ว แต่ยังรองรับ service worker และ manifest; ติดตั้งผ่าน extension ได้
+
+หมายความว่า PWA ของคุณต้องทำงานได้ดีในฐานะเว็บไซต์ธรรมดาเสมอ ความสามารถในการติดตั้งที่เพิ่มขึ้นมาเป็นแบบ progressive — ตามชื่อของมัน
 
 ## ข้อแลกเปลี่ยน
 

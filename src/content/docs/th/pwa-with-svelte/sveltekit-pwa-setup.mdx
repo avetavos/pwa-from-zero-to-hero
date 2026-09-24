@@ -130,11 +130,7 @@ SvelteKitPWA({
 - ลืมเปิด `devOptions.enabled: true` แล้วสับสนว่าทำไม service worker ไม่ register ตอน dev
 - ไม่ทดสอบบน production build (`vite build && vite preview`) ทำให้พลาด bug ที่เกิดเฉพาะตอน build จริงเท่านั้น
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem** — `@vite-pwa/sveltekit` เป็นส่วนหนึ่งของ ecosystem เดียวกับ Elk (Mastodon client) ที่พอร์ตแนวคิดเดียวกันมาใช้กับ SvelteKit
->
-> **SvelteKit community starter templates** — หลายเทมเพลตใช้ plugin นี้เป็นจุดเริ่มต้นมาตรฐานสำหรับทำ SvelteKit PWA
+`@vite-pwa/sveltekit` เป็นส่วนหนึ่งของ Vite PWA ecosystem เดียวกับที่ Elk (Mastodon client) พอร์ตแนวคิดเดียวกันมาใช้บน SvelteKit และเทมเพลต starter ของชุมชน SvelteKit หลายตัวก็ใช้ plugin นี้เป็นจุดเริ่มต้นมาตรฐานสำหรับทำ SvelteKit PWA
 
 export const quizSvelteKitPwaSetup = [
   {

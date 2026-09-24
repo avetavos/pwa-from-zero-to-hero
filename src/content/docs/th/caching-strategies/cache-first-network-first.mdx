@@ -142,11 +142,7 @@ cache-first นั้นเร็วแต่สามารถเสิร์�
 - ใช้ network-first กับ static asset ขนาดใหญ่ ทำให้เสียเวลาโหลดโดยไม่จำเป็นทั้งที่ asset แทบไม่เปลี่ยน
 - ไม่ตั้ง timeout ให้ network-first ทำให้ผู้ใช้ต้องรอ network ที่ช้ามากแทนที่จะ fallback ไป cache เร็วกว่านี้
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Twitter Lite / Pinterest** — ใช้ Workbox ผสมทั้ง cache-first (asset) และ network-first (feed data) ในแอปเดียว ให้เหมาะกับแต่ละประเภท resource
->
-> **BBC News** — ใช้ network-first สำหรับข่าวด่วนเพื่อความสดใหม่ แต่ cache-first สำหรับ layout/asset เพื่อความเร็ว
+PWA ของ Twitter Lite ใช้กลยุทธ์ทีละขั้น ผสม cache-first สำหรับ static asset กับ request ที่แตะ network เพื่อความสดใหม่สำหรับข้อมูล feed — ตรงกับการแบ่งที่อธิบายไว้ด้านบนนี้ ([web.dev/twitter](https://web.dev/twitter/)) เว็บข่าวและ e-commerce จำนวนมากก็ใช้การแบ่งแบบเดียวกัน: network-first สำหรับเนื้อหาที่ไวต่อเวลา, cache-first สำหรับ layout และ asset ด้วยเหตุผลเดียวกัน
 
 export const quizCacheFirstNetworkFirst = [
   {

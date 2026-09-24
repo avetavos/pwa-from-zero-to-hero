@@ -242,6 +242,21 @@ self.addEventListener('fetch', (event) => {
 Separate the shell (rarely changes) from content (changes often) and cache them with different strategies. Cache the shell aggressively with cache-first; use network-first for dynamic data so users see fresh content when online and cached content when offline.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| App-shell architecture | UI shell loads instantly from cache even offline, then data fills in | Requires separating shell from content at design time, adding build complexity |
+| Fully server-rendered on every request | Simpler structure, no shell/content split needed | Nothing to show at all if the network fails, since the whole page depends on one response |
+
+## Common mistakes
+
+- Caching only the shell but forgetting that dynamic content needs its own fallback too — otherwise offline shows an empty shell with no data.
+- Making the shell too large — almost the whole page — which defeats the point of separating shell from content.
+- Not versioning the shell cache, so after a new deploy the old shell lingers and users see old UI mixed with new data.
+
+Twitter Lite's PWA rebuild is a documented real-world example of this exact split: shell (navigation, layout) separated from timeline content, so the app opens instantly even on a slow connection before tweets load in ([web.dev/twitter](https://web.dev/twitter/)).
+
 export const quizAppShell = [
   {
     q: 'Which assets belong in the precached app shell?',

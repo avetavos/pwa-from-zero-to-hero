@@ -28,6 +28,16 @@ The browser sets `window.isSecureContext` to `true` when:
 
 For any other `http://` origin, `window.isSecureContext` is `false` and the service worker registration will throw a `SecurityError` or fail silently.
 
+### Why service workers require a secure context
+
+A service worker is a powerful proxy: it can intercept every request your app makes, rewrite responses, and cache content. Served over plain HTTP, an attacker on the same network (a man-in-the-middle) could:
+
+- Replace your service worker script with malicious code.
+- Intercept or tamper with the responses your service worker has cached.
+- Read private data before it is ever sent.
+
+Requiring HTTPS guarantees the service worker the browser runs is the exact, unmodified file you deployed.
+
 ```js
 // Always guard registration with a secure-context check
 if ('serviceWorker' in navigator) {
@@ -51,7 +61,7 @@ Mixed content matters for PWAs in two practical ways:
 1. **Active mixed content** (scripts, service workers, iframes over `http://`) is always blocked. Your `sw.js` must itself be served over `https://`.
 2. **Passive mixed content** (images, audio, video over `http://`) triggers a browser warning and, in some configurations, forces `window.isSecureContext` to `false`, preventing SW registration.
 
-The fix is straightforward: audit all resource URLs in your app, migrate them to `https://`, and use Content Security Policy headers to enforce it going forward.
+The fix is straightforward: audit all resource URLs in your app, migrate them to `https://`, and use Content Security Policy headers to enforce it going forward. If your HTTPS page loads an `http://` resource, service worker registration itself may still succeed, but that resource will be blocked or will break the padlock indicator in the address bar — check the DevTools Console and Network tab for mixed-content warnings.
 
 ### Service worker scope
 
@@ -98,9 +108,46 @@ During development you do not need a self-signed certificate or a tunnel. All mo
 })();
 ```
 
+```js
+// Safe registration pattern — checks secure context first
+async function registerServiceWorker() {
+  if (!window.isSecureContext) {
+    console.warn('Secure context required. Skipping service worker registration.');
+    return;
+  }
+  if (!('serviceWorker' in navigator)) {
+    console.warn('Service workers not supported in this browser.');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    console.log('SW registered. Scope:', reg.scope);
+  } catch (err) {
+    console.error('SW registration failed:', err);
+  }
+}
+
+registerServiceWorker();
+```
+
 <Callout title="Key point">
 Service workers and many PWA APIs only run in a secure context — HTTPS in production, localhost in development.
 </Callout>
+
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Enforce HTTPS on every origin (subdomains included) | Service workers and modern APIs work fully; protected from MITM | Must manage TLS certs and redirects everywhere, staging included |
+| Allow plain HTTP on localhost for dev | Faster local development, no local cert setup needed | Must make sure this config never leaks into production |
+
+## Common mistakes
+
+- Forgetting that mixed content (loading an asset over `http://` on an `https://` page) makes the browser silently block that request.
+- Redirecting HTTP to HTTPS at the app layer instead of the edge/CDN, leaving a window where the first request is unencrypted.
+- Letting a TLS certificate expire — a previously-registered service worker stops working the moment the cert lapses.
+
+Chrome began labeling every plain-HTTP page "Not Secure" starting in 2018, pushing much of the industry to migrate to TLS ([Chromium Blog, "A secure web is here to stay," Feb 2018](https://blog.chromium.org/2018/02/a-secure-web-is-here-to-stay.html)). Free, automated certificates from [Let's Encrypt](https://letsencrypt.org/) removed most of the remaining cost excuse for not enabling HTTPS on every origin.
 
 export const quizHttpsSecureContext = [
   {

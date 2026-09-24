@@ -106,7 +106,7 @@ SW ใหม่รอ Component Svelte ของคุณใช้ `useRegisterS
 เมื่อคุณใช้ `src/service-worker.js` โดยไม่มี `@vite-pwa/sveltekit` ให้เชื่อมต่อการตรวจจับการอัปเดตเอง:
 
 ```js
-// src/app.ts (หรือ module ใดก็ตามที่รันในทุกหน้า)
+// src/app.ts (or any module that runs on every page)
 async function registerAndWatch() {
   if (!('serviceWorker' in navigator)) return;
 
@@ -160,7 +160,7 @@ self.addEventListener('message', (event) => {
 
 ```js
 registration.addEventListener('updatefound', () => { /* … */ });
-setInterval(() => registration.update(), 60 * 60 * 1000); // ทุกชั่วโมง
+setInterval(() => registration.update(), 60 * 60 * 1000); // every hour
 ```
 
 <Callout title="Key point">
@@ -180,11 +180,7 @@ setInterval(() => registration.update(), 60 * 60 * 1000); // ทุกชั่�
 - Reload หน้าทันทีที่ state เปลี่ยนโดยไม่ถามผู้ใช้ก่อน ทำให้งานที่กำลังกรอกอยู่ในฟอร์มหายไปกลางคัน
 - ไม่ debounce การเช็ค update ทำให้ยิง `registration.update()` ถี่เกินจำเป็นทุกครั้งที่ navigate ไปมาในแอป
 
-> 💡 ตัวอย่างจากของจริง
->
-> **Vite PWA ecosystem (SvelteKit)** — ใช้ `virtual:pwa-register/svelte` store แจ้ง needRefresh ให้ UI แสดง toast ตามมาตรฐานเดียวกับฝั่ง React/Vue
->
-> **Elk (Mastodon client)** — แสดง prompt ให้ผู้ใช้กด reload เองเมื่อมีเวอร์ชันใหม่ แทนที่จะ force reload ระหว่างกำลังเลื่อนอ่าน timeline
+Vite PWA ecosystem ฝั่ง SvelteKit ใช้ store `virtual:pwa-register/svelte` แจ้ง `needRefresh` ให้ UI แสดง toast ตามมาตรฐานเดียวกับฝั่ง React/Vue และ Elk แสดง prompt ให้ผู้ใช้กด reload เองเมื่อมีเวอร์ชันใหม่ แทนที่จะ force reload ระหว่างกำลังเลื่อนอ่าน timeline
 
 export const quizUpdateFlow = [
   {

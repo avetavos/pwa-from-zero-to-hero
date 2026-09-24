@@ -159,6 +159,21 @@ if (subscription) {
 Push notifications need a backend. Your server holds the VAPID private key, stores subscriptions, and pushes messages through the browser vendor's push service. The browser only delivers what your server sends — there is no push without a server.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Push API (re-engage users who are not in the app) | Brings users back even after they closed the app a long time ago, boosts retention | Requires a push server/VAPID keys and managing subscription lifecycle yourself |
+| No push at all, in-app only | No push-server infrastructure to maintain | Loses the chance to re-engage users who never open the app on their own |
+
+## Common mistakes
+
+- Not handling subscription expiry/rotation, so pushes silently disappear because the old endpoint is no longer valid.
+- Sending push notifications too often, so users revoke permission entirely.
+- Not encrypting the payload per the Web Push spec (VAPID + payload encryption), so some push providers reject the request outright.
+
+Apps that ask for notification permission only after a related action (sending a message, say) rather than immediately on entry — and apps that send timed reminders (a check-in reminder, tied to booking a ticket) — both use the same "ask at the moment of relevance" pattern this lesson recommends.
+
 export const quizPushApi = [
   {
     q: 'What does pushManager.subscribe() return?',

@@ -126,6 +126,21 @@ self.addEventListener('fetch', (event) => {
 Once a service worker controls a page, every request goes through its `fetch` handler. If you call `event.respondWith()` but your Promise rejects or returns nothing, the page receives a network error — handle all code paths explicitly.
 </Callout>
 
+## Trade-offs
+
+| Option | Benefit | Cost |
+|---|---|---|
+| Intercept every fetch event and respondWith() yourself | Fine-grained control over the caching strategy for every request | Every request must be handled correctly, or a fetch can hang or error |
+| Let requests fall through to the network normally (no interception) | Simpler code, no risk of caching-logic bugs | No offline benefit or cache speedup at all |
+
+## Common mistakes
+
+- Not calling `event.respondWith()` on some code path, so the browser falls back to the network unintentionally and silently, with no error.
+- Caching the response of a POST/PUT request that should never be cached, breaking the mutation when it is replayed from cache.
+- Not checking `request.mode` or `request.method` before intercepting, so the fetch handler ends up touching requests that should just pass through — a cross-origin analytics call, for example.
+
+Mail and document apps that need to stay usable offline typically split their fetch strategy by request type — static assets get a cache-first strategy, while API/data calls that were already fetched get served from cache as a fallback and synced once the connection returns. This is the same pattern the strategies above implement; which app you have seen do this specifically is less important than applying the split correctly in your own service worker.
+
 export const quizFetchEvent = [
   {
     q: 'What happens if the fetch handler calls event.respondWith() with a Promise that rejects?',
